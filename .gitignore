@@ -4,3 +4,5 @@ bin
 vsvillage.sln
 Releases
 /.vs/*
+Vanilla Ref/
+.vs

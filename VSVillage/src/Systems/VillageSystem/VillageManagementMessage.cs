@@ -1,20 +1,26 @@
-using Vintagestory.API.MathTools;
 using ProtoBuf;
+using Vintagestory.API.MathTools;
 
-namespace VsVillage
+namespace VsVillage;
+
+[ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
+public class VillageManagementMessage
 {
-    [ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
-    public class VillageManagementMessage
-    {
-        public EnumVillageManagementOperation Operation;
-        public string Id;
-        public string Name;
-        public int Radius;
-        public BlockPos Pos;
+	public EnumVillageManagementOperation Operation;
 
-        public long VillagerToRemove;
-        public BlockPos StructureToRemove;
-        public EnumVillagerProfession VillagerProfession;
-        public string VillagerType;
-    }
+	public string Id;
+
+	public string Name;
+
+	public int Radius;
+
+	public BlockPos Pos;
+
+	public long VillagerToRemove;
+
+	public BlockPos StructureToRemove;
+
+	public EnumVillagerProfession VillagerProfession;
+
+	public string VillagerType;
 }

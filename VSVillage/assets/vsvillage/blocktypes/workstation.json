@@ -55,6 +55,13 @@
     "sideopaque": {
         "all": false
     },
+    "collisionboxes": [
+        { "x1": 0.0, "y1": 0.0, "z1": 0.0, "x2": 1.0, "y2": 2.0, "z2": 1.0 }
+    ],
+    "selectionboxes": [
+        { "x1": 0.0, "y1": 0.0, "z1": 0.0, "x2": 1.0, "y2": 1.0, "z2": 1.0 }
+    ],
     "lightAbsorption": 1,
-    "maxStackSize": 8
+    "maxStackSize": 8,
+    "canStep": false
 }

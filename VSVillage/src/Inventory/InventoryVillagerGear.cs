@@ -3,82 +3,93 @@ using System.Collections.Generic;
 using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
 
-namespace VsVillage
+namespace VsVillage;
+
+public class InventoryVillagerGear : InventoryBase
 {
-    public class InventoryVillagerGear : InventoryBase
-    {
+	private ItemSlot[] slots;
 
-        ItemSlot[] slots;
+	private string owningEntity;
 
-        public ItemSlot leftHandSlot { get; set; }
+	public ItemSlot leftHandSlot { get; set; }
 
-        public ItemSlot rightHandSlot { get; set; }
-        string owningEntity;
+	public ItemSlot rightHandSlot { get; set; }
 
+	public override ItemSlot this[int slotId]
+	{
+		get
+		{
+			return slots[slotId];
+		}
+		set
+		{
+			slots[slotId] = value;
+		}
+	}
 
-        public override ItemSlot this[int slotId] { get => slots[slotId]; set => slots[slotId] = value; }
+	public override int Count => slots.Length;
 
-        public override int Count => slots.Length;
-        public InventoryVillagerGear(string owningEntity, string inventoryID, ICoreAPI api) : base(inventoryID, api)
-        {
-            this.owningEntity = owningEntity;
-            leftHandSlot = new ItemSlotUniversal(this);
-            rightHandSlot = new ItemSlotUniversal(this);
+	public InventoryVillagerGear(string owningEntity, string inventoryID, ICoreAPI api)
+		: base(inventoryID, api)
+	{
+		InventoryVillagerGear inventory = this;
+		this.owningEntity = owningEntity;
+		leftHandSlot = new ItemSlotUniversal(this);
+		rightHandSlot = new ItemSlotUniversal(this);
+		List<ItemSlot> list = new List<string>(Enum.GetNames(typeof(VillagerGearType))).ConvertAll((Converter<string, ItemSlot>)((string gearType) => new ItemSlotVillagerGear((VillagerGearType)Enum.Parse(typeof(VillagerGearType), gearType), owningEntity, inventory)));
+		list.Add(rightHandSlot);
+		list.Add(leftHandSlot);
+		slots = list.ToArray();
+	}
 
-            var gearTypes = Enum.GetNames(typeof(VillagerGearType));
-            var slotsAsList = new List<string>(gearTypes)
-                .ConvertAll<ItemSlot>(
-                    gearType => new ItemSlotVillagerGear(
-                        (VillagerGearType)Enum.Parse(typeof(VillagerGearType), gearType), owningEntity, this));
-            slotsAsList.Add(rightHandSlot);
-            slotsAsList.Add(leftHandSlot);
-            slots = slotsAsList.ToArray();
-        }
-        public override void FromTreeAttributes(ITreeAttribute tree)
-        {
-            slots = SlotsFromTreeAttributes(tree, slots);
-            owningEntity = tree.GetString("owningEntity");
-        }
+	public override void FromTreeAttributes(ITreeAttribute tree)
+	{
+		slots = SlotsFromTreeAttributes(tree, slots);
+		owningEntity = tree.GetString("owningEntity");
+	}
 
-        public override void ToTreeAttributes(ITreeAttribute tree)
-        {
-            SlotsToTreeAttributes(slots, tree);
-            tree.SetString("owningEntity", owningEntity);
-        }
-        public override void LateInitialize(string inventoryID, ICoreAPI api)
-        {
-            base.LateInitialize(inventoryID, api);
-            foreach (var slot in slots)
-            {
-                slot.Itemstack?.ResolveBlockOrItem(api.World);
-            }
-        }
+	public override void ToTreeAttributes(ITreeAttribute tree)
+	{
+		SlotsToTreeAttributes(slots, tree);
+		tree.SetString("owningEntity", owningEntity);
+	}
 
-        public override WeightedSlot GetBestSuitedSlot(ItemSlot sourceSlot, ItemStackMoveOperation op, List<ItemSlot> skipSlots = null)
-        {
-            var accessory = sourceSlot?.Itemstack?.Item as ItemVillagerGear;
-            if (accessory != null)
-            {
-                var weightedSlot = new WeightedSlot();
-                weightedSlot.weight = 1;
-                weightedSlot.slot = slots[(int)accessory.type];
-                return weightedSlot;
-            }
-            if (rightHandSlot.Empty)
-            {
-                var weightedSlot = new WeightedSlot();
-                weightedSlot.weight = 1;
-                weightedSlot.slot = rightHandSlot;
-                return weightedSlot;
-            }
-            if (leftHandSlot.Empty)
-            {
-                var weightedSlot = new WeightedSlot();
-                weightedSlot.weight = 0.5f;
-                weightedSlot.slot = leftHandSlot;
-                return weightedSlot;
-            }
-            return base.GetBestSuitedSlot(sourceSlot, op, skipSlots);
-        }
-    }
+	public override void LateInitialize(string inventoryID, ICoreAPI api)
+	{
+		base.LateInitialize(inventoryID, api);
+		ItemSlot[] array = slots;
+		for (int i = 0; i < array.Length; i++)
+		{
+			array[i].Itemstack?.ResolveBlockOrItem(api.World);
+		}
+	}
+
+	public override WeightedSlot GetBestSuitedSlot(ItemSlot sourceSlot, ItemStackMoveOperation op, List<ItemSlot> skipSlots = null)
+	{
+		if (sourceSlot?.Itemstack?.Item is ItemVillagerGear itemVillagerGear)
+		{
+			return new WeightedSlot
+			{
+				weight = 1f,
+				slot = slots[(int)itemVillagerGear.type]
+			};
+		}
+		if (rightHandSlot.Empty)
+		{
+			return new WeightedSlot
+			{
+				weight = 1f,
+				slot = rightHandSlot
+			};
+		}
+		if (leftHandSlot.Empty)
+		{
+			return new WeightedSlot
+			{
+				weight = 0.5f,
+				slot = leftHandSlot
+			};
+		}
+		return base.GetBestSuitedSlot(sourceSlot, op, skipSlots);
+	}
 }

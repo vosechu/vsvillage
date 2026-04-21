@@ -1,194 +1,236 @@
-﻿using System;
 using System.Collections.Generic;
 using Vintagestory.API.Common;
+using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
 
-namespace VsVillage
+namespace VsVillage;
+
+public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 {
-	// Token: 0x02000061 RID: 97
-	public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
+	private BlockEntityTrough nearestTrough;
+
+	private BlockPos lastTroughPos;
+
+	private Dictionary<BlockPos, long> recentlyFilledTroughs;
+
+	private long troughCooldownMs = 60000L;
+
+	public AiTaskVillagerFillTrough(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
+		: base(entity, taskConfig, aiConfig)
 	{
-		// Token: 0x0600024B RID: 587 RVA: 0x000124A0 File Offset: 0x000106A0
-		public AiTaskVillagerFillTrough(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
-			: base(entity, taskConfig, aiConfig)
+		recentlyFilledTroughs = new Dictionary<BlockPos, long>();
+		if (taskConfig["troughCooldownSeconds"] != null)
 		{
-			this.recentlyFilledTroughs = new Dictionary<BlockPos, long>();
-			bool flag = taskConfig["troughCooldownSeconds"] != null;
-			bool flag2 = flag;
-			if (flag2)
+			troughCooldownMs = taskConfig["troughCooldownSeconds"].AsInt(60) * 1000;
+		}
+	}
+
+	protected override Vec3d GetTargetPos()
+	{
+		if (!IsShepherd())
+		{
+			return null;
+		}
+
+		POIRegistry poiReg = entity.Api.ModLoader.GetModSystem<POIRegistry>();
+		Vec3d myPos = ((Entity)entity).ServerPos.XYZ;
+		BlockPos skipPos = lastTroughPos;
+
+		// Prefer EMPTY troughs first (animals need feeding, not topping off)
+		nearestTrough = null;
+		if (skipPos != null)
+		{
+			nearestTrough = poiReg.GetNearestPoi(myPos, maxDistance,
+				poi => poi is BlockEntityTrough bt && !bt.Pos.Equals(skipPos) && isEmptyTrough(poi))
+				as BlockEntityTrough;
+		}
+		if (nearestTrough == null)
+		{
+			nearestTrough = poiReg.GetNearestPoi(myPos, maxDistance, isEmptyTrough) as BlockEntityTrough;
+		}
+
+		// Fall back to any trough that has room (not full)
+		if (nearestTrough == null && skipPos != null)
+		{
+			nearestTrough = poiReg.GetNearestPoi(myPos, maxDistance,
+				poi => poi is BlockEntityTrough bt && !bt.Pos.Equals(skipPos) && isValidTrough(poi))
+				as BlockEntityTrough;
+		}
+		if (nearestTrough == null)
+		{
+			nearestTrough = poiReg.GetNearestPoi(myPos, maxDistance, isValidTrough) as BlockEntityTrough;
+		}
+
+		if (nearestTrough == null)
+		{
+			return null;
+		}
+
+		lastTroughPos = nearestTrough.Pos.Copy();
+		entity.World.Logger.Notification("Shepherd found trough at: " + nearestTrough.Position.ToString());
+		return GetTroughApproachPos(nearestTrough);
+	}
+
+	// Pick the adjacent cell closest to the shepherd that doesn't have a fence post.
+	// This lets the shepherd approach from the accessible side when troughs are placed
+	// against fences, avoiding forced gate traversal.
+	private Vec3d GetTroughApproachPos(BlockEntityTrough trough)
+	{
+		IBlockAccessor ba = entity.World.BlockAccessor;
+		BlockPos troughPos = trough.Pos;
+		Vec3d myPos = ((Entity)entity).ServerPos.XYZ;
+		Vec3d bestPos = null;
+		double bestDist = double.MaxValue;
+
+		foreach (BlockFacing facing in BlockFacing.HORIZONTALS)
+		{
+			BlockPos neighborPos = troughPos.AddCopy(facing.Normali.X, 0, facing.Normali.Z);
+			Block neighborBlock = ba.GetBlock(neighborPos);
+
+			// Skip fence posts (but allow gates — shepherd can open those)
+			if (neighborBlock.Code != null
+				&& neighborBlock.Code.Path.Contains("fence")
+				&& !neighborBlock.Code.Path.Contains("gate"))
 			{
-				this.troughCooldownMs = (long)(taskConfig["troughCooldownSeconds"].AsInt(60) * 1000);
+				continue;
+			}
+
+			// Must have solid ground below and clear head space
+			Block above = ba.GetBlock(neighborPos.UpCopy());
+			Block below = ba.GetBlock(neighborPos.DownCopy());
+			bool headClear = above.CollisionBoxes == null || above.CollisionBoxes.Length == 0;
+			bool groundSolid = below.CollisionBoxes != null && below.CollisionBoxes.Length > 0;
+			if (!headClear || !groundSolid) continue;
+
+			Vec3d candidate = neighborPos.ToVec3d().Add(0.5, 0.0, 0.5);
+			double dist = candidate.SquareDistanceTo(myPos);
+			if (dist < bestDist)
+			{
+				bestDist = dist;
+				bestPos = candidate;
 			}
 		}
 
-		// Token: 0x0600024C RID: 588 RVA: 0x00012504 File Offset: 0x00010704
-		protected override Vec3d GetTargetPos()
-		{
-			bool flag = !this.IsShepherd();
-			bool flag2 = flag;
-			Vec3d vec3d;
-			if (flag2)
-			{
-				vec3d = null;
-			}
-			else
-			{
-				this.nearestTrough = this.entity.Api.ModLoader.GetModSystem<POIRegistry>(true).GetNearestPoi(this.entity.ServerPos.XYZ, base.maxDistance, new PoiMatcher(this.isValidTrough)) as BlockEntityTrough;
-				bool flag3 = this.nearestTrough == null;
-				bool flag4 = flag3;
-				if (flag4)
-				{
-					vec3d = null;
-				}
-				else
-				{
-					this.entity.World.Logger.Notification("Shepherd found trough at: " + this.nearestTrough.Position.ToString());
-					vec3d = this.nearestTrough.Position;
-				}
-			}
-			return vec3d;
-		}
+		// Fallback: target the trough block itself (pathfinder destination special-case handles it)
+		return bestPos ?? trough.Pos.ToVec3d().Add(0.5, 0.5, 0.5);
+	}
 
-		// Token: 0x0600024D RID: 589 RVA: 0x000125D0 File Offset: 0x000107D0
-		protected override void ApplyInteractionEffect()
+	// Check interaction against the actual trough, not the approach waypoint,
+	// so the animation fires from any adjacent cell regardless of approach direction.
+	protected override bool InteractionPossible()
+	{
+		if (nearestTrough == null) return false;
+		Vec3d troughCenter = nearestTrough.Pos.ToVec3d().Add(0.5, 0.5, 0.5);
+		return ((Entity)entity).ServerPos.SquareDistanceTo(troughCenter) < 4.0;
+	}
+
+	private bool isEmptyTrough(IPointOfInterest poi)
+	{
+		if (!(poi is BlockEntityTrough blockEntityTrough) || IsTroughOnCooldown(blockEntityTrough.Pos))
 		{
-			bool flag = !this.IsShepherd();
-			bool flag2 = !flag;
-			if (flag2)
+			return false;
+		}
+		ItemSlot itemSlot = blockEntityTrough.Inventory[0];
+		return itemSlot == null || itemSlot.Empty;
+	}
+
+	protected override void ApplyInteractionEffect()
+	{
+		if (!IsShepherd() || nearestTrough == null)
+		{
+			return;
+		}
+		entity.World.Logger.Notification("Shepherd found trough at: " + nearestTrough.Position.ToString());
+		Item item = (nearestTrough.Inventory[0].Empty ? entity.World.GetItem(new AssetLocation("grain-flax")) : nearestTrough.Inventory[0].Itemstack.Item);
+		entity.World.Logger.Notification("Item to fill: " + ((item != null) ? item.Code.ToString() : "NULL"));
+		if (item == null)
+		{
+			return;
+		}
+		ItemSlot itemSlot = new DummySlot(new ItemStack(item, 16));
+		ContentConfig contentConfig = ItemSlotTrough.getContentConfig(entity.Api.World, nearestTrough.contentConfigs, itemSlot);
+		entity.World.Logger.Notification("ContentConfig: " + ((contentConfig != null) ? "Valid" : "NULL"));
+		if (contentConfig != null)
+		{
+			entity.AnimManager.StartAnimation(new AnimationMetaData
 			{
-				bool flag3 = this.nearestTrough == null;
-				bool flag4 = !flag3;
-				if (flag4)
-				{
-					this.entity.World.Logger.Notification("Shepherd found trough at: " + this.nearestTrough.Position.ToString());
-					Item item = (this.nearestTrough.Inventory[0].Empty ? this.entity.World.GetItem(new AssetLocation("grain-flax")) : this.nearestTrough.Inventory[0].Itemstack.Item);
-					this.entity.World.Logger.Notification("Item to fill: " + ((item != null) ? item.Code.ToString() : "NULL"));
-					bool flag5 = item == null;
-					bool flag6 = !flag5;
-					if (flag6)
-					{
-						ItemSlot itemSlot = new DummySlot(new ItemStack(item, 16));
-						ContentConfig contentConfig = ItemSlotTrough.getContentConfig(this.entity.Api.World, this.nearestTrough.contentConfigs, itemSlot);
-						this.entity.World.Logger.Notification("ContentConfig: " + ((contentConfig != null) ? "Valid" : "NULL"));
-						bool flag7 = contentConfig == null;
-						bool flag8 = !flag7;
-						if (flag8)
-						{
-							this.entity.AnimManager.StartAnimation(new AnimationMetaData
-							{
-								Animation = "hoe-till",
-								Code = "hoe-till",
-								AnimationSpeed = 1f,
-								BlendMode = EnumAnimationBlendMode.Average
-							}.Init());
-							this.entity.World.RegisterCallback(delegate(float dt)
-							{
-								this.PerformFilling(itemSlot, contentConfig);
-							}, 1500);
-						}
-					}
-				}
-			}
-		}
-
-		// Token: 0x0600024E RID: 590 RVA: 0x00003831 File Offset: 0x00001A31
-		public override void FinishExecute(bool cancelled)
-		{
-			this.entity.AnimManager.StopAnimation("hoe-till");
-			base.FinishExecute(cancelled);
-		}
-
-		// Token: 0x0600024F RID: 591 RVA: 0x000127E4 File Offset: 0x000109E4
-		private bool IsShepherd()
-		{
-			return this.entity != null && this.entity.Code != null && this.entity.Code.Path != null && this.entity.Code.Path.EndsWith("-shepherd");
-		}
-
-		// Token: 0x06000250 RID: 592 RVA: 0x00012840 File Offset: 0x00010A40
-		private bool IsTroughOnCooldown(BlockPos pos)
-		{
-			long elapsedMilliseconds = this.entity.World.ElapsedMilliseconds;
-			List<BlockPos> list = new List<BlockPos>();
-			foreach (KeyValuePair<BlockPos, long> keyValuePair in this.recentlyFilledTroughs)
+				Animation = "hoe-till",
+				Code = "hoe-till",
+				AnimationSpeed = 1f,
+				BlendMode = EnumAnimationBlendMode.Average
+			}.Init());
+			entity.World.RegisterCallback(delegate
 			{
-				bool flag = elapsedMilliseconds - keyValuePair.Value > this.troughCooldownMs;
-				bool flag2 = flag;
-				if (flag2)
-				{
-					list.Add(keyValuePair.Key);
-				}
-			}
-			for (int i = 0; i < list.Count; i++)
-			{
-				this.recentlyFilledTroughs.Remove(list[i]);
-			}
-			long num;
-			return this.recentlyFilledTroughs.TryGetValue(pos, out num) && elapsedMilliseconds - num < this.troughCooldownMs;
+				PerformFilling(itemSlot, contentConfig);
+			}, 1500);
 		}
+	}
 
-		// Token: 0x06000251 RID: 593 RVA: 0x00003881 File Offset: 0x00001A81
-		private void MarkTroughFilled(BlockPos pos)
-		{
-			this.recentlyFilledTroughs[pos.Copy()] = this.entity.World.ElapsedMilliseconds;
-		}
+	public override void FinishExecute(bool cancelled)
+	{
+		entity.AnimManager.StopAnimation("hoe-till");
+		base.FinishExecute(cancelled);
+	}
 
-		// Token: 0x06000252 RID: 594 RVA: 0x0001292C File Offset: 0x00010B2C
-		private void PerformFilling(ItemSlot itemSlot, ContentConfig contentConfig)
+	private bool IsShepherd()
+	{
+		return entity != null && entity.Code != null && entity.Code.Path != null && entity.Code.Path.EndsWith("-shepherd");
+	}
+
+	private bool IsTroughOnCooldown(BlockPos pos)
+	{
+		long elapsedMilliseconds = entity.World.ElapsedMilliseconds;
+		List<BlockPos> list = new List<BlockPos>();
+		foreach (KeyValuePair<BlockPos, long> recentlyFilledTrough in recentlyFilledTroughs)
 		{
-			bool flag = this.nearestTrough == null;
-			bool flag2 = !flag;
-			if (flag2)
+			if (elapsedMilliseconds - recentlyFilledTrough.Value > troughCooldownMs)
 			{
-				int num = itemSlot.TryPutInto(this.entity.World, this.nearestTrough.Inventory[0], contentConfig.QuantityPerFillLevel);
-				this.entity.World.Logger.Notification("Amount moved to trough: " + num.ToString());
-				this.nearestTrough.Inventory[0].MarkDirty();
-				this.MarkTroughFilled(this.nearestTrough.Pos);
-				SimpleParticleProperties simpleParticleProperties = new SimpleParticleProperties(10f, 15f, ColorUtil.ToRgba(255, 255, 233, 83), this.nearestTrough.Position.AddCopy(-0.4, 0.8, -0.4), this.nearestTrough.Position.AddCopy(-0.6, 0.8, -0.6), new Vec3f(-0.25f, 0f, -0.25f), new Vec3f(0.25f, 0f, 0.25f), 2f, 1f, 0.2f, 1f, EnumParticleModel.Cube);
-				simpleParticleProperties.MinPos = this.nearestTrough.Position.AddCopy(0.5, 1.0, 0.5);
-				this.entity.World.SpawnParticles(simpleParticleProperties, null);
-				this.entity.AnimManager.StopAnimation("hoe-till");
+				list.Add(recentlyFilledTrough.Key);
 			}
 		}
-
-		// Token: 0x06000253 RID: 595 RVA: 0x00012AE0 File Offset: 0x00010CE0
-		private bool isValidTrough(IPointOfInterest poi)
+		for (int i = 0; i < list.Count; i++)
 		{
-			BlockEntityTrough blockEntityTrough = poi as BlockEntityTrough;
-			bool flag = blockEntityTrough == null || this.IsTroughOnCooldown(blockEntityTrough.Pos);
-			bool flag2 = flag;
-			bool flag3;
-			if (flag2)
-			{
-				flag3 = false;
-			}
-			else
-			{
-				ItemSlot itemSlot = blockEntityTrough.Inventory[0];
-				bool flag4 = itemSlot == null || itemSlot.Empty;
-				bool flag5 = flag4;
-				if (flag5)
-				{
-					flag3 = this.entity.World.Rand.NextDouble() < 0.3;
-				}
-				else
-				{
-					int stackSize = itemSlot.StackSize;
-					int maxStackSize = itemSlot.Itemstack.Collectible.MaxStackSize;
-					flag3 = stackSize < maxStackSize && this.entity.World.Rand.NextDouble() < 0.3;
-				}
-			}
-			return flag3;
+			recentlyFilledTroughs.Remove(list[i]);
 		}
+		long value;
+		return recentlyFilledTroughs.TryGetValue(pos, out value) && elapsedMilliseconds - value < troughCooldownMs;
+	}
 
-		// Token: 0x0400016F RID: 367
-		private BlockEntityTrough nearestTrough;
+	private void MarkTroughFilled(BlockPos pos)
+	{
+		recentlyFilledTroughs[pos.Copy()] = entity.World.ElapsedMilliseconds;
+	}
 
-		// Token: 0x04000170 RID: 368
-		private Dictionary<BlockPos, long> recentlyFilledTroughs;
+	private void PerformFilling(ItemSlot itemSlot, ContentConfig contentConfig)
+	{
+		if (nearestTrough != null)
+		{
+			int num = itemSlot.TryPutInto(entity.World, nearestTrough.Inventory[0], contentConfig.QuantityPerFillLevel);
+			entity.World.Logger.Notification("Amount moved to trough: " + num);
+			nearestTrough.Inventory[0].MarkDirty();
+			MarkTroughFilled(nearestTrough.Pos);
+			SimpleParticleProperties simpleParticleProperties = new SimpleParticleProperties(10f, 15f, ColorUtil.ToRgba(255, 255, 233, 83), nearestTrough.Position.AddCopy(-0.4, 0.8, -0.4), nearestTrough.Position.AddCopy(-0.6, 0.8, -0.6), new Vec3f(-0.25f, 0f, -0.25f), new Vec3f(0.25f, 0f, 0.25f), 2f, 1f, 0.2f);
+			simpleParticleProperties.MinPos = nearestTrough.Position.AddCopy(0.5, 1.0, 0.5);
+			entity.World.SpawnParticles(simpleParticleProperties);
+			entity.AnimManager.StopAnimation("hoe-till");
+		}
+	}
 
-		// Token: 0x04000171 RID: 369
-		private long troughCooldownMs = 60000L;
+	private bool isValidTrough(IPointOfInterest poi)
+	{
+		if (!(poi is BlockEntityTrough blockEntityTrough) || IsTroughOnCooldown(blockEntityTrough.Pos))
+		{
+			return false;
+		}
+		ItemSlot itemSlot = blockEntityTrough.Inventory[0];
+		if (itemSlot == null || itemSlot.Empty)
+		{
+			return true;
+		}
+		int stackSize = itemSlot.StackSize;
+		int maxStackSize = itemSlot.Itemstack.Collectible.MaxStackSize;
+		return stackSize < maxStackSize;
 	}
 }

@@ -1,54 +1,46 @@
-using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 
-namespace VsVillage
+namespace VsVillage;
+
+public class VillageType
 {
-    public class VillageType
-    {
-        [JsonProperty]
-        public string Code;
-        [JsonProperty]
-        public string Names;
+	[JsonProperty]
+	public string Code;
 
-        [JsonProperty]
-        public List<StructureGroup> StructureGroups = new List<StructureGroup>();
-        [JsonProperty]
-        public string StreetCode = "game:packeddirt";
-        [JsonProperty]
-        public string BridgeCode = "game:planks-aged-ns";
+	[JsonProperty]
+	public string Names;
 
-        [JsonProperty]
-        public int Height = 2;
-        [JsonProperty]
-        public int Length = 2;
+	[JsonProperty]
+	public List<StructureGroup> StructureGroups = new List<StructureGroup>();
 
-        [JsonProperty]
-        public int MinTemp = -30;
-        [JsonProperty]
-        public int MaxTemp = 40;
-        [JsonProperty]
-        public float MinRain = 0;
-        [JsonProperty]
-        public float MaxRain = 1;
-        [JsonProperty]
-        public float MinForest = 0;
-        [JsonProperty]
-        public float MaxForest = 1;
-    }
+	[JsonProperty]
+	public string StreetCode = "game:packeddirt";
 
-    public class StructureGroup
-    {
-        [JsonProperty]
-        public string Code;
-        [JsonProperty]
-        public EnumVillageStructureSize Size;
-        [JsonProperty]
-        public int MinStructuresPerVillage;
+	[JsonProperty]
+	public string BridgeCode = "game:planks-aged-ns";
 
-        [JsonProperty]
-        public int MaxStructuresPerVillage;
+	[JsonProperty]
+	public int Height = 2;
 
-        public List<WorldGenVillageStructure> MatchingStructures = new List<WorldGenVillageStructure>();
-    }
+	[JsonProperty]
+	public int Length = 2;
+
+	[JsonProperty]
+	public int MinTemp = -30;
+
+	[JsonProperty]
+	public int MaxTemp = 40;
+
+	[JsonProperty]
+	public float MinRain;
+
+	[JsonProperty]
+	public float MaxRain = 1f;
+
+	[JsonProperty]
+	public float MinForest;
+
+	[JsonProperty]
+	public float MaxForest = 1f;
 }

@@ -1,0 +1,22 @@
+[
+    {
+        "file": "vsvillage:blocktypes/bed",
+        "side": "Server",
+        "op": "add",
+        "path": "/behaviors/-",
+        "value": {
+            "name": "Carryable",
+            "properties": {
+                "interactDelay": 1.0,
+                "translation": [ 0, 0, 0 ],
+                "rotation": [ 0, 0, 0 ],
+                "origin": [ 0.5, 0.5, 0.5 ],
+                "scale": 0.4,
+                "slots": {
+                    "Hands": { "animation": "carryon:holdheavy" }
+                }
+            }
+        },
+        "dependsOn": [ { "modid": "carryon" } ]
+    }
+]

@@ -1,0 +1,53 @@
+{
+    "money": {
+        "avg": 30,
+        "var": 8
+    },
+    "selling": {
+        "maxItems": 12,
+        "list": [
+            { 
+	"code": "game:pickaxehead-copper",
+	"type": "item", 
+	"stacksize": 1, 
+	"stock": { "avg": 3, "var": 1 }, 
+	"price": { "avg": 5,  "var": 1 } },
+            { "code": "game:axehead-copper",           "type": "item", "stacksize": 1, "stock": { "avg": 3, "var": 1 }, "price": { "avg": 5,  "var": 1 } },
+            { "code": "game:shovelhead-copper",        "type": "item", "stacksize": 1, "stock": { "avg": 3, "var": 1 }, "price": { "avg": 5,  "var": 1 } },
+            { "code": "game:hoehead-copper",           "type": "item", "stacksize": 1, "stock": { "avg": 3, "var": 1 }, "price": { "avg": 5,  "var": 1 } },
+            { "code": "game:hammerhead-copper",        "type": "item", "stacksize": 1, "stock": { "avg": 3, "var": 1 }, "price": { "avg": 5,  "var": 1 } },
+            { "code": "game:knifeblade-copper",         "type": "item", "stacksize": 1, "stock": { "avg": 3, "var": 1 }, "price": { "avg": 5,  "var": 1 } },
+
+            { "code": "game:pickaxehead-tinbronze",    "type": "item", "stacksize": 1, "stock": { "avg": 3, "var": 1 }, "price": { "avg": 10, "var": 2 } },
+            { "code": "game:axehead-tinbronze",        "type": "item", "stacksize": 1, "stock": { "avg": 3, "var": 1 }, "price": { "avg": 10, "var": 2 } },
+            { "code": "game:shovelhead-tinbronze",     "type": "item", "stacksize": 1, "stock": { "avg": 3, "var": 1 }, "price": { "avg": 10, "var": 2 } },
+            { "code": "game:hoehead-tinbronze",        "type": "item", "stacksize": 1, "stock": { "avg": 3, "var": 1 }, "price": { "avg": 10, "var": 2 } },
+            { "code": "game:hammerhead-tinbronze",     "type": "item", "stacksize": 1, "stock": { "avg": 3, "var": 1 }, "price": { "avg": 10, "var": 2 } },
+            { "code": "game:knifeblade-tinbronze",      "type": "item", "stacksize": 1, "stock": { "avg": 3, "var": 1 }, "price": { "avg": 10, "var": 2 } },
+
+            { "code": "game:pickaxehead-bismuthbronze","type": "item", "stacksize": 1, "stock": { "avg": 2, "var": 1 }, "price": { "avg": 11, "var": 2 } },
+            { "code": "game:axehead-bismuthbronze",   "type": "item", "stacksize": 1, "stock": { "avg": 2, "var": 1 }, "price": { "avg": 11, "var": 2 } },
+            { "code": "game:shovelhead-bismuthbronze", "type": "item", "stacksize": 1, "stock": { "avg": 2, "var": 1 }, "price": { "avg": 11, "var": 2 } },
+            { "code": "game:hoe-head-bismuthbronze",   "type": "item", "stacksize": 1, "stock": { "avg": 2, "var": 1 }, "price": { "avg": 11, "var": 2 } },
+            { "code": "game:hammerhead-bismuthbronze","type": "item", "stacksize": 1, "stock": { "avg": 2, "var": 1 }, "price": { "avg": 11, "var": 2 } },
+            { "code": "game:knifeblade-bismuthbronze", "type": "item", "stacksize": 1, "stock": { "avg": 2, "var": 1 }, "price": { "avg": 11, "var": 2 } },
+
+            { "code": "game:pickaxehead-iron",         "type": "item", "stacksize": 1, "stock": { "avg": 2, "var": 1 }, "price": { "avg": 20, "var": 3 } },
+            { "code": "game:axehead-iron",             "type": "item", "stacksize": 1, "stock": { "avg": 2, "var": 1 }, "price": { "avg": 20, "var": 3 } },
+            { "code": "game:shovelhead-iron",          "type": "item", "stacksize": 1, "stock": { "avg": 2, "var": 1 }, "price": { "avg": 20, "var": 3 } },
+            { "code": "game:hoehead-iron",             "type": "item", "stacksize": 1, "stock": { "avg": 2, "var": 1 }, "price": { "avg": 20, "var": 3 } },
+            { "code": "game:hammerhead-iron",          "type": "item", "stacksize": 1, "stock": { "avg": 2, "var": 1 }, "price": { "avg": 20, "var": 3 } },
+            { "code": "game:knifeblade-iron",           "type": "item", "stacksize": 1, "stock": { "avg": 2, "var": 1 }, "price": { "avg": 20, "var": 3 } }
+        ]
+    },
+    "buying": {
+        "maxItems": 5,
+        "list": [
+            { "code": "game:ingot-copper",       "type": "item", "stacksize": 4, "stock": { "avg": 16, "var": 4 }, "price": { "avg": 3,  "var": 1 } },
+            { "code": "game:ingot-tinbronze",    "type": "item", "stacksize": 4, "stock": { "avg": 12, "var": 3 }, "price": { "avg": 8,  "var": 1 } },
+            { "code": "game:ingot-bismuthbronze","type": "item", "stacksize": 4, "stock": { "avg": 12, "var": 3 }, "price": { "avg": 9,  "var": 1 } },
+            { "code": "game:ingot-iron",         "type": "item", "stacksize": 4, "stock": { "avg": 12, "var": 3 }, "price": { "avg": 19, "var": 2 } },
+            { "code": "game:ironbloom",          "type": "item", "stacksize": 1, "stock": { "avg": 6,  "var": 2 }, "price": { "avg": 10, "var": 2 } }
+        ]
+    }
+}

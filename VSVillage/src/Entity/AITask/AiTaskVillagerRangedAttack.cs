@@ -5,238 +5,240 @@ using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
 
-namespace VsVillage
+namespace VsVillage;
+
+public class AiTaskVillagerRangedAttack : AiTaskBaseTargetable
 {
-    public class AiTaskVillagerRangedAttack : AiTaskBaseTargetable
-    {
-        int durationMs;
-        int releaseAtMs;
-        long lastSearchTotalMs;
+	private int durationMs;
 
-        float minVertDist = 2f;
-        float minDist = 3f;
-        float maxDist = 15f;
+	private int releaseAtMs;
 
-        protected int searchWaitMs = 7000;
+	private long lastSearchTotalMs;
 
-        float startTimeStamp = 0;
-        bool didThrow;
-        bool didRenderswitch;
+	private float minVertDist = 2f;
 
-        float minTurnAnglePerSec;
-        float maxTurnAnglePerSec;
-        float curTurnRadPerSec;
+	private float minDist = 3f;
 
-        protected EntityProperties projectileType;
-        protected AssetLocation shootingSound = null;
-        protected AssetLocation drawingsound = null;
+	private float maxDist = 15f;
 
-        AnimationMetaData animationRelease = null;
+	protected int searchWaitMs = 7000;
 
-        bool animStarted = false;
-        float damage;
-        public AiTaskVillagerRangedAttack(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig) : base(entity, taskConfig, aiConfig)
-        {
-            durationMs = taskConfig["durationMs"].AsInt(1500);
-            releaseAtMs = taskConfig["releaseAtMs"].AsInt(1000);
-            minDist = taskConfig["minDist"].AsFloat(3f);
-            minVertDist = taskConfig["minVertDist"].AsFloat(2f);
-            maxDist = taskConfig["maxDist"].AsFloat(15f);
+	private float startTimeStamp;
 
-            projectileType = entity.World.GetEntityType(new AssetLocation(taskConfig["projectile"].AsString()));
-            if (taskConfig["drawingsound"].Exists)
-            {
-                drawingsound = new AssetLocation(taskConfig["drawingsound"].AsString());
-            }
-            if (taskConfig["shootingsound"].Exists)
-            {
-                shootingSound = new AssetLocation(taskConfig["shootingsound"].AsString());
-            }
-            if (taskConfig["animationRelase"].Exists)
-            {
-                animationRelease = new AnimationMetaData()
-                {
-                    Animation = taskConfig["animationRelase"].AsString(),
-                    Code = taskConfig["animationRelase"].AsString()
-                }.Init();
-            }
-            damage = taskConfig["damage"].AsFloat(3f);
+	private bool didThrow;
 
-        }
+	private bool didRenderswitch;
 
+	private float minTurnAnglePerSec;
 
-        public override bool ShouldExecute()
-        {
-            if (cooldownUntilMs > entity.World.ElapsedMilliseconds) return false;
-            if (lastSearchTotalMs + searchWaitMs < entity.World.ElapsedMilliseconds && targetEntity?.Alive != true
-                || lastSearchTotalMs + searchWaitMs * 5 < entity.World.ElapsedMilliseconds)
-            {
-                float range = maxDist;
-                lastSearchTotalMs = entity.World.ElapsedMilliseconds;
+	private float maxTurnAnglePerSec;
 
-                targetEntity = partitionUtil.GetNearestInteractableEntity(entity.ServerPos.XYZ, range, (e) => IsTargetableEntity(e, range * 4) && hasDirectContact(e, range * 4, range / 2f));
-            }
-            return targetEntity?.Alive == true;
-        }
+	private float curTurnRadPerSec;
 
-        public override void StartExecute()
-        {
-            if (entity is EntityVillager villager)
-            {
-                //villager?.DrawWeapon();
-                villager.RightHandItemSlot?.Itemstack?.Attributes?.SetInt("renderVariant", 1);
-                villager.RightHandItemSlot.MarkDirty();
-            }
-            startTimeStamp = 0;
-            didThrow = false;
-            didRenderswitch = false;
-            animStarted = false;
+	protected EntityProperties projectileType;
 
-            if (entity?.Properties.Server?.Attributes != null)
-            {
-                ITreeAttribute pathfinder = entity.Properties.Server.Attributes.GetTreeAttribute("pathfinder");
-                if (pathfinder != null)
-                {
-                    minTurnAnglePerSec = pathfinder.GetFloat("minTurnAnglePerSec", 250);
-                    maxTurnAnglePerSec = pathfinder.GetFloat("maxTurnAnglePerSec", 450);
-                }
-            }
-            else
-            {
-                minTurnAnglePerSec = 250;
-                maxTurnAnglePerSec = 450;
-            }
+	protected AssetLocation shootingSound;
 
-            curTurnRadPerSec = minTurnAnglePerSec + (float)entity.World.Rand.NextDouble() * (maxTurnAnglePerSec - minTurnAnglePerSec);
-            curTurnRadPerSec *= GameMath.DEG2RAD * 50 * 0.02f;
-        }
+	protected AssetLocation drawingsound;
 
+	private AnimationMetaData animationRelease;
 
+	private bool animStarted;
 
-        public override bool ContinueExecute(float dt)
-        {
-            Vec3f targetVec = targetEntity.ServerPos.XYZFloat.Sub(entity.ServerPos.XYZFloat);
+	private float damage;
 
-            targetVec.Set(
-                (float)(targetEntity.ServerPos.X - entity.ServerPos.X),
-                (float)(targetEntity.ServerPos.Y - entity.ServerPos.Y),
-                (float)(targetEntity.ServerPos.Z - entity.ServerPos.Z)
-            );
+	public AiTaskVillagerRangedAttack(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
+		: base(entity, taskConfig, aiConfig)
+	{
+		durationMs = taskConfig["durationMs"].AsInt(1500);
+		releaseAtMs = taskConfig["releaseAtMs"].AsInt(1000);
+		minDist = taskConfig["minDist"].AsFloat(3f);
+		minVertDist = taskConfig["minVertDist"].AsFloat(2f);
+		maxDist = taskConfig["maxDist"].AsFloat(15f);
+		projectileType = entity.World.GetEntityType(new AssetLocation(taskConfig["projectile"].AsString()));
+		if (taskConfig["drawingsound"].Exists)
+		{
+			drawingsound = new AssetLocation(taskConfig["drawingsound"].AsString());
+		}
+		if (taskConfig["shootingsound"].Exists)
+		{
+			shootingSound = new AssetLocation(taskConfig["shootingsound"].AsString());
+		}
+		if (taskConfig["animationRelase"].Exists)
+		{
+			animationRelease = new AnimationMetaData
+			{
+				Animation = taskConfig["animationRelase"].AsString(),
+				Code = taskConfig["animationRelase"].AsString()
+			}.Init();
+		}
+		damage = taskConfig["damage"].AsFloat(3f);
+	}
 
-            float desiredYaw = (float)Math.Atan2(targetVec.X, targetVec.Z);
+	public override bool ShouldExecute()
+	{
+		if (cooldownUntilMs > entity.World.ElapsedMilliseconds)
+		{
+			return false;
+		}
+		bool needsSearch = false;
+		if (lastSearchTotalMs + searchWaitMs < entity.World.ElapsedMilliseconds)
+		{
+			Entity obj = targetEntity;
+			if (obj == null || !obj.Alive)
+			{
+				needsSearch = true;
+			}
+		}
+		if (lastSearchTotalMs + searchWaitMs * 5 < entity.World.ElapsedMilliseconds)
+		{
+			needsSearch = true;
+		}
+		if (needsSearch)
+		{
+			float range = maxDist;
+			lastSearchTotalMs = entity.World.ElapsedMilliseconds;
+			targetEntity = partitionUtil.GetNearestInteractableEntity(((Entity)entity).ServerPos.XYZ, range, (Entity e) => base.IsTargetableEntity(e, range * 4f, false) && hasDirectContact(e, range * 4f, range / 2f));
+		}
+		return targetEntity?.Alive ?? false;
+	}
 
-            float yawDist = GameMath.AngleRadDistance(entity.ServerPos.Yaw, desiredYaw);
-            entity.ServerPos.Yaw += GameMath.Clamp(yawDist, -curTurnRadPerSec * dt, curTurnRadPerSec * dt);
-            entity.ServerPos.Yaw = entity.ServerPos.Yaw % GameMath.TWOPI;
+	public override void StartExecute()
+	{
+		if (entity is EntityVillager entityVillager)
+		{
+			entityVillager.RightHandItemSlot?.Itemstack?.Attributes?.SetInt("renderVariant", 1);
+			entityVillager.RightHandItemSlot.MarkDirty();
+		}
+		startTimeStamp = 0f;
+		didThrow = false;
+		didRenderswitch = false;
+		animStarted = false;
+		if (entity?.Properties.Server?.Attributes != null)
+		{
+			ITreeAttribute treeAttribute = entity.Properties.Server.Attributes.GetTreeAttribute("pathfinder");
+			if (treeAttribute != null)
+			{
+				minTurnAnglePerSec = treeAttribute.GetFloat("minTurnAnglePerSec", 250f);
+				maxTurnAnglePerSec = treeAttribute.GetFloat("maxTurnAnglePerSec", 450f);
+			}
+		}
+		else
+		{
+			minTurnAnglePerSec = 250f;
+			maxTurnAnglePerSec = 450f;
+		}
+		curTurnRadPerSec = minTurnAnglePerSec + (float)entity.World.Rand.NextDouble() * (maxTurnAnglePerSec - minTurnAnglePerSec);
+		curTurnRadPerSec *= (float)Math.PI / 180f;
+	}
 
-            if (Math.Abs(yawDist) > 0.02) return true;
+	public override bool ContinueExecute(float dt)
+	{
+Vec3f vec3f = targetEntity.ServerPos.XYZFloat.Sub(((Entity)entity).ServerPos.XYZFloat);
+		vec3f.Set((float)(targetEntity.ServerPos.X - ((Entity)entity).ServerPos.X), (float)(targetEntity.ServerPos.Y - ((Entity)entity).ServerPos.Y), (float)(targetEntity.ServerPos.Z - ((Entity)entity).ServerPos.Z));
+		float end = (float)Math.Atan2(vec3f.X, vec3f.Z);
+		float num = GameMath.AngleRadDistance(((Entity)entity).ServerPos.Yaw, end);
+		((Entity)entity).ServerPos.Yaw += GameMath.Clamp(num, (0f - curTurnRadPerSec) * dt, curTurnRadPerSec * dt);
+		((Entity)entity).ServerPos.Yaw = ((Entity)entity).ServerPos.Yaw % ((float)Math.PI * 2f);
+		if ((double)Math.Abs(num) > 0.02)
+		{
+			return true;
+		}
+		if (animMeta != null && !animStarted)
+		{
+			animStarted = true;
+			animMeta.EaseInSpeed = 1f;
+			animMeta.EaseOutSpeed = 1f;
+			entity.AnimManager.StartAnimation(animMeta);
+			if (drawingsound != null)
+			{
+				entity.World.PlaySoundAt(drawingsound, entity, null, randomizePitch: false);
+			}
+		}
+		startTimeStamp += dt;
+		if (entity is EntityVillager && !didRenderswitch && startTimeStamp > (float)releaseAtMs / 2000f)
+		{
+			entity.RightHandItemSlot?.Itemstack?.Attributes?.SetInt("renderVariant", 3);
+			entity.RightHandItemSlot.MarkDirty();
+			didRenderswitch = true;
+		}
+		if (startTimeStamp > (float)releaseAtMs / 1000f && !didThrow && !entityInTheWay())
+		{
+			didThrow = true;
+			EntityProjectile val = (EntityProjectile)entity.World.ClassRegistry.CreateEntity(projectileType);
+			val.FiredBy = entity;
+			val.Damage = damage;
+			val.ProjectileStack = new ItemStack();
+			val.DropOnImpactChance = 0f;
+			val.World = entity.World;
+			Vec3d vec3d = ((Entity)entity).ServerPos.AheadCopy(0.5).XYZ.AddCopy(0.0, entity.LocalEyePos.Y, 0.0);
+			Vec3d vec3d2 = targetEntity.ServerPos.XYZ.AddCopy(0.0, targetEntity.LocalEyePos.Y, 0.0);
+			double num2 = Math.Pow(vec3d.SquareDistanceTo(vec3d2), 0.1);
+			Vec3d pos = (vec3d2 - vec3d + new Vec3d(0.0, vec3d.DistanceTo(vec3d2) / 16f, 0.0)).Normalize() * GameMath.Clamp(num2 - 1.0, 0.10000000149011612, 1.0);
+			val.ServerPos.SetPos(((Entity)entity).ServerPos.AheadCopy(0.5).XYZ.Add(0.0, entity.LocalEyePos.Y, 0.0));
+			val.ServerPos.Motion.Set(pos);
+			val.Pos.SetFrom(val.ServerPos);
+			val.SetRotation();
+			entity.World.SpawnEntity(val);
+			if (shootingSound != null)
+			{
+				entity.World.PlaySoundAt(shootingSound, entity, null, randomizePitch: false);
+			}
+			if (animationRelease != null)
+			{
+				animationRelease.EaseInSpeed = 1f;
+				animationRelease.EaseOutSpeed = 1f;
+				entity.AnimManager.StartAnimation(animationRelease);
+			}
+		}
+		return startTimeStamp < (float)durationMs / 1000f;
+	}
 
-            if (animMeta != null && !animStarted)
-            {
-                animStarted = true;
-                animMeta.EaseInSpeed = 1f;
-                animMeta.EaseOutSpeed = 1f;
-                entity.AnimManager.StartAnimation(animMeta);
-                if (drawingsound != null)
-                {
-                    entity.World.PlaySoundAt(drawingsound, entity, null, false);
-                }
-            }
+	private bool entityInTheWay()
+	{
+		EntitySelection entitySelection = new EntitySelection();
+		BlockSelection blockSelection = new BlockSelection();
+		entity.World.RayTraceForSelection(((Entity)entity).ServerPos.XYZ.AddCopy(entity.LocalEyePos), targetEntity.ServerPos.XYZ.AddCopy(targetEntity.LocalEyePos), ref blockSelection, ref entitySelection);
+		return entitySelection?.Entity != targetEntity;
+	}
 
-            startTimeStamp += dt;
+	public override void FinishExecute(bool cancelled)
+	{
+		base.FinishExecute(cancelled);
+		if (entity is EntityVillager)
+		{
+			entity.RightHandItemSlot?.Itemstack?.Attributes?.SetInt("renderVariant", 0);
+			entity.RightHandItemSlot.MarkDirty();
+		}
+	}
 
-            if (entity is EntityVillager && !didRenderswitch && startTimeStamp > releaseAtMs / 2000f)
-            {
-                entity.RightHandItemSlot?.Itemstack?.Attributes?.SetInt("renderVariant", 3);
-                entity.RightHandItemSlot.MarkDirty();
-                didRenderswitch = true;
-            }
+	public override void OnEntityHurt(DamageSource source, float damage)
+	{
+		Entity causeEntity = source.CauseEntity;
+		if (causeEntity == null || !causeEntity.HasBehavior<EntityBehaviorVillager>())
+		{
+			Entity sourceEntity = source.SourceEntity;
+			if (sourceEntity == null || !sourceEntity.HasBehavior<EntityBehaviorVillager>())
+			{
+				base.OnEntityHurt(source, damage);
+			}
+		}
+	}
 
-            if (startTimeStamp > releaseAtMs / 1000f && !didThrow && !entityInTheWay())
-            {
-                didThrow = true;
+	public override bool IsTargetableEntity(Entity e, float range, bool ignoreEntityCode = false)
+	{
+		if (e == attackedByEntity && e != null && e.Alive)
+		{
+			return true;
+		}
+		return base.IsTargetableEntity(e, range, ignoreEntityCode);
+	}
 
-                EntityProjectile projectile = (EntityProjectile)entity.World.ClassRegistry.CreateEntity(projectileType);
-                projectile.FiredBy = entity;
-                projectile.Damage = damage;
-                projectile.ProjectileStack = new ItemStack();
-                projectile.DropOnImpactChance = 0;
-                projectile.World = entity.World;
-
-                Vec3d pos = entity.ServerPos.AheadCopy(0.5).XYZ.AddCopy(0, entity.LocalEyePos.Y, 0);
-                Vec3d aheadPos = targetEntity.ServerPos.XYZ.AddCopy(0, targetEntity.LocalEyePos.Y, 0);
-
-                double distf = Math.Pow(pos.SquareDistanceTo(aheadPos), 0.1);
-                Vec3d velocity = (aheadPos - pos + new Vec3d(0, pos.DistanceTo(aheadPos) / 16, 0)).Normalize() * GameMath.Clamp(distf - 1f, 0.1f, 1f);
-
-                projectile.ServerPos.SetPos(
-                    entity.ServerPos.AheadCopy(0.5).XYZ.Add(0, entity.LocalEyePos.Y, 0)
-                );
-
-                projectile.ServerPos.Motion.Set(velocity);
-                projectile.Pos.SetFrom(projectile.ServerPos);
-                projectile.SetRotation();
-
-
-                entity.World.SpawnEntity(projectile);
-
-                if (shootingSound != null)
-                {
-                    entity.World.PlaySoundAt(shootingSound, entity, null, false);
-                }
-                if (animationRelease != null)
-                {
-                    animationRelease.EaseInSpeed = 1f;
-                    animationRelease.EaseOutSpeed = 1f;
-                    entity.AnimManager.StartAnimation(animationRelease);
-                }
-            }
-
-            return startTimeStamp < durationMs / 1000f;
-        }
-
-        private bool entityInTheWay()
-        {
-            var entitySel = new EntitySelection();
-            var blockSel = new BlockSelection();
-            entity.World.RayTraceForSelection(entity.ServerPos.XYZ.AddCopy(entity.LocalEyePos), targetEntity.ServerPos.XYZ.AddCopy(targetEntity.LocalEyePos), ref blockSel, ref entitySel);
-            return entitySel?.Entity != targetEntity;
-        }
-
-        public override void FinishExecute(bool cancelled)
-        {
-            base.FinishExecute(cancelled);
-            if (entity is EntityVillager)
-            {
-                entity.RightHandItemSlot?.Itemstack?.Attributes?.SetInt("renderVariant", 0);
-                entity.RightHandItemSlot.MarkDirty();
-            }
-        }
-
-        public override void OnEntityHurt(DamageSource source, float damage)
-        {
-            if (source.CauseEntity?.HasBehavior<EntityBehaviorVillager>() == true ||
-                source.SourceEntity?.HasBehavior<EntityBehaviorVillager>() == true)
-            {
-                return;
-            }
-            base.OnEntityHurt(source, damage);
-        }
-
-
-
-        public override bool IsTargetableEntity(Entity e, float range, bool ignoreEntityCode = false)
-        {
-            if (e == attackedByEntity && e?.Alive == true) { return true; }
-            return base.IsTargetableEntity(e, range, ignoreEntityCode);
-        }
-
-        public void OnAllyAttacked(Entity byEntity)
-        {
-            if (targetEntity == null || !targetEntity.Alive)
-            {
-                targetEntity = byEntity;
-            }
-        }
-    }
+	public void OnAllyAttacked(Entity byEntity)
+	{
+		if (targetEntity == null || !targetEntity.Alive)
+		{
+			targetEntity = byEntity;
+		}
+	}
 }

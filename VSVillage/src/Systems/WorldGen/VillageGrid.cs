@@ -1,501 +1,495 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using Microsoft.Win32.SafeHandles;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
 
-namespace VsVillage
+namespace VsVillage;
+
+public class VillageGrid
 {
-    public class VillageGrid
-    {
-        public const int pathWidth = 2;
-        public const int squareSize = 7;
+	public const int pathWidth = 2;
 
-        public EnumgGridSlot[,] grid;
+	public const int squareSize = 7;
 
-        public List<StructureWithOrientation> structures = new List<StructureWithOrientation>();
+	public EnumgGridSlot[,] grid;
 
-        public int capacity;
+	public List<StructureWithOrientation> structures = new List<StructureWithOrientation>();
 
-        public readonly int width;
-        public readonly int height;
+	public int capacity;
 
-        public int avgheight;
-        public VillageType VillageType;
+	public readonly int width;
 
-        public VillageGrid(int width = 1, int height = 1)
-        {
-            this.width = width * 8 + 1;
-            this.height = height * 8 + 1;
-            this.capacity = (this.width / 2) * (this.height / 2);
-        }
+	public readonly int height;
 
-        public void Init(VillageType type, LCGRandom rand, ICoreAPI api)
-        {
-            grid = new EnumgGridSlot[this.width, this.height];
-            for (int i = 0; i < this.width; i++)
-            {
-                for (int k = 0; k < this.height; k++)
-                {
-                    grid[i, k] = EnumgGridSlot.EMPTY;
-                }
-            }
+	public int avgheight;
 
-            VillageType = type;
-            foreach (var group in type.StructureGroups)
-            {
-                if (group.MatchingStructures.Count == 0)
-                {
-                    api.Logger.Error("Could not find any matching structures for group {0}!", group.Code);
-                    continue;
-                }
-                int range = Math.Max(1, group.MaxStructuresPerVillage + 1 - group.MinStructuresPerVillage);
-                int num = rand.NextInt(range) + group.MinStructuresPerVillage;
-                for (int i = 0; i < num; i++)
-                {
-                    tryAddStructure(group.MatchingStructures[rand.NextInt(group.MatchingStructures.Count)], rand);
-                }
-            }
-        }
+	public VillageType VillageType;
 
-        public bool BigSlotAvailable(int x, int y)
-        {
-            return grid[x * 8 + 1, y * 8 + 1] == EnumgGridSlot.EMPTY;
-        }
+	public VillageGrid(int width = 1, int height = 1)
+	{
+		this.width = width * 8 + 1;
+		this.height = height * 8 + 1;
+		capacity = this.width / 2 * (this.height / 2);
+	}
 
-        public bool MediumSlotAvailable(int x, int y)
-        {
-            return grid[x * 4 + 1, y * 4 + 1] == EnumgGridSlot.EMPTY;
-        }
+	public void Init(VillageType type, LCGRandom rand, ICoreAPI api)
+	{
+		grid = new EnumgGridSlot[width, height];
+		for (int i = 0; i < width; i++)
+		{
+			for (int j = 0; j < height; j++)
+			{
+				grid[i, j] = EnumgGridSlot.EMPTY;
+			}
+		}
+		VillageType = type;
+		foreach (StructureGroup structureGroup in type.StructureGroups)
+		{
+			if (structureGroup.MatchingStructures.Count == 0)
+			{
+				api.Logger.Error("Could not find any matching structures for group {0}!", structureGroup.Code);
+				continue;
+			}
+			int num = rand.NextInt(structureGroup.MaxStructuresPerVillage + 1 - structureGroup.MinStructuresPerVillage) + structureGroup.MinStructuresPerVillage;
+			for (int k = 0; k < num; k++)
+			{
+				tryAddStructure(structureGroup.MatchingStructures[rand.NextInt(structureGroup.MatchingStructures.Count)], rand);
+			}
+		}
+	}
 
-        public bool SmallSlotAvailable(int x, int y)
-        {
-            return grid[x * 2 + 1, y * 2 + 1] == EnumgGridSlot.EMPTY;
-        }
+	public bool BigSlotAvailable(int x, int y)
+	{
+		return grid[x * 8 + 1, y * 8 + 1] == EnumgGridSlot.EMPTY;
+	}
 
-        public void AddBigStructure(WorldGenVillageStructure structure, int x, int y, int orientation)
-        {
-            capacity -= 16;
-            structures.Add(new StructureWithOrientation()
-            {
-                structure = structure,
-                orientation = orientation,
-                gridCoords = new Vec2i(x * 8 + 1, y * 8 + 1)
-            });
-            for (int i = 0; i < 7; i++)
-            {
-                for (int k = 0; k < 7; k++)
-                {
-                    grid[x * 8 + 1 + i, y * 8 + 1 + k] = EnumgGridSlot.STRUCTURE;
-                }
-            }
-            switch (orientation)
-            {
-                case 0:
-                    grid[x * 8 + 4, y * 8 + 8] = EnumgGridSlot.STREET;
-                    break;
-                case 1:
-                    grid[x * 8 + 8, y * 8 + 4] = EnumgGridSlot.STREET;
-                    break;
-                case 2:
-                    grid[x * 8 + 4, y * 8] = EnumgGridSlot.STREET;
-                    break;
-                case 3:
-                    grid[x * 8, y * 8 + 4] = EnumgGridSlot.STREET;
-                    break;
-            }
-        }
+	public bool MediumSlotAvailable(int x, int y)
+	{
+		return grid[x * 4 + 1, y * 4 + 1] == EnumgGridSlot.EMPTY;
+	}
 
-        public void AddMediumStructure(WorldGenVillageStructure structure, int x, int y, int orientation)
-        {
-            capacity -= 4;
-            structures.Add(new StructureWithOrientation()
-            {
-                structure = structure,
-                orientation = orientation,
-                gridCoords = new Vec2i(x * 4 + 1, y * 4 + 1)
-            });
-            for (int i = 0; i < 3; i++)
-            {
-                for (int k = 0; k < 3; k++)
-                {
-                    grid[x * 4 + 1 + i, y * 4 + 1 + k] = EnumgGridSlot.STRUCTURE;
-                }
-            }
-            switch (orientation)
-            {
-                case 0:
-                    grid[x * 4 + 2, y * 4 + 4] = EnumgGridSlot.STREET;
-                    break;
-                case 1:
-                    grid[x * 4 + 4, y * 4 + 2] = EnumgGridSlot.STREET;
-                    break;
-                case 2:
-                    grid[x * 4 + 2, y * 4] = EnumgGridSlot.STREET;
-                    break;
-                case 3:
-                    grid[x * 4, y * 4 + 2] = EnumgGridSlot.STREET;
-                    break;
-            }
-        }
+	public bool SmallSlotAvailable(int x, int y)
+	{
+		return grid[x * 2 + 1, y * 2 + 1] == EnumgGridSlot.EMPTY;
+	}
 
-        public void AddSmallStructure(WorldGenVillageStructure structure, int x, int y, int orientation)
-        {
-            capacity -= 1;
-            structures.Add(new StructureWithOrientation()
-            {
-                structure = structure,
-                orientation = orientation,
-                gridCoords = new Vec2i(x * 2 + 1, y * 2 + 1)
-            });
-            grid[x * 2 + 1, y * 2 + 1] = EnumgGridSlot.STRUCTURE;
-            switch (orientation)
-            {
-                case 0:
-                    grid[x * 2 + 1, y * 2 + 2] = EnumgGridSlot.STREET;
-                    break;
-                case 1:
-                    grid[x * 2 + 2, y * 2 + 1] = EnumgGridSlot.STREET;
-                    break;
-                case 2:
-                    grid[x * 2 + 1, y * 2] = EnumgGridSlot.STREET;
-                    break;
-                case 3:
-                    grid[x * 2, y * 2 + 1] = EnumgGridSlot.STREET;
-                    break;
-            }
-        }
+	public void AddBigStructure(WorldGenVillageStructure structure, int x, int y, int orientation)
+	{
+		capacity -= 16;
+		structures.Add(new StructureWithOrientation
+		{
+			structure = structure,
+			orientation = orientation,
+			gridCoords = new Vec2i(x * 8 + 1, y * 8 + 1)
+		});
+		for (int i = 0; i < 7; i++)
+		{
+			for (int j = 0; j < 7; j++)
+			{
+				grid[x * 8 + 1 + i, y * 8 + 1 + j] = EnumgGridSlot.STRUCTURE;
+			}
+		}
+		switch (orientation)
+		{
+		case 0:
+			grid[x * 8 + 4, y * 8 + 8] = EnumgGridSlot.STREET;
+			break;
+		case 1:
+			grid[x * 8 + 8, y * 8 + 4] = EnumgGridSlot.STREET;
+			break;
+		case 2:
+			grid[x * 8 + 4, y * 8] = EnumgGridSlot.STREET;
+			break;
+		case 3:
+			grid[x * 8, y * 8 + 4] = EnumgGridSlot.STREET;
+			break;
+		}
+	}
 
-        //always go from biggest to smallest structure, otherwise this might break
-        public bool tryAddStructure(WorldGenVillageStructure structure, LCGRandom random)
-        {
-            int num = random.NextInt(4);
-            switch (structure.Size)
-            {
-                case EnumVillageStructureSize.SMALL:
-                    {
-                        if (this.capacity < 1)
-                        {
-                            return false;
-                        }
-                        List<Vec2i> list = new List<Vec2i>();
-                        for (int i = 0; i < this.width / 2; i++)
-                        {
-                            for (int j = 0; j < this.height / 2; j++)
-                            {
-                                if (this.SmallSlotAvailable(i, j))
-                                {
-                                    list.Add(new Vec2i(i, j));
-                                }
-                            }
-                        }
-                        if (list.Count == 0) return false;
-                        Vec2i vec2i = list[random.NextInt(list.Count)];
-                        this.AddSmallStructure(structure, vec2i.X, vec2i.Y, num);
-                        return true;
-                    }
-                case EnumVillageStructureSize.MEDIUM:
-                    {
-                        if (this.capacity < 4)
-                        {
-                            return false;
-                        }
-                        List<Vec2i> list2 = new List<Vec2i>();
-                        for (int k = 0; k < this.width / 4; k++)
-                        {
-                            for (int l = 0; l < this.height / 4; l++)
-                            {
-                                if (this.MediumSlotAvailable(k, l))
-                                {
-                                    list2.Add(new Vec2i(k, l));
-                                }
-                            }
-                        }
-                        if (list2.Count == 0) return false;
-                        Vec2i vec2i2 = list2[random.NextInt(list2.Count)];
-                        this.AddMediumStructure(structure, vec2i2.X, vec2i2.Y, num);
-                        return true;
-                    }
-                case EnumVillageStructureSize.LARGE:
-                    {
-                        if (this.capacity < 16)
-                        {
-                            return false;
-                        }
-                        List<Vec2i> list3 = new List<Vec2i>();
-                        for (int m = 0; m < this.width / 8; m++)
-                        {
-                            for (int n = 0; n < this.height / 8; n++)
-                            {
-                                if (this.BigSlotAvailable(m, n))
-                                {
-                                    list3.Add(new Vec2i(m, n));
-                                }
-                            }
-                        }
-                        if (list3.Count == 0) return false;
-                        Vec2i vec2i3 = list3[random.NextInt(list3.Count)];
-                        this.AddBigStructure(structure, vec2i3.X, vec2i3.Y, num);
-                        return true;
-                    }
-                default:
-                    return false;
-            }
-        }
+	public void AddMediumStructure(WorldGenVillageStructure structure, int x, int y, int orientation)
+	{
+		capacity -= 4;
+		structures.Add(new StructureWithOrientation
+		{
+			structure = structure,
+			orientation = orientation,
+			gridCoords = new Vec2i(x * 4 + 1, y * 4 + 1)
+		});
+		for (int i = 0; i < 3; i++)
+		{
+			for (int j = 0; j < 3; j++)
+			{
+				grid[x * 4 + 1 + i, y * 4 + 1 + j] = EnumgGridSlot.STRUCTURE;
+			}
+		}
+		switch (orientation)
+		{
+		case 0:
+			grid[x * 4 + 2, y * 4 + 4] = EnumgGridSlot.STREET;
+			break;
+		case 1:
+			grid[x * 4 + 4, y * 4 + 2] = EnumgGridSlot.STREET;
+			break;
+		case 2:
+			grid[x * 4 + 2, y * 4] = EnumgGridSlot.STREET;
+			break;
+		case 3:
+			grid[x * 4, y * 4 + 2] = EnumgGridSlot.STREET;
+			break;
+		}
+	}
 
-        public BlockPos getEnd(BlockPos start)
-        {
-            var end = GridCoordsToMapCoords(width, height);
-            return start.AddCopy(end.X + 3, 20, end.Y + 3);
-        }
+	public void AddSmallStructure(WorldGenVillageStructure structure, int x, int y, int orientation)
+	{
+		capacity--;
+		structures.Add(new StructureWithOrientation
+		{
+			structure = structure,
+			orientation = orientation,
+			gridCoords = new Vec2i(x * 2 + 1, y * 2 + 1)
+		});
+		grid[x * 2 + 1, y * 2 + 1] = EnumgGridSlot.STRUCTURE;
+		switch (orientation)
+		{
+		case 0:
+			grid[x * 2 + 1, y * 2 + 2] = EnumgGridSlot.STREET;
+			break;
+		case 1:
+			grid[x * 2 + 2, y * 2 + 1] = EnumgGridSlot.STREET;
+			break;
+		case 2:
+			grid[x * 2 + 1, y * 2] = EnumgGridSlot.STREET;
+			break;
+		case 3:
+			grid[x * 2, y * 2 + 1] = EnumgGridSlot.STREET;
+			break;
+		}
+	}
 
-        public BlockPos getMiddle(BlockPos start)
-        {
-            var end = GridCoordsToMapCoords(width, height);
-            return start.AddCopy((end.X + 3) / 2, 20, (end.Y + 3) / 2);
-        }
+	public bool tryAddStructure(WorldGenVillageStructure structure, LCGRandom random)
+	{
+		int orientation = random.NextInt(4);
+		switch (structure.Size)
+		{
+		case EnumVillageStructureSize.LARGE:
+		{
+			if (capacity < 16)
+			{
+				return false;
+			}
+			List<Vec2i> list3 = new List<Vec2i>();
+			for (int m = 0; m < width / 8; m++)
+			{
+				for (int n = 0; n < height / 8; n++)
+				{
+					if (BigSlotAvailable(m, n))
+					{
+						list3.Add(new Vec2i(m, n));
+					}
+				}
+			}
+			Vec2i vec2i3 = list3[random.NextInt(list3.Count)];
+			AddBigStructure(structure, vec2i3.X, vec2i3.Y, orientation);
+			return true;
+		}
+		case EnumVillageStructureSize.MEDIUM:
+		{
+			if (capacity < 4)
+			{
+				return false;
+			}
+			List<Vec2i> list2 = new List<Vec2i>();
+			for (int k = 0; k < width / 4; k++)
+			{
+				for (int l = 0; l < height / 4; l++)
+				{
+					if (MediumSlotAvailable(k, l))
+					{
+						list2.Add(new Vec2i(k, l));
+					}
+				}
+			}
+			Vec2i vec2i2 = list2[random.NextInt(list2.Count)];
+			AddMediumStructure(structure, vec2i2.X, vec2i2.Y, orientation);
+			return true;
+		}
+		case EnumVillageStructureSize.SMALL:
+		{
+			if (capacity < 1)
+			{
+				return false;
+			}
+			List<Vec2i> list = new List<Vec2i>();
+			for (int i = 0; i < width / 2; i++)
+			{
+				for (int j = 0; j < height / 2; j++)
+				{
+					if (SmallSlotAvailable(i, j))
+					{
+						list.Add(new Vec2i(i, j));
+					}
+				}
+			}
+			Vec2i vec2i = list[random.NextInt(list.Count)];
+			AddSmallStructure(structure, vec2i.X, vec2i.Y, orientation);
+			return true;
+		}
+		default:
+			return false;
+		}
+	}
 
-        public void connectStreets()
-        {
-            var connectedStreets = new List<Vec2i>();
-            int currentX = 0;
-            int currentY = 0;
-            int offsetX = 0;
-            int offsetY = 0;
-            bool rightEdge = false;
-            for (int i = 0; i < width * height; i++)
-            {
-                if (grid[currentX, currentY] == EnumgGridSlot.STREET)
-                {
-                    addStreedToGrid(connectedStreets, new Vec2i(currentX, currentY));
-                }
-                currentX--;
-                currentY++;
-                if (currentX < 0 || currentY >= height)
-                {
-                    offsetX = rightEdge ? width - 1 : offsetX + 1;
-                    offsetY = rightEdge ? offsetY + 1 : offsetY;
-                    rightEdge |= offsetX >= width - 1;
-                    currentX = offsetX;
-                    currentY = offsetY;
-                }
-            }
-        }
+	public BlockPos getEnd(BlockPos start)
+	{
+		Vec2i vec2i = GridCoordsToMapCoords(width, height);
+		return start.AddCopy(vec2i.X + 3, 20, vec2i.Y + 3);
+	}
 
-        private void addStreedToGrid(List<Vec2i> connectedStreets, Vec2i newStreet)
-        {
-            if (connectedStreets.Count == 0)
-            {
-                connectedStreets.Add(newStreet);
-            }
-            else
-            {
-                // get closest street
-                var nearest = connectedStreets[0];
-                var nearestDistance = Math.Abs(newStreet.X - nearest.X) + Math.Abs(newStreet.Y - nearest.Y);
-                foreach (var candidate in connectedStreets)
-                {
-                    var candidateDistance = Math.Abs(newStreet.X - candidate.X) + Math.Abs(newStreet.Y - candidate.Y);
-                    if (candidateDistance < nearestDistance)
-                    {
-                        nearest = candidate;
-                        nearestDistance = candidateDistance;
-                    }
-                }
-                // conntect streets
-                int currentX = nearest.X;
-                int currentY = nearest.Y;
-                bool canWalkY;
-                bool canWalkX;
-                bool canWalkTowards = true;
-                int directionX = Math.Sign(newStreet.X - currentX + 0.5f);
-                int directionY = Math.Sign(newStreet.Y - currentY + 0.5f);
-                bool? goHorizontal = null;
-                while (Math.Abs(newStreet.X - currentX) + Math.Abs(newStreet.Y - currentY) > 1)
-                {
-                    canWalkX = currentY % 2 == 0 && inWidthBounds(currentX + directionX) && grid[currentX + directionX, currentY] != EnumgGridSlot.STRUCTURE;
-                    canWalkY = currentX % 2 == 0 && inHeightBounds(currentY + directionY) && grid[currentX, currentY + directionY] != EnumgGridSlot.STRUCTURE;
-                    canWalkTowards &= canWalkX && (newStreet.X - currentX) * directionX > 0 || canWalkY && (newStreet.Y - currentY) * directionY > 0;
-                    if (!canWalkTowards)
-                    {
-                        if (goHorizontal == null)
-                        {
-                            goHorizontal = canWalkX;
-                        }
+	public BlockPos getMiddle(BlockPos start)
+	{
+		Vec2i vec2i = GridCoordsToMapCoords(width, height);
+		return start.AddCopy((vec2i.X + 3) / 2, 20, (vec2i.Y + 3) / 2);
+	}
 
-                        if (canWalkY && goHorizontal == true || canWalkX && goHorizontal == false)
-                        {
-                            if (goHorizontal == true) { currentY += directionY; }
-                            else { currentX += directionX; }
-                            goHorizontal = null;
-                            canWalkTowards = true;
-                            directionX = Math.Sign(newStreet.X - currentX + 0.5f);
-                            directionY = Math.Sign(newStreet.Y - currentY + 0.5f);
-                        }
-                        else if (goHorizontal == true) { currentX += directionX; }
-                        else { currentY += directionY; }
-                    }
-                    else if (canWalkX && Math.Abs(newStreet.X - currentX) >= Math.Abs(newStreet.Y - currentY) || !canWalkY)
-                    {
-                        currentX += directionX;
-                    }
-                    else if (canWalkY)
-                    {
-                        currentY += directionY;
-                    }
-                    grid[currentX, currentY] = EnumgGridSlot.STREET;
-                    connectedStreets.Add(new Vec2i(currentX, currentY));
-                }
-            }
-        }
+	public void connectStreets()
+	{
+		List<Vec2i> connectedStreets = new List<Vec2i>();
+		int num = 0;
+		int num2 = 0;
+		int num3 = 0;
+		int num4 = 0;
+		bool flag = false;
+		for (int i = 0; i < width * height; i++)
+		{
+			if (grid[num, num2] == EnumgGridSlot.STREET)
+			{
+				addStreedToGrid(connectedStreets, new Vec2i(num, num2));
+			}
+			num--;
+			num2++;
+			if (num < 0 || num2 >= height)
+			{
+				num3 = (flag ? (width - 1) : (num3 + 1));
+				num4 = (flag ? (num4 + 1) : num4);
+				flag |= num3 >= width - 1;
+				num = num3;
+				num2 = num4;
+			}
+		}
+	}
 
-        public string debugPrintGrid()
-        {
-            var sb = new StringBuilder();
-            for (int i = 0; i < height; i++)
-            {
-                for (int k = 0; k < width; k++)
-                {
-                    sb.Append((int)grid[k, height - 1 - i]).Append(" ");
-                }
-                sb.Append("\n");
-            }
-            return sb.ToString();
-        }
+	private void addStreedToGrid(List<Vec2i> connectedStreets, Vec2i newStreet)
+	{
+		if (connectedStreets.Count == 0)
+		{
+			connectedStreets.Add(newStreet);
+			return;
+		}
+		Vec2i vec2i = connectedStreets[0];
+		int num = Math.Abs(newStreet.X - vec2i.X) + Math.Abs(newStreet.Y - vec2i.Y);
+		foreach (Vec2i connectedStreet in connectedStreets)
+		{
+			int num2 = Math.Abs(newStreet.X - connectedStreet.X) + Math.Abs(newStreet.Y - connectedStreet.Y);
+			if (num2 < num)
+			{
+				vec2i = connectedStreet;
+				num = num2;
+			}
+		}
+		int num3 = vec2i.X;
+		int num4 = vec2i.Y;
+		bool flag = true;
+		int num5 = Math.Sign((float)(newStreet.X - num3) + 0.5f);
+		int num6 = Math.Sign((float)(newStreet.Y - num4) + 0.5f);
+		bool? flag2 = null;
+		while (Math.Abs(newStreet.X - num3) + Math.Abs(newStreet.Y - num4) > 1)
+		{
+			bool flag3 = num4 % 2 == 0 && inWidthBounds(num3 + num5) && grid[num3 + num5, num4] != EnumgGridSlot.STRUCTURE;
+			bool flag4 = num3 % 2 == 0 && inHeightBounds(num4 + num6) && grid[num3, num4 + num6] != EnumgGridSlot.STRUCTURE;
+			flag &= (flag3 && (newStreet.X - num3) * num5 > 0) || (flag4 && (newStreet.Y - num4) * num6 > 0);
+			if (!flag)
+			{
+				if (!flag2.HasValue)
+				{
+					flag2 = flag3;
+				}
+				if ((flag4 && flag2 == true) || (flag3 && flag2 == false))
+				{
+					if (flag2 == true)
+					{
+						num4 += num6;
+					}
+					else
+					{
+						num3 += num5;
+					}
+					flag2 = null;
+					flag = true;
+					num5 = Math.Sign((float)(newStreet.X - num3) + 0.5f);
+					num6 = Math.Sign((float)(newStreet.Y - num4) + 0.5f);
+				}
+				else if (flag2 == true)
+				{
+					num3 += num5;
+				}
+				else
+				{
+					num4 += num6;
+				}
+			}
+			else if ((flag3 && Math.Abs(newStreet.X - num3) >= Math.Abs(newStreet.Y - num4)) || !flag4)
+			{
+				num3 += num5;
+			}
+			else if (flag4)
+			{
+				num4 += num6;
+			}
+			grid[num3, num4] = EnumgGridSlot.STREET;
+			connectedStreets.Add(new Vec2i(num3, num4));
+		}
+	}
 
-        public Vec2i GridCoordsToMapCoords(int x, int y)
-        {
-            return new Vec2i(GridDistToMapDist(x), GridDistToMapDist(y));
-        }
+	public string debugPrintGrid()
+	{
+		StringBuilder stringBuilder = new StringBuilder();
+		for (int i = 0; i < height; i++)
+		{
+			for (int j = 0; j < width; j++)
+			{
+				stringBuilder.Append((int)grid[j, height - 1 - i]).Append(" ");
+			}
+			stringBuilder.Append("\n");
+		}
+		return stringBuilder.ToString();
+	}
 
-        public static int GridDistToMapDist(int x)
-        {
-            return x * pathWidth + (x / 2) * (squareSize - pathWidth);
-        }
+	public Vec2i GridCoordsToMapCoords(int x, int y)
+	{
+		return new Vec2i(GridDistToMapDist(x), GridDistToMapDist(y));
+	}
 
-        public Vec2i GridCoordsToMapSize(int x, int y)
-        {
-            return new Vec2i(x % 2 == 0 ? pathWidth : squareSize, y % 2 == 0 ? pathWidth : squareSize);
-        }
+	public static int GridDistToMapDist(int x)
+	{
+		return x * 2 + x / 2 * 5;
+	}
 
-        public void GenerateStreets(BlockPos start, IBlockAccessor blockAccessor, IWorldAccessor worldForCollectibleResolve)
-        {
-            int idpath = worldForCollectibleResolve.GetBlock(new AssetLocation(VillageType.StreetCode)).Id;
-            int idbridge = worldForCollectibleResolve.GetBlock(new AssetLocation(VillageType.BridgeCode)).Id;
-            for (int i = 0; i < width; i++)
-            {
-                for (int k = 0; k < height; k++)
-                {
-                    if (grid[i, k] == EnumgGridSlot.STREET)
-                    {
-                        GenerateStreetPart(start, i, k, blockAccessor, idpath, idbridge, i % 4 + k % 4 == 0);
-                    }
-                }
-            }
-        }
+	public Vec2i GridCoordsToMapSize(int x, int y)
+	{
+		return new Vec2i((x % 2 == 0) ? 2 : 7, (y % 2 == 0) ? 2 : 7);
+	}
 
-        private void GenerateStreetPart(BlockPos start, int x, int z, IBlockAccessor blockAccessor, int idpath, int idbridge, bool generateWaypoint)
-        {
-            var coords = GridCoordsToMapCoords(x, z);
-            var size = GridCoordsToMapSize(x, z);
-            for (int i = 0; i < size.X; i++)
-            {
-                for (int k = 0; k < size.Y; k++)
-                {
-                    var pos = start.AddCopy(coords.X + i, 0, coords.Y + k);
-                    int terrainheight = blockAccessor.GetTerrainMapheightAt(pos);
-                    int rainheight = blockAccessor.GetRainMapHeightAt(pos);
-                    int id = idbridge;
-                    pos.Y = rainheight;
-                    if (terrainheight >= rainheight || blockAccessor.GetBlock(pos, BlockLayersAccess.Fluid).Id == 0)
-                    {
-                        pos.Y = terrainheight;
-                        id = idpath;
-                    }
-                    blockAccessor.SetBlock(id, pos);
-                    blockAccessor.SetBlock(0, pos.Add(0, 1, 0)); // can probably be removed when hooked properly into world gen
-                    blockAccessor.SetBlock(0, pos.Add(0, 1, 0)); // can probably be removed when hooked properly into world gen
-                    if (generateWaypoint && i == 0 && k == 0)
-                    {
-                        blockAccessor.SetBlock(blockAccessor.GetBlock(new AssetLocation("vsvillage:waypoint")).Id, pos.Add(0, -1, 0));
-                        blockAccessor.SpawnBlockEntity("VillagerWaypoint", pos);
-                        blockAccessor.SetBlock(blockAccessor.GetBlock(new AssetLocation("game:multiblock-monolithic-0-p1-0")).Id, pos.Add(0, 1, 0));
-                        blockAccessor.SetBlock(blockAccessor.GetBlock(new AssetLocation("game:multiblock-monolithic-0-p2-0")).Id, pos.Add(0, 1, 0));
-                    }
-                }
-            }
-        }
+	public void GenerateStreets(BlockPos start, IBlockAccessor blockAccessor, IWorldAccessor worldForCollectibleResolve)
+	{
+		int id = worldForCollectibleResolve.GetBlock(new AssetLocation(VillageType.StreetCode)).Id;
+		int id2 = worldForCollectibleResolve.GetBlock(new AssetLocation(VillageType.BridgeCode)).Id;
+		for (int i = 0; i < width; i++)
+		{
+			for (int j = 0; j < height; j++)
+			{
+				if (grid[i, j] == EnumgGridSlot.STREET)
+				{
+					GenerateStreetPart(start, i, j, blockAccessor, id, id2, i % 4 + j % 4 == 0);
+				}
+			}
+		}
+	}
 
-        public void GenerateHouses(BlockPos start, IBlockAccessor blockAccessor, IWorldAccessor worldForCollectibleResolve)
-        {
-            foreach (var house in structures)
-            {
-                GenerateHouse(house, start, blockAccessor, worldForCollectibleResolve);
-            }
-        }
+	private void GenerateStreetPart(BlockPos start, int x, int z, IBlockAccessor blockAccessor, int idpath, int idbridge, bool generateWaypoint)
+	{
+		Vec2i vec2i = GridCoordsToMapCoords(x, z);
+		Vec2i vec2i2 = GridCoordsToMapSize(x, z);
+		for (int i = 0; i < vec2i2.X; i++)
+		{
+			for (int j = 0; j < vec2i2.Y; j++)
+			{
+				BlockPos blockPos = start.AddCopy(vec2i.X + i, 0, vec2i.Y + j);
+				int terrainMapheightAt = blockAccessor.GetTerrainMapheightAt(blockPos);
+				int rainMapHeightAt = blockAccessor.GetRainMapHeightAt(blockPos);
+				int blockId = idbridge;
+				blockPos.Y = rainMapHeightAt;
+				if (terrainMapheightAt >= rainMapHeightAt || blockAccessor.GetBlock(blockPos, 2).Id == 0)
+				{
+					blockPos.Y = terrainMapheightAt;
+					blockId = idpath;
+				}
+				blockAccessor.SetBlock(blockId, blockPos);
+				blockAccessor.SetBlock(0, blockPos.Add(0, 1, 0));
+				blockAccessor.SetBlock(0, blockPos.Add(0, 1, 0));
+				if (generateWaypoint && i == 0 && j == 0)
+				{
+					blockAccessor.SetBlock(blockAccessor.GetBlock(new AssetLocation("vsvillage:waypoint")).Id, blockPos.Add(0, -1, 0));
+					blockAccessor.SpawnBlockEntity("VillagerWaypoint", blockPos);
+					blockAccessor.SetBlock(blockAccessor.GetBlock(new AssetLocation("game:multiblock-monolithic-0-p1-0")).Id, blockPos.Add(0, 1, 0));
+					blockAccessor.SetBlock(blockAccessor.GetBlock(new AssetLocation("game:multiblock-monolithic-0-p2-0")).Id, blockPos.Add(0, 1, 0));
+				}
+			}
+		}
+	}
 
-        private void GenerateHouse(StructureWithOrientation house, BlockPos start, IBlockAccessor blockAccessor, IWorldAccessor worldForCollectibleResolve)
-        {
+	public void GenerateHouses(BlockPos start, IBlockAccessor blockAccessor, IWorldAccessor worldForCollectibleResolve)
+	{
+		foreach (StructureWithOrientation structure in structures)
+		{
+			GenerateHouse(structure, start, blockAccessor, worldForCollectibleResolve);
+		}
+	}
 
-            var coords = GridCoordsToMapCoords(house.gridCoords.X, house.gridCoords.Y);
-            var pos = start.AddCopy(coords.X, 0, coords.Y);
-            var offsetForHeight = connectingPathOffset(house);
-            var posForHeightDetection = pos.AddCopy(offsetForHeight.X, 0, offsetForHeight.Y);
-            posForHeightDetection.Y = blockAccessor.GetTerrainMapheightAt(posForHeightDetection);
-            while (blockAccessor.GetBlock(posForHeightDetection.UpCopy(), BlockLayersAccess.Fluid).Id != 0)
-            {
-                posForHeightDetection.Up();
-            }
-            pos.Y = posForHeightDetection.Y + house.structure.VerticalOffset;
-            house.structure.Generate(blockAccessor, worldForCollectibleResolve, pos, house.orientation);
-        }
+	private void GenerateHouse(StructureWithOrientation house, BlockPos start, IBlockAccessor blockAccessor, IWorldAccessor worldForCollectibleResolve)
+	{
+		Vec2i vec2i = GridCoordsToMapCoords(house.gridCoords.X, house.gridCoords.Y);
+		BlockPos blockPos = start.AddCopy(vec2i.X, 0, vec2i.Y);
+		Vec2i vec2i2 = connectingPathOffset(house);
+		BlockPos blockPos2 = blockPos.AddCopy(vec2i2.X, 0, vec2i2.Y);
+		blockPos2.Y = blockAccessor.GetTerrainMapheightAt(blockPos2);
+		while (blockAccessor.GetBlock(blockPos2.UpCopy(), 2).Id != 0)
+		{
+			blockPos2.Up();
+		}
+		blockPos.Y = blockPos2.Y + house.structure.VerticalOffset;
+		house.structure.Generate(blockAccessor, worldForCollectibleResolve, blockPos, house.orientation);
+	}
 
-        private Vec2i connectingPathOffset(StructureWithOrientation house)
-        {
-            var size = house.structure.Size;
-            switch (house.orientation)
-            {
-                case 0: return new Vec2i(getSize(size) / 2, getSize(size));
-                case 1: return new Vec2i(getSize(size), getSize(size) / 2);
-                case 2: return new Vec2i(getSize(size) / 2, -1);
-                case 3: return new Vec2i(-1, getSize(size) / 2);
-                default: throw new ArgumentException("House has invalid orientation.");
-            }
-        }
+	private Vec2i connectingPathOffset(StructureWithOrientation house)
+	{
+		EnumVillageStructureSize size = house.structure.Size;
+		return house.orientation switch
+		{
+			0 => new Vec2i(getSize(size) / 2, getSize(size)), 
+			1 => new Vec2i(getSize(size), getSize(size) / 2), 
+			2 => new Vec2i(getSize(size) / 2, -1), 
+			3 => new Vec2i(-1, getSize(size) / 2), 
+			_ => throw new ArgumentException("House has invalid orientation."), 
+		};
+	}
 
-        private int getSize(EnumVillageStructureSize size)
-        {
-            switch (size)
-            {
-                case EnumVillageStructureSize.SMALL: return squareSize;
-                case EnumVillageStructureSize.MEDIUM: return squareSize + pathWidth + squareSize;
-                case EnumVillageStructureSize.LARGE: return squareSize + pathWidth + squareSize + pathWidth + squareSize + pathWidth + squareSize;
-                default: throw new ArgumentException("House has invalid size.");
-            }
-        }
+	private int getSize(EnumVillageStructureSize size)
+	{
+		return size switch
+		{
+			EnumVillageStructureSize.SMALL => 7, 
+			EnumVillageStructureSize.MEDIUM => 16, 
+			EnumVillageStructureSize.LARGE => 34, 
+			_ => throw new ArgumentException("House has invalid size."), 
+		};
+	}
 
-        private bool inHeightBounds(int y)
-        {
-            return y >= 0 && y < height;
-        }
+	private bool inHeightBounds(int y)
+	{
+		if (y >= 0)
+		{
+			return y < height;
+		}
+		return false;
+	}
 
-        private bool inWidthBounds(int x)
-        {
-            return x >= 0 && x < width;
-        }
-    }
-
-    public enum EnumgGridSlot
-    {
-        EMPTY, STRUCTURE, STREET
-    }
-
-    public class StructureWithOrientation
-    {
-        public WorldGenVillageStructure structure;
-        public int orientation;
-
-        public Vec2i gridCoords;
-    }
+	private bool inWidthBounds(int x)
+	{
+		if (x >= 0)
+		{
+			return x < width;
+		}
+		return false;
+	}
 }

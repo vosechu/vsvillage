@@ -4,69 +4,72 @@ using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
 using Vintagestory.GameContent;
 
-namespace VsVillage
+namespace VsVillage;
+
+public class CooldownCondition : IActionCondition, IStorableTypedComponent
 {
-    public class CooldownCondition : IActionCondition
-    {
-        public const string ConditionType = "CooldownCondition";
+	public const string ConditionType = "CooldownCondition";
 
-        public string Type => ConditionType;
-        [JsonProperty]
-        public bool Invert { get; set; }
-        [JsonProperty]
-        public long CooldownInSeconds = 30;
-        public long LastSuccessfulCheck = long.MinValue;
+	[JsonProperty]
+	public long CooldownInSeconds = 30L;
 
-        public void AddGuiEditFields(ICoreClientAPI capi, GuiComposer singleComposer)
-        {
-            var guiRow = ElementBounds.Fixed(0, 0, 200, 25);
-            singleComposer.AddStaticText("Cooldown in seconds", CairoFont.WhiteDetailText(), guiRow)
-                .AddNumberInput(guiRow.RightCopy(), text => { }, null, "CooldownInSeconds")
-                .GetNumberInput("CooldownInSeconds").SetValue(30);
-        }
+	public long LastSuccessfulCheck = long.MinValue;
 
-        public void StoreGuiEditFields(ICoreClientAPI capi, GuiComposer singleComposer)
-        {
-            CooldownInSeconds = (long)singleComposer.GetNumberInput("CooldownInSeconds").GetValue();
-        }
+	public string Type => "CooldownCondition";
 
-        public bool ConditionSatisfied(Entity entity)
-        {
-            var elapsedSeconds = entity.World.Calendar.ElapsedSeconds;
-            if (LastSuccessfulCheck + CooldownInSeconds < elapsedSeconds)
-            {
-                LastSuccessfulCheck = elapsedSeconds;
-                return true;
-            }
-            return false;
-        }
+	[JsonProperty]
+	public bool Invert { get; set; }
 
-        public void LoadState(ITreeAttribute tree)
-        {
-            LastSuccessfulCheck = tree.GetLong("LastSuccessfulCheck", long.MinValue);
-        }
+	public void AddGuiEditFields(ICoreClientAPI capi, GuiComposer singleComposer)
+	{
+		ElementBounds elementBounds = ElementBounds.Fixed(0.0, 0.0, 200.0, 25.0);
+		singleComposer.AddStaticText("Cooldown in seconds", CairoFont.WhiteDetailText(), elementBounds).AddNumberInput(elementBounds.RightCopy(), delegate
+		{
+		}, null, "CooldownInSeconds").GetNumberInput("CooldownInSeconds")
+			.SetValue(30f);
+	}
 
-        public void OnLoaded(EntityActivitySystem vas)
-        {
-        }
+	public void StoreGuiEditFields(ICoreClientAPI capi, GuiComposer singleComposer)
+	{
+		CooldownInSeconds = (long)singleComposer.GetNumberInput("CooldownInSeconds").GetValue();
+	}
 
-        public void StoreState(ITreeAttribute tree)
-        {
-            tree.SetFloat("LastSuccessfulCheck", LastSuccessfulCheck);
-        }
+	public bool ConditionSatisfied(Entity entity)
+	{
+		long elapsedSeconds = entity.World.Calendar.ElapsedSeconds;
+		if (LastSuccessfulCheck + CooldownInSeconds < elapsedSeconds)
+		{
+			LastSuccessfulCheck = elapsedSeconds;
+			return true;
+		}
+		return false;
+	}
 
-        public IActionCondition Clone()
-        {
-            return new CooldownCondition()
-            {
-                Invert = Invert,
-                CooldownInSeconds = CooldownInSeconds
-            };
-        }
+	public void LoadState(ITreeAttribute tree)
+	{
+		LastSuccessfulCheck = tree.GetLong("LastSuccessfulCheck", long.MinValue);
+	}
 
-        public override string ToString()
-        {
-            return string.Format("Whenever villager hasn't tried this at {0} {1} seconds.", Invert ? "most " : "least", CooldownInSeconds);
-        }
-    }
+	public void OnLoaded(EntityActivitySystem vas)
+	{
+	}
+
+	public void StoreState(ITreeAttribute tree)
+	{
+		tree.SetFloat("LastSuccessfulCheck", LastSuccessfulCheck);
+	}
+
+	public IActionCondition Clone()
+	{
+		return new CooldownCondition
+		{
+			Invert = Invert,
+			CooldownInSeconds = CooldownInSeconds
+		};
+	}
+
+	public override string ToString()
+	{
+		return string.Format("Whenever villager hasn't tried this at {0} {1} seconds.", Invert ? "most " : "least", CooldownInSeconds);
+	}
 }

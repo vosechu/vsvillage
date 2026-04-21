@@ -1,0 +1,212 @@
+{
+    "money": {
+        "avg": 20,
+        "var": 5
+    },
+    "selling": {
+        "maxItems": 10,
+        "list": [
+            {
+                "code": "game:bandage-alcoholed",
+                "type": "item",
+                "stacksize": 4,
+                "stock": {
+                    "avg": 3,
+                    "var": 2
+                },
+                "price": {
+                    "avg": 5,
+                    "var": 1
+                }
+            },
+            {
+                "code": "game:bandage-clean",
+                "type": "item",
+                "stacksize": 4,
+                "stock": {
+                    "avg": 5,
+                    "var": 2
+                },
+                "price": {
+                    "avg": 3,
+                    "var": 1
+                }
+            },
+            {
+                "code": "game:poultice-linen-horsetail",
+                "type": "item",
+                "stacksize": 2,
+                "stock": {
+                    "avg": 5,
+                    "var": 1
+                },
+                "price": {
+                    "avg": 4,
+                    "var": 1
+                }
+            },
+            {
+                "code": "game:poultice-linen-honey-sulfur",
+                "type": "item",
+                "stacksize": 2,
+                "stock": {
+                    "avg": 3,
+                    "var": 1
+                },
+                "price": {
+                    "avg": 6,
+                    "var": 1
+                }
+            },
+            {
+                "code": "game:poultice-reed-horsetail",
+                "type": "item",
+                "stacksize": 2,
+                "stock": {
+                    "avg": 8,
+                    "var": 1
+                },
+                "price": {
+                    "avg": 2,
+                    "var": 1
+                }
+            },
+           
+            {
+                "code": "game:beeswax",
+                "type": "item",
+                "stacksize": 4,
+                "stock": {
+                    "avg": 4,
+                    "var": 1
+                },
+                "price": {
+                    "avg": 2,
+                    "var": 1
+                }
+            },
+            {
+                "code": "game:candle",
+                "type": "item",
+                "stacksize": 4,
+                "stock": {
+                    "avg": 6,
+                    "var": 2
+                },
+                "price": {
+                    "avg": 2,
+                    "var": 1
+                }
+            }
+        ]
+    },
+    "buying": {
+        "maxItems": 8,
+        "list": [
+            {
+                "code": "game:flower-dandelion",
+                "type": "item",
+                "stacksize": 8,
+                "stock": {
+                    "avg": 12,
+                    "var": 4
+                },
+                "price": {
+                    "avg": 1,
+                    "var": 1
+                }
+            },
+            {
+                "code": "game:flower-bellflower",
+                "type": "item",
+                "stacksize": 8,
+                "stock": {
+                    "avg": 12,
+                    "var": 4
+                },
+                "price": {
+                    "avg": 1,
+                    "var": 1
+                }
+            },
+            {
+                "code": "game:honeycomb",
+                "type": "item",
+                "stacksize": 4,
+                "stock": {
+                    "avg": 8,
+                    "var": 2
+                },
+                "price": {
+                    "avg": 2,
+                    "var": 1
+                }
+            },
+            {
+                "code": "game:sulfur",
+                "type": "item",
+                "stacksize": 4,
+                "stock": {
+                    "avg": 6,
+                    "var": 2
+                },
+                "price": {
+                    "avg": 2,
+                    "var": 1
+                }
+            },
+            {
+                "code": "game:saltpeter",
+                "type": "item",
+                "stacksize": 4,
+                "stock": {
+                    "avg": 6,
+                    "var": 2
+                },
+                "price": {
+                    "avg": 2,
+                    "var": 1
+                }
+            },
+            {
+                "code": "game:flaxfibers",
+                "type": "item",
+                "stacksize": 8,
+                "stock": {
+                    "avg": 10,
+                    "var": 3
+                },
+                "price": {
+                    "avg": 1,
+                    "var": 1
+                }
+            },
+            {
+                "code": "game:mushroom-chanterelle-normal",
+                "type": "item",
+                "stacksize": 4,
+                "stock": {
+                    "avg": 8,
+                    "var": 2
+                },
+                "price": {
+                    "avg": 1,
+                    "var": 1
+                }
+            },
+            {
+                "code": "game:fat",
+                "type": "item",
+                "stacksize": 4,
+                "stock": {
+                    "avg": 6,
+                    "var": 2
+                },
+                "price": {
+                    "avg": 1,
+                    "var": 1
+                }
+            }
+        ]
+    }
+}

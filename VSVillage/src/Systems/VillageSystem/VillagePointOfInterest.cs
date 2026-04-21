@@ -1,7 +1,9 @@
-namespace VsVillage
+namespace VsVillage;
+
+public enum VillagePointOfInterest
 {
-    public enum VillagePointOfInterest
-    {
-        bed, workstation, gatherplace
-    }
+	bed,
+	workstation,
+	gatherplace,
+	waypoint
 }

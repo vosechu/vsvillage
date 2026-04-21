@@ -1,121 +1,129 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Windows.Markup;
 using Newtonsoft.Json;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
+using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Util;
 using Vintagestory.GameContent;
 
-namespace VsVillage
+namespace VsVillage;
+
+[JsonObject(MemberSerialization.OptIn)]
+public class SleepAction : EntityActionBase
 {
-    [JsonObject(MemberSerialization.OptIn)]
-    public class SleepAction : EntityActionBase
-    {
-        public const string ActionType = "Sleep";
-        public override string Type => ActionType;
-        [JsonProperty]
-        public float AnimSpeed = 1;
-        [JsonProperty]
-        public string AnimCode = "Lie";
+	public const string ActionType = "Sleep";
 
-        private TimeOfDayCondition timeOfDayCondition;
+	[JsonProperty]
+	public float AnimSpeed = 1f;
 
-        public override void Start(EntityActivity entityActivity)
-        {
-            var villager = vas.Entity.GetBehavior<EntityBehaviorVillager>();
-            if (villager?.Bed != null)
-            {
-                var bed = vas.Entity.World.BlockAccessor.GetBlockEntity<BlockEntityVillagerBed>(villager.Bed);
-                if (bed != null)
-                {
-                    vas.Entity.ServerPos.SetPos(getPos(bed));
-                    vas.Entity.ServerPos.Yaw = bed.Yaw;
-                    vas.Entity.AnimManager.StartAnimation(new AnimationMetaData()
-                    {
-                        Code = AnimCode,
-                        Animation = AnimCode,
-                        AnimationSpeed = AnimSpeed
-                    });
-                }
-            }
-            entityActivity?.Conditions.Foreach(candidate =>
-            {
-                if (candidate is TimeOfDayCondition condition)
-                {
-                    timeOfDayCondition = condition;
-                }
-            });
-        }
+	[JsonProperty]
+	public string AnimCode = "Lie";
 
-        private Vec3d getPos(BlockEntityVillagerBed bed)
-        {
-            var cardinal = bed.Block.Variant["side"] switch
-            {
-                "north" => Cardinal.North,
-                "east" => Cardinal.East,
-                "south" => Cardinal.South,
-                _ => Cardinal.West,
-            };
-            return bed.Pos.ToVec3d().Add(0.5, 0, 0.5).Add(cardinal.Normalf.Clone().Mul(0.7f));
-        }
+	private TimeOfDayCondition timeOfDayCondition;
 
-        public override bool IsFinished()
-        {
-            return !timeOfDayCondition?.ConditionSatisfied(vas.Entity) ?? true;
-        }
-        public override void Finish()
-        {
-            vas.Entity.AnimManager.StopAnimation(AnimCode);
-        }
+	public override string Type => "Sleep";
 
-        public override void Pause(EnumInteruptionType interuptionType)
-        {
-            Finish();
-        }
+	public override void Start(EntityActivity entityActivity)
+	{
+		EntityBehaviorVillager behavior = vas.Entity.GetBehavior<EntityBehaviorVillager>();
+		if (behavior?.Bed != null)
+		{
+			BlockEntityVillagerBed blockEntity = vas.Entity.World.BlockAccessor.GetBlockEntity<BlockEntityVillagerBed>(behavior.Bed);
+			if (blockEntity != null)
+			{
+				((Entity)vas.Entity).ServerPos.SetPos(getPos(blockEntity));
+				((Entity)vas.Entity).ServerPos.Yaw = blockEntity.Yaw;
+				vas.Entity.AnimManager.StartAnimation(new AnimationMetaData
+				{
+					Code = AnimCode,
+					Animation = AnimCode,
+					AnimationSpeed = AnimSpeed
+				});
+			}
+		}
+		entityActivity?.Conditions.Foreach(delegate(IActionCondition candidate)
+		{
+			if (candidate is TimeOfDayCondition timeOfDayCondition)
+			{
+				this.timeOfDayCondition = timeOfDayCondition;
+			}
+		});
+	}
 
-        public override void Resume()
-        {
-            Start(null);
-        }
+	private Vec3d getPos(BlockEntityVillagerBed bed)
+	{
+		Cardinal cardinal = bed.Block.Variant["side"] switch
+		{
+			"north" => Cardinal.North, 
+			"east" => Cardinal.East, 
+			"south" => Cardinal.South, 
+			_ => Cardinal.West, 
+		};
+		return bed.Pos.ToVec3d().Add(0.5, 0.0, 0.5).Add(cardinal.Normalf.Clone().Mul(0.7f));
+	}
 
-        public override IEntityAction Clone()
-        {
-            return new SleepAction()
-            {
-                vas = vas,
-                AnimCode = AnimCode,
-                AnimSpeed = AnimSpeed,
-                timeOfDayCondition = timeOfDayCondition
-            };
-        }
+	public override bool IsFinished()
+	{
+		TimeOfDayCondition obj = timeOfDayCondition;
+		if (obj == null)
+		{
+			return true;
+		}
+		return !obj.ConditionSatisfied(vas.Entity);
+	}
 
-        public override void AddGuiEditFields(ICoreClientAPI capi, GuiComposer singleComposer)
-        {
-            var animationRow = ElementBounds.Fixed(0, 0, 200, 25);
-            var animationSpeedRow = animationRow.BelowCopy();
-            var pointsOfInterest = new List<VillagePointOfInterest>(Enum.GetValues<VillagePointOfInterest>()).ConvertAll(poi => poi.ToString()).ToArray();
-            singleComposer.AddStaticText("Animation", CairoFont.WhiteDetailText(), animationRow)
-                .AddTextInput(animationRow.RightCopy(), text => { }, null, "Animation")
-                .AddStaticText("Animationspeed", CairoFont.WhiteDetailText(), animationSpeedRow)
-                .AddNumberInput(animationSpeedRow.RightCopy(), text => { }, null, "Animationspeed");
-            singleComposer.GetTextInput("Animation").SetValue(AnimCode);
-            singleComposer.GetNumberInput("Animationspeed").SetValue(AnimSpeed);
-        }
+	public override void Finish()
+	{
+		vas.Entity.AnimManager.StopAnimation(AnimCode);
+	}
 
-        public override bool StoreGuiEditFields(ICoreClientAPI capi, GuiComposer singleComposer)
-        {
-            AnimCode = singleComposer.GetTextInput("Animation").GetText();
-            AnimSpeed = singleComposer.GetNumberInput("Animationspeed").GetValue();
+	public override void Pause(EnumInteruptionType interuptionType)
+	{
+		Finish();
+	}
 
-            return true;
-        }
+	public override void Resume()
+	{
+		Start(null);
+	}
 
-        public override string ToString()
-        {
-            return string.Format("Sleep, Animation {0}, AnimSpeed {1}", AnimCode, AnimSpeed);
-        }
-    }
+	public override IEntityAction Clone()
+	{
+		return new SleepAction
+		{
+			vas = vas,
+			AnimCode = AnimCode,
+			AnimSpeed = AnimSpeed,
+			timeOfDayCondition = timeOfDayCondition
+		};
+	}
+
+	public override void AddGuiEditFields(ICoreClientAPI capi, GuiComposer singleComposer)
+	{
+		ElementBounds elementBounds = ElementBounds.Fixed(0.0, 0.0, 200.0, 25.0);
+		ElementBounds elementBounds2 = elementBounds.BelowCopy();
+		new List<VillagePointOfInterest>(Enum.GetValues<VillagePointOfInterest>()).ConvertAll((VillagePointOfInterest poi) => poi.ToString()).ToArray();
+		singleComposer.AddStaticText("Animation", CairoFont.WhiteDetailText(), elementBounds).AddTextInput(elementBounds.RightCopy(), delegate
+		{
+		}, null, "Animation").AddStaticText("Animationspeed", CairoFont.WhiteDetailText(), elementBounds2)
+			.AddNumberInput(elementBounds2.RightCopy(), delegate
+			{
+			}, null, "Animationspeed");
+		singleComposer.GetTextInput("Animation").SetValue(AnimCode);
+		singleComposer.GetNumberInput("Animationspeed").SetValue(AnimSpeed);
+	}
+
+	public override bool StoreGuiEditFields(ICoreClientAPI capi, GuiComposer singleComposer)
+	{
+		AnimCode = singleComposer.GetTextInput("Animation").GetText();
+		AnimSpeed = singleComposer.GetNumberInput("Animationspeed").GetValue();
+		return true;
+	}
+
+	public override string ToString()
+	{
+		return $"Sleep, Animation {AnimCode}, AnimSpeed {AnimSpeed}";
+	}
 }
