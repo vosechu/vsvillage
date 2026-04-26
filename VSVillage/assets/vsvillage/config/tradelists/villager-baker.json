@@ -1,0 +1,147 @@
+{
+    "money": {
+        "avg": 15,
+        "var": 5
+    },
+    "selling": {
+        "maxItems": 8,
+        "list": [
+            {
+                "code": "game:bread-spelt-perfect",
+                "type": "item",
+                "stacksize": 4,
+                "stock": {
+                    "avg": 8,
+                    "var": 3
+                },
+                "price": {
+                    "avg": 2,
+                    "var": 1
+                }
+            },
+            {
+                "code": "game:bread-rye-perfect",
+                "type": "item",
+                "stacksize": 4,
+                "stock": {
+                    "avg": 6,
+                    "var": 3
+                },
+                "price": {
+                    "avg": 2,
+                    "var": 1
+                }
+            },
+            {
+                "code": "game:bread-spelt-charred",
+                "type": "item",
+                "stacksize": 6,
+                "stock": {
+                    "avg": 10,
+                    "var": 4
+                },
+                "price": {
+                    "avg": 1,
+                    "var": 1
+                }
+            },
+            {
+                "code": "game:bread-rye-charred",
+                "type": "item",
+                "stacksize": 6,
+                "stock": {
+                    "avg": 8,
+                    "var": 3
+                },
+                "price": {
+                    "avg": 1,
+                    "var": 1
+                }
+            },
+            {
+                "code": "game:flour-spelt",
+                "type": "item",
+                "stacksize": 8,
+                "stock": {
+                    "avg": 6,
+                    "var": 2
+                },
+                "price": {
+                    "avg": 2,
+                    "var": 1
+                }
+            },
+            {
+                "code": "game:flour-rye",
+                "type": "item",
+                "stacksize": 8,
+                "stock": {
+                    "avg": 6,
+                    "var": 2
+                },
+                "price": {
+                    "avg": 2,
+                    "var": 1
+                }
+            }
+        ]
+    },
+    "buying": {
+        "maxItems": 5,
+        "list": [
+            {
+                "code": "game:grain-spelt",
+                "type": "item",
+                "stacksize": 8,
+                "stock": {
+                    "avg": 12,
+                    "var": 4
+                },
+                "price": {
+                    "avg": 1,
+                    "var": 1
+                }
+            },
+            {
+                "code": "game:grain-rye",
+                "type": "item",
+                "stacksize": 8,
+                "stock": {
+                    "avg": 12,
+                    "var": 4
+                },
+                "price": {
+                    "avg": 1,
+                    "var": 1
+                }
+            },
+            {
+                "code": "game:grain-flax",
+                "type": "item",
+                "stacksize": 8,
+                "stock": {
+                    "avg": 8,
+                    "var": 3
+                },
+                "price": {
+                    "avg": 1,
+                    "var": 1
+                }
+            },
+           
+            {
+                "code": "game:fat",
+                "type": "item",
+                "stacksize": 4,
+                "stock": {
+                    "avg": 6,
+                    "var": 2
+                },
+                "price": {
+                    "avg": 1,
+                    "var": 1
+                }
+            }
+        ]
+    }
+}

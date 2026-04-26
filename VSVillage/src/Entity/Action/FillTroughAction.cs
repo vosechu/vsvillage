@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using Vintagestory.API.Common;
-using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
 
@@ -29,14 +28,14 @@ public class FillTroughAction : EntityActionBase
 			return;
 		}
 		POIRegistry modSystem = vas.Entity.Api.ModLoader.GetModSystem<POIRegistry>();
-		targetTrough = modSystem.GetNearestPoi(((Entity)vas.Entity).ServerPos.XYZ, 40f, (IPointOfInterest poi) => poi is BlockEntityTrough) as BlockEntityTrough;
+		targetTrough = modSystem.GetNearestPoi(vas.Entity.Pos.XYZ, 40f, (IPointOfInterest poi) => poi is BlockEntityTrough) as BlockEntityTrough;
 		if (targetTrough == null)
 		{
 			isFinished = true;
 			return;
 		}
 		isFinished = false;
-		BlockPos asBlockPos = ((Entity)vas.Entity).ServerPos.AsBlockPos;
+		BlockPos asBlockPos = vas.Entity.Pos.AsBlockPos;
 		BlockPos asBlockPos2 = targetTrough.Position.AsBlockPos;
 		List<VillagerPathNode> list = behavior.Pathfind.FindPath(asBlockPos, asBlockPos2, behavior.Village);
 		if (list == null)

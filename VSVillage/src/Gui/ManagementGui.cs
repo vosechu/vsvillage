@@ -20,30 +20,29 @@ public class ManagementGui : GuiDialog
 	public ManagementGui(ICoreClientAPI capi, BlockPos pos, Village village = null)
 		: base(capi)
 	{
-		ManagementGui managementGui = this;
 		ElementBounds elementBounds = ElementStdBounds.AutosizedMainDialog.WithAlignment(EnumDialogArea.CenterMiddle);
 		ElementBounds elementBounds2 = ElementBounds.Fill.WithFixedPadding(GuiStyle.ElementToDialogPadding);
 		elementBounds2.BothSizing = ElementSizing.FitToChildren;
 		if (village == null || village.Pos == null)
 		{
-			managementMessage.Pos = pos ?? capi.World.BlockAccessor.GetChunkAtBlockPos(((Entity)capi.World.Player.Entity).Pos.AsBlockPos).BlockEntities.Where((KeyValuePair<BlockPos, BlockEntity> entry) => entry.Value.Block is BlockMayorWorkstation).First().Value.Pos;
+			managementMessage.Pos = pos ?? capi.World.BlockAccessor.GetChunkAtBlockPos(capi.World.Player.Entity.Pos.AsBlockPos)?.BlockEntities?.Where((KeyValuePair<BlockPos, BlockEntity> entry) => entry.Value.Block is BlockMayorWorkstation).FirstOrDefault().Value?.Pos;
 			base.SingleComposer = capi.Gui.CreateCompo("VillageManagementDialog-", elementBounds).AddShadedDialogBG(elementBounds2).AddDialogTitleBar(Lang.Get("vsvillage:management-title"), delegate
 			{
-				managementGui.TryClose();
+				TryClose();
 			})
 				.BeginChildElements(elementBounds2)
 				.AddStaticText(Lang.Get("vsvillage:management-no-village-found"), CairoFont.WhiteSmallishText(), ElementBounds.Fixed(0.0, 20.0, 500.0, 30.0))
 				.AddStaticText(Lang.Get("vsvillage:management-village-name"), CairoFont.WhiteSmallishText(), ElementBounds.Fixed(0.0, 80.0, 200.0, 30.0))
 				.AddTextInput(ElementBounds.Fixed(100.0, 80.0, 200.0, 30.0), delegate(string name)
 				{
-					managementGui.managementMessage.Name = name;
+					managementMessage.Name = name;
 				}, CairoFont.WhiteSmallishText())
 				.AddStaticText(Lang.Get("vsvillage:management-village-radius"), CairoFont.WhiteSmallishText(), ElementBounds.Fixed(0.0, 110.0, 200.0, 30.0))
 				.AddNumberInput(ElementBounds.Fixed(100.0, 110.0, 200.0, 30.0), delegate(string radius)
 				{
-					int.TryParse(radius, out managementGui.managementMessage.Radius);
+					int.TryParse(radius, out managementMessage.Radius);
 				})
-				.AddButton(Lang.Get("vsvillage:management-found-new-village"), () => managementGui.createVillage(capi), ElementBounds.Fixed(0.0, 140.0, 200.0, 30.0))
+				.AddButton(Lang.Get("vsvillage:management-found-new-village"), () => createVillage(capi), ElementBounds.Fixed(0.0, 140.0, 200.0, 30.0))
 				.EndChildElements()
 				.Compose();
 		}
@@ -114,6 +113,8 @@ public class ManagementGui : GuiDialog
 				group workstation by workstation.Profession).ToDictionary((IGrouping<EnumVillagerProfession, VillagerWorkstation> group) => group.Key, (IGrouping<EnumVillagerProfession, VillagerWorkstation> group) => group.Count());
 			List<EnumVillagerProfession> source = new List<EnumVillagerProfession>(Enum.GetValues<EnumVillagerProfession>());
 			string vtmlCode = Lang.Get("vsvillage:management-poi-stats", count2, count3, count4, count) + source.Select((EnumVillagerProfession profession) => Lang.Get("vsvillage:management-profession-stats", Lang.Get("vsvillage:management-profession-" + profession), villagersByProfession.GetValueOrDefault(profession, 0), workstationsByProfession.GetValueOrDefault(profession, 0))).Aggregate(string.Concat);
+			bool hasMarketStall = HasMarketStall(village, capi);
+			vtmlCode += (hasMarketStall ? Lang.Get("vsvillage:management-market-stall-placed") : Lang.Get("vsvillage:management-market-stall-missing"));
 			base.SingleComposer.AddRichtext(vtmlCode, CairoFont.WhiteSmallText(), ElementBounds.Fixed(0.0, 20.0, 450.0, 200.0)).AddStaticText(Lang.Get("vsvillage:management-village-name"), CairoFont.WhiteSmallishText(), ElementBounds.Fixed(470.0, 20.0, 200.0, 30.0)).AddTextInput(ElementBounds.Fixed(570.0, 20.0, 200.0, 30.0), delegate(string name)
 			{
 				managementMessage.Name = name;
@@ -123,17 +124,20 @@ public class ManagementGui : GuiDialog
 				{
 					int.TryParse(radius, out managementMessage.Radius);
 				}, null, "villageradius")
-				.AddButton(Lang.Get("vsvillage:management-update-village-button"), () => changeStatsVillage(capi), ElementBounds.Fixed(470.0, 100.0, 200.0, 30.0));
+				.AddButton(Lang.Get("vsvillage:management-update-village-button"), () => changeStatsVillage(capi), ElementBounds.Fixed(470.0, 100.0, 200.0, 30.0))
+			.AddButton(Lang.Get("vsvillage:management-gather-villagers"), () => gatherVillagers(capi), ElementBounds.Fixed(470.0, 140.0, 200.0, 30.0))
+			.AddButton(Lang.Get("vsvillage:management-clear-gather"), () => clearGather(capi), ElementBounds.Fixed(470.0, 180.0, 200.0, 30.0))
+			.AddButton(Lang.Get("vsvillage:management-validate-structures"), () => validateStructures(capi), ElementBounds.Fixed(470.0, 220.0, 200.0, 30.0))
+			.AddButton(Lang.Get("vsvillage:management-recover-villagers"), () => recoverOrphanedVillagers(capi), ElementBounds.Fixed(470.0, 260.0, 200.0, 30.0));
 			break;
 		}
 		case 1:
-			// Note: mayor is intentionally excluded from the hire list — the player IS the mayor.
-			// Mayor villagers exist only for world-generated villages and are not player-hirable.
 			base.SingleComposer.AddButton(Lang.Get("vsvillage:management-hire-farmer"), () => hireVillager(capi, "farmer"), ElementBounds.Fixed(0.0, 20.0, 200.0, 30.0)).AddButton(Lang.Get("vsvillage:management-hire-shepherd"), () => hireVillager(capi, "shepherd"), ElementBounds.Fixed(220.0, 20.0, 200.0, 30.0)).AddButton(Lang.Get("vsvillage:management-hire-trader"), () => hireVillager(capi, "trader"), ElementBounds.Fixed(0.0, 60.0, 200.0, 30.0))
 				.AddButton(Lang.Get("vsvillage:management-hire-smith"), () => hireVillager(capi, "smith"), ElementBounds.Fixed(220.0, 60.0, 200.0, 30.0))
 				.AddButton(Lang.Get("vsvillage:management-hire-soldier"), () => hireVillager(capi, "soldier"), ElementBounds.Fixed(0.0, 100.0, 200.0, 30.0))
 				.AddButton(Lang.Get("vsvillage:management-hire-herbalist"), () => hireVillager(capi, "herbalist"), ElementBounds.Fixed(220.0, 100.0, 200.0, 30.0))
-				.AddButton(Lang.Get("vsvillage:management-hire-archer"), () => hireVillager(capi, "archer", EnumVillagerProfession.soldier), ElementBounds.Fixed(0.0, 140.0, 200.0, 30.0));
+				.AddButton(Lang.Get("vsvillage:management-hire-archer"), () => hireVillager(capi, "archer", EnumVillagerProfession.soldier), ElementBounds.Fixed(0.0, 140.0, 200.0, 30.0))
+				.AddButton(Lang.Get("vsvillage:management-hire-baker"), () => hireVillager(capi, "baker"), ElementBounds.Fixed(220.0, 140.0, 200.0, 30.0));
 			break;
 		case 2:
 		{
@@ -143,7 +147,7 @@ public class ManagementGui : GuiDialog
 			{
 				base.SingleComposer.AddStaticText(Lang.Get("vsvillage:management-select-villager"), CairoFont.WhiteSmallishText(), ElementBounds.Fixed(0.0, 20.0, 200.0, 30.0)).AddDropDown(array, names, 0, delegate(string code, bool sel)
 				{
-					base.SingleComposer.GetDynamicText("villager-note").SetNewText(villagerNote(code, capi));
+					base.SingleComposer.GetDynamicText("villager-note")?.SetNewText(villagerNote(code, capi));
 				}, ElementBounds.Fixed(200.0, 20.0, 300.0, 30.0), "villagers").AddButton(Lang.Get("vsvillage:management-remove-villager"), () => removeVillager(capi), ElementBounds.Fixed(520.0, 20.0, 200.0, 30.0))
 					.AddDynamicText(villagerNote(array[0], capi), CairoFont.WhiteSmallishText(), ElementBounds.Fixed(0.0, 60.0, 500.0, 150.0), "villager-note");
 			}
@@ -158,16 +162,19 @@ public class ManagementGui : GuiDialog
 			List<string> list = village.Workstations.Values.ToList().ConvertAll((VillagerWorkstation workstation) => workstation.Pos.ToString());
 			list.AddRange(village.Beds.Values.ToList().ConvertAll((VillagerBed bed) => bed.Pos.ToString()));
 			list.AddRange(village.Gatherplaces.ToList().ConvertAll((BlockPos gatherplace) => gatherplace.ToString()));
-			List<string> list2 = village.Workstations.Values.ToList().ConvertAll((VillagerWorkstation workstation) => $"{Lang.GetMatching($"vsvillage:block-workstation-{workstation.Profession}-east")}, {BlockPosToString(workstation.Pos, capi)}");
+			List<string> list2 = village.Workstations.Values.ToList().ConvertAll((VillagerWorkstation workstation) => Lang.GetMatching($"vsvillage:block-workstation-{workstation.Profession}-east") + ", " + BlockPosToString(workstation.Pos, capi));
 			list2.AddRange(village.Beds.Values.ToList().ConvertAll((VillagerBed bed) => string.Format("{0}, {1}", Lang.GetMatching("vsvillage:block-villagebed-east"), BlockPosToString(bed.Pos, capi))));
 			list2.AddRange(village.Gatherplaces.ToList().ConvertAll((BlockPos gatherplace) => string.Format("{0}, {1}", Lang.GetMatching("vsvillage:block-brazier-extinct"), BlockPosToString(gatherplace, capi))));
 			if (list.Count > 0)
 			{
-				base.SingleComposer.AddStaticText(Lang.Get("vsvillage:management-select-structure"), CairoFont.WhiteSmallishText(), ElementBounds.Fixed(0.0, 20.0, 200.0, 30.0)).AddDropDown(list.ToArray(), list2.ToArray(), 0, delegate(string code, bool sel)
-				{
-					base.SingleComposer.GetDynamicText("structure-note").SetNewText(structureNote(village, code, capi));
-				}, ElementBounds.Fixed(200.0, 20.0, 300.0, 30.0), "structures").AddButton(Lang.Get("vsvillage:management-remove-structure"), () => removeStructure(capi), ElementBounds.Fixed(520.0, 20.0, 200.0, 30.0))
-					.AddDynamicText(structureNote(village, list[0], capi), CairoFont.WhiteSmallishText(), ElementBounds.Fixed(0.0, 60.0, 500.0, 150.0), "structure-note");
+				base.SingleComposer.AddStaticText(Lang.Get("vsvillage:management-select-structure"), CairoFont.WhiteSmallishText(), ElementBounds.Fixed(0.0, 20.0, 200.0, 30.0))
+					.AddDropDown(list.ToArray(), list2.ToArray(), 0, delegate(string code, bool sel)
+					{
+						base.SingleComposer.GetDynamicText("structure-note")?.SetNewText(structureNote(village, code, capi));
+					}, ElementBounds.Fixed(200.0, 20.0, 300.0, 30.0), "structures")
+					.AddButton(Lang.Get("vsvillage:management-remove-structure"), () => removeStructure(capi), ElementBounds.Fixed(520.0, 20.0, 200.0, 30.0))
+					.AddButton(Lang.Get("vsvillage:management-mark-invalid"), () => markStructureInvalid(capi), ElementBounds.Fixed(520.0, 60.0, 200.0, 30.0))
+					.AddDynamicText(structureNote(village, list[0], capi), CairoFont.WhiteSmallishText(), ElementBounds.Fixed(0.0, 100.0, 500.0, 120.0), "structure-note");
 			}
 			else
 			{
@@ -257,6 +264,43 @@ public class ManagementGui : GuiDialog
 		return true;
 	}
 
+	private bool markStructureInvalid(ICoreClientAPI capi)
+	{
+		managementMessage.Operation = EnumVillageManagementOperation.markStructureInvalid;
+		managementMessage.StructureToRemove = BlockPosFromString(base.SingleComposer.GetDropDown("structures").SelectedValue);
+		capi.Network.GetChannel("villagemanagementnetwork").SendPacket(managementMessage);
+		TryClose();
+		return true;
+	}
+
+	private bool gatherVillagers(ICoreClientAPI capi)
+	{
+		managementMessage.Operation = EnumVillageManagementOperation.gatherVillagers;
+		capi.Network.GetChannel("villagemanagementnetwork").SendPacket(managementMessage);
+		return true;
+	}
+
+	private bool clearGather(ICoreClientAPI capi)
+	{
+		managementMessage.Operation = EnumVillageManagementOperation.clearGather;
+		capi.Network.GetChannel("villagemanagementnetwork").SendPacket(managementMessage);
+		return true;
+	}
+
+	private bool validateStructures(ICoreClientAPI capi)
+	{
+		managementMessage.Operation = EnumVillageManagementOperation.validateStructures;
+		capi.Network.GetChannel("villagemanagementnetwork").SendPacket(managementMessage);
+		return true;
+	}
+
+	private bool recoverOrphanedVillagers(ICoreClientAPI capi)
+	{
+		managementMessage.Operation = EnumVillageManagementOperation.recoverOrphanedVillagers;
+		capi.Network.GetChannel("villagemanagementnetwork").SendPacket(managementMessage);
+		return true;
+	}
+
 	private bool removeVillager(ICoreClientAPI capi)
 	{
 		managementMessage.Operation = EnumVillageManagementOperation.removeVillager;
@@ -279,5 +323,35 @@ public class ManagementGui : GuiDialog
 	{
 		List<int> list = new List<Match>(Regex.Matches(pos, "\\d+")).ConvertAll((Match match) => int.Parse(match.Value));
 		return new BlockPos(list[0], list[1], list[2], (list.Count > 3) ? list[3] : 0);
+	}
+
+	private static bool HasMarketStall(Village village, ICoreClientAPI capi)
+	{
+		if (village?.Pos == null)
+		{
+			return false;
+		}
+		IBlockAccessor ba = capi.World.BlockAccessor;
+		int r = Math.Min(village.Radius, 35);
+		int cy = village.Pos.Y;
+		BlockPos tmp = new BlockPos(0);
+		for (int dx = -r; dx <= r; dx++)
+		{
+			for (int dz = -r; dz <= r; dz++)
+			{
+				int wx = village.Pos.X + dx;
+				int wz = village.Pos.Z + dz;
+				for (int dy = 8; dy >= -8; dy--)
+				{
+					tmp.Set(wx, cy + dy, wz);
+					Block b = ba.GetBlock(tmp);
+					if (b != null && b.Code?.Path?.StartsWith("marketstall") == true)
+					{
+						return true;
+					}
+				}
+			}
+		}
+		return false;
 	}
 }

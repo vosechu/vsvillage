@@ -2,7 +2,9 @@ using System;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
+using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Server;
 using Vintagestory.GameContent;
 
 namespace VsVillage;
@@ -24,7 +26,7 @@ public class ItemVillagerHorn : Item
 		ICoreAPI coreAPI = byEntity.Api;
 		if (coreAPI != null && coreAPI.Side == EnumAppSide.Server)
 		{
-			byEntity.World?.PlaySoundAt(new AssetLocation("vsvillage:sounds/horn.ogg"), ((Entity)byEntity).ServerPos.X, ((Entity)byEntity).ServerPos.Y, ((Entity)byEntity).ServerPos.Z);
+			byEntity.World?.PlaySoundAt(new AssetLocation("vsvillage:sounds/horn.ogg"), byEntity.Pos.X, byEntity.Pos.Y, byEntity.Pos.Z);
 			spawnVillager(byEntity, blockSel);
 			if (!(byEntity is EntityPlayer) || (byEntity as EntityPlayer).Player.WorldData.CurrentGameMode != EnumGameMode.Creative)
 			{
@@ -36,49 +38,43 @@ public class ItemVillagerHorn : Item
 
 	private void spawnVillager(EntityAgent byEntity, BlockSelection blockSel)
 	{
-		AssetLocation assetLocation = new AssetLocation((byEntity.Api.World.Rand.Next(2) == 0) ? "vsvillage:villager-male-trader" : "vsvillage:villager-female-trader");
+		// One per village/area — scan 60 blocks for an existing mechhelper.
+		Entity[] existing = byEntity.World.GetEntitiesAround(
+			byEntity.Pos.XYZ, 60f, 20f,
+			e => e.Code?.Domain == "vsvillage" && e.Code?.Path == "village-mechhelper");
+
+		if (existing.Length > 0)
+		{
+			if (byEntity is EntityPlayer ep)
+			{
+				IServerPlayer sp = ep.Player as IServerPlayer;
+				sp?.SendMessage(GlobalConstants.GeneralChatGroup,
+					Lang.Get("vsvillage:horn-mechhelper-exists"),
+					EnumChatType.Notification);
+			}
+			return;
+		}
+
+		AssetLocation assetLocation = new AssetLocation("vsvillage:village-mechhelper");
 		EntityProperties entityType = byEntity.World.GetEntityType(assetLocation);
 		if (entityType == null)
 		{
-			byEntity.World.Logger.Error("ItemCreature: No such entity - {0}", assetLocation);
+			byEntity.World.Logger.Error("ItemVillagerHorn: No such entity - {0}", assetLocation);
 			return;
 		}
+
 		Entity entity = byEntity.World.ClassRegistry.CreateEntity(entityType);
 		if (entity != null)
 		{
-			entity.ServerPos.X = (float)(blockSel.Position.X + ((!blockSel.DidOffset) ? blockSel.Face.Normali.X : 0)) + 0.5f;
-			entity.ServerPos.Y = blockSel.Position.Y + ((!blockSel.DidOffset) ? blockSel.Face.Normali.Y : 0);
-			entity.ServerPos.Z = (float)(blockSel.Position.Z + ((!blockSel.DidOffset) ? blockSel.Face.Normali.Z : 0)) + 0.5f;
-			entity.ServerPos.Yaw = (float)byEntity.World.Rand.NextDouble() * 2f * (float)Math.PI;
-			entity.Pos.SetFrom(entity.ServerPos);
-			entity.PositionBeforeFalling.Set(entity.ServerPos.X, entity.ServerPos.Y, entity.ServerPos.Z);
-			entity.Attributes.SetString("origin", "summoned");
+			entity.Pos.X = (float)(blockSel.Position.X + ((!blockSel.DidOffset) ? blockSel.Face.Normali.X : 0)) + 0.5f;
+			entity.Pos.Y = blockSel.Position.Y + ((!blockSel.DidOffset) ? blockSel.Face.Normali.Y : 0);
+			entity.Pos.Z = (float)(blockSel.Position.Z + ((!blockSel.DidOffset) ? blockSel.Face.Normali.Z : 0)) + 0.5f;
+			entity.Pos.Yaw = (float)byEntity.World.Rand.NextDouble() * 2f * (float)Math.PI;
+			entity.Pos.SetFrom(entity.Pos);
+			entity.PositionBeforeFalling.Set(entity.Pos.X, entity.Pos.Y, entity.Pos.Z);
 			byEntity.World.SpawnEntity(entity);
-
-			// Immediately integrate into nearby village so the villager
-			// doesn't need to wait for the 5-second InitVillageAfterChunkLoading delay.
-			EntityBehaviorVillager villagerBehavior = entity.GetBehavior<EntityBehaviorVillager>();
-			if (villagerBehavior != null)
-			{
-				Village village = byEntity.Api.ModLoader.GetModSystem<VillageManager>()
-					?.GetVillage(entity.ServerPos.AsBlockPos);
-				if (village != null)
-				{
-					villagerBehavior.Village = village;
-					BlockPos bedPos = village.FindFreeBed(entity.EntityId);
-					if (bedPos != null)
-					{
-						villagerBehavior.Bed = bedPos;
-					}
-					village.VillagerSaveData[entity.EntityId] = new VillagerData
-					{
-						Id = entity.EntityId,
-						Profession = villagerBehavior.Profession,
-						Name = entity.GetBehavior<EntityBehaviorNameTag>()?.DisplayName ?? "Trader"
-					};
-				}
-			}
 		}
+
 		SimpleParticleProperties simpleParticleProperties = new SimpleParticleProperties(50f, 100f, ColorUtil.ToRgba(75, 169, 169, 169), new Vec3d(), new Vec3d(2.0, 1.0, 2.0), new Vec3f(-0.25f, 0f, -0.25f), new Vec3f(0.25f, 0f, 0.25f), 3f, -0.075f, 0.5f, 3f, EnumParticleModel.Quad);
 		simpleParticleProperties.MinPos = blockSel.Position.ToVec3d();
 		byEntity.World.SpawnParticles(simpleParticleProperties);

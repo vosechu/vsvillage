@@ -8,7 +8,7 @@ public class BlockMayorWorkstation : Block
 {
 	public override bool OnBlockInteractStart(IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel)
 	{
-		string villageId = world.BlockAccessor.GetBlockEntity<BlockEntityVillagerWorkstation>(blockSel.Position).VillageId;
+		string villageId = world.BlockAccessor.GetBlockEntity<BlockEntityVillagerWorkstation>(blockSel.Position)?.VillageId;
 		bool flag = !string.IsNullOrEmpty(villageId);
 		if (!flag && world.Api is ICoreClientAPI capi)
 		{

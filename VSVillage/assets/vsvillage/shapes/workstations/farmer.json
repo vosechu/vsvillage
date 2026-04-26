@@ -21,7 +21,7 @@
 		"material": "game:block/metal/ingot/copper",
 		"legs": "game:block/wood/table/aged/legs",
 		"sides": "game:block/wood/table/aged/sides",
-		"leaves1": "game:block/plant/flower/stem/lilyofthevalleyleaves"
+		"leaves1": "game:block/plant/flower/stem/lilyofthevalleyleaves1"
 	},
 	"elements": [
 		{

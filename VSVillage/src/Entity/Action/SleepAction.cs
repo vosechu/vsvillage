@@ -3,14 +3,13 @@ using System.Collections.Generic;
 using Newtonsoft.Json;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
-using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Util;
 using Vintagestory.GameContent;
 
 namespace VsVillage;
 
-[JsonObject(MemberSerialization.OptIn)]
+[JsonObject(/*Could not decode attribute arguments.*/)]
 public class SleepAction : EntityActionBase
 {
 	public const string ActionType = "Sleep";
@@ -33,8 +32,8 @@ public class SleepAction : EntityActionBase
 			BlockEntityVillagerBed blockEntity = vas.Entity.World.BlockAccessor.GetBlockEntity<BlockEntityVillagerBed>(behavior.Bed);
 			if (blockEntity != null)
 			{
-				((Entity)vas.Entity).ServerPos.SetPos(getPos(blockEntity));
-				((Entity)vas.Entity).ServerPos.Yaw = blockEntity.Yaw;
+				vas.Entity.Pos.SetPos(getPos(blockEntity));
+				vas.Entity.Pos.Yaw = blockEntity.Yaw;
 				vas.Entity.AnimManager.StartAnimation(new AnimationMetaData
 				{
 					Code = AnimCode,
@@ -54,12 +53,13 @@ public class SleepAction : EntityActionBase
 
 	private Vec3d getPos(BlockEntityVillagerBed bed)
 	{
-		Cardinal cardinal = bed.Block.Variant["side"] switch
+		string text = bed.Block.Variant["side"];
+		Cardinal cardinal = text switch
 		{
-			"north" => Cardinal.North, 
-			"east" => Cardinal.East, 
-			"south" => Cardinal.South, 
-			_ => Cardinal.West, 
+			"north" => Cardinal.North,
+			"east" => Cardinal.East,
+			"south" => Cardinal.South,
+			_ => Cardinal.West,
 		};
 		return bed.Pos.ToVec3d().Add(0.5, 0.0, 0.5).Add(cardinal.Normalf.Clone().Mul(0.7f));
 	}
@@ -104,7 +104,6 @@ public class SleepAction : EntityActionBase
 	{
 		ElementBounds elementBounds = ElementBounds.Fixed(0.0, 0.0, 200.0, 25.0);
 		ElementBounds elementBounds2 = elementBounds.BelowCopy();
-		new List<VillagePointOfInterest>(Enum.GetValues<VillagePointOfInterest>()).ConvertAll((VillagePointOfInterest poi) => poi.ToString()).ToArray();
 		singleComposer.AddStaticText("Animation", CairoFont.WhiteDetailText(), elementBounds).AddTextInput(elementBounds.RightCopy(), delegate
 		{
 		}, null, "Animation").AddStaticText("Animationspeed", CairoFont.WhiteDetailText(), elementBounds2)

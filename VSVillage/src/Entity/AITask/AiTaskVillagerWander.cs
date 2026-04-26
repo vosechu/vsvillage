@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using Vintagestory.API.Common;
-using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 
@@ -44,30 +43,14 @@ public class AiTaskVillagerWander : AiTaskBase
 	public AiTaskVillagerWander(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
 		: base(entity, taskConfig, aiConfig)
 	{
-		if (taskConfig["moveSpeed"] != null)
-		{
-			moveSpeed = taskConfig["moveSpeed"].AsFloat(0.03f);
-		}
-		if (taskConfig["wanderRange"] != null)
-		{
-			wanderRange = taskConfig["wanderRange"].AsFloat(20f);
-		}
-		if (taskConfig["wanderCooldownSeconds"] != null)
-		{
-			wanderCooldownMs = (long)taskConfig["wanderCooldownSeconds"].AsInt(10) * 1000L;
-		}
-		if (taskConfig["entitySuffix"] != null)
-		{
-			requiredEntitySuffix = taskConfig["entitySuffix"].AsString();
-		}
-		if (taskConfig["constrainToWorkstation"] != null)
-		{
-			constrainToWorkstation = taskConfig["constrainToWorkstation"].AsBool(false);
-		}
-		if (taskConfig["workstationRadius"] != null)
-		{
-			workstationRadius = taskConfig["workstationRadius"].AsFloat(10f);
-		}
+		// AsFloat/AsInt/AsBool already return the default when the key is absent.
+		moveSpeed           = taskConfig["moveSpeed"].AsFloat(0.03f);
+		wanderRange         = taskConfig["wanderRange"].AsFloat(20f);
+		wanderCooldownMs    = (long)taskConfig["wanderCooldownSeconds"].AsInt(10) * 1000L;
+		requiredEntitySuffix = taskConfig["entitySuffix"].AsString(null);
+		constrainToWorkstation = taskConfig["constrainToWorkstation"].AsBool();
+		workstationRadius   = taskConfig["workstationRadius"].AsFloat(10f);
+
 		pathfinder = new VillagerAStarNew(entity.World.GetCachingBlockAccessor(synchronize: false, relight: false));
 		lastPosition = null;
 		stuckCheckTime = 0L;
@@ -77,16 +60,16 @@ public class AiTaskVillagerWander : AiTaskBase
 
 	public override bool ShouldExecute()
 	{
-		if (!string.IsNullOrEmpty(requiredEntitySuffix) && (entity == null || entity.Code == null || entity.Code.Path == null || !entity.Code.Path.EndsWith(requiredEntitySuffix)))
-		{
+		if (!string.IsNullOrEmpty(requiredEntitySuffix)
+			&& (entity?.Code?.Path == null || !entity.Code.Path.EndsWith(requiredEntitySuffix)))
 			return false;
-		}
-		if (duringDayTimeFrames != null && duringDayTimeFrames.Length != 0 && !IntervalUtil.matchesCurrentTime(duringDayTimeFrames, entity.World))
-		{
+
+		if (duringDayTimeFrames != null && duringDayTimeFrames.Length != 0
+			&& !IntervalUtil.matchesCurrentTime(duringDayTimeFrames, entity.World))
 			return false;
-		}
-		long elapsedMilliseconds = entity.World.ElapsedMilliseconds;
-		return elapsedMilliseconds - lastWanderTime >= wanderCooldownMs && entity.World.Rand.NextDouble() <= 0.3;
+
+		long now = entity.World.ElapsedMilliseconds;
+		return now - lastWanderTime >= wanderCooldownMs && entity.World.Rand.NextDouble() <= 0.3;
 	}
 
 	public override void StartExecute()
@@ -96,20 +79,13 @@ public class AiTaskVillagerWander : AiTaskBase
 		stuck = false;
 		currentPath = null;
 		targetPos = null;
+		BlockPos startPos = entity.Pos.AsBlockPos;
 
-		BlockPos startPos = ((Entity)entity).ServerPos.AsBlockPos;
 		BlockPos wanderCenter;
-
 		if (constrainToWorkstation)
 		{
-			EntityBehaviorVillager villagerBehavior = entity.GetBehavior<EntityBehaviorVillager>();
-			BlockPos ws = villagerBehavior?.Workstation;
-			if (ws == null)
-			{
-				entity.World.Logger.Debug("Villager constrained wander: no workstation found, skipping");
-				stuck = true;
-				return;
-			}
+			BlockPos ws = entity.GetBehavior<EntityBehaviorVillager>()?.Workstation;
+			if (ws == null) { stuck = true; return; }
 			wanderCenter = ws;
 		}
 		else
@@ -118,68 +94,58 @@ public class AiTaskVillagerWander : AiTaskBase
 		}
 
 		float effectiveRange = constrainToWorkstation ? Math.Min(wanderRange, workstationRadius) : wanderRange;
-		int num = 10;
-		for (int i = 0; i < num; i++)
+		const int attempts = 10;
+		for (int i = 0; i < attempts; i++)
 		{
-			double num2 = entity.World.Rand.NextDouble() * Math.PI * 2.0;
-			double num3 = 2.0 + entity.World.Rand.NextDouble() * (double)effectiveRange;
-			double num4 = Math.Cos(num2) * num3;
-			double num5 = Math.Sin(num2) * num3;
-			BlockPos blockPos = wanderCenter.AddCopy((int)num4, 0, (int)num5);
-			for (int num6 = 5; num6 >= -5; num6--)
+			double angle = entity.World.Rand.NextDouble() * Math.PI * 2.0;
+			double dist  = 2.0 + entity.World.Rand.NextDouble() * effectiveRange;
+			BlockPos candidate = wanderCenter.AddCopy((int)(Math.Cos(angle) * dist), 0, (int)(Math.Sin(angle) * dist));
+
+			// Find the surface at that XZ position.
+			for (int dy = 5; dy >= -5; dy--)
 			{
-				BlockPos blockPos2 = blockPos.AddCopy(0, num6, 0);
-				Block block = entity.World.BlockAccessor.GetBlock(blockPos2);
-				Block block2 = entity.World.BlockAccessor.GetBlock(blockPos2.UpCopy());
-				if (block.SideSolid[BlockFacing.UP.Index] && (block2.CollisionBoxes == null || block2.CollisionBoxes.Length == 0))
+				BlockPos check = candidate.AddCopy(0, dy, 0);
+				if (entity.World.BlockAccessor.GetBlock(check).SideSolid[BlockFacing.UP.Index]
+					&& (entity.World.BlockAccessor.GetBlock(check.UpCopy()).CollisionBoxes == null
+						|| entity.World.BlockAccessor.GetBlock(check.UpCopy()).CollisionBoxes.Length == 0))
 				{
-					blockPos = blockPos2.UpCopy();
+					candidate = check.UpCopy();
 					break;
 				}
 			}
+
 			pathfinder.blockAccessor.Begin();
 			pathfinder.SetEntityCollisionBox(entity);
-			currentPath = pathfinder.FindPath(startPos, blockPos, 500);
+			currentPath = pathfinder.FindPath(startPos, candidate, 500);
 			pathfinder.blockAccessor.Commit();
+
 			if (currentPath != null && currentPath.Count > 5)
 			{
-				targetPos = blockPos.ToVec3d().Add(0.5, 0.0, 0.5);
+				targetPos = candidate.ToVec3d().Add(0.5, 0.0, 0.5);
 				currentPathIndex = 0;
 				stuck = false;
-				lastPosition = ((Entity)entity).ServerPos.XYZ.Clone();
+				lastPosition = entity.Pos.XYZ.Clone();
 				stuckCheckTime = entity.World.ElapsedMilliseconds;
 				timesStuck = 0;
-				entity.World.Logger.Debug("Villager found wander path with " + currentPath.Count + " nodes to " + blockPos.ToString());
-				break;
+				return;
 			}
 		}
-		if (currentPath == null || currentPath.Count <= 5)
-		{
-			entity.World.Logger.Debug("Villager could not find valid wander destination after " + num + " attempts");
-			stuck = true;
-		}
+		stuck = true;
 	}
 
 	public override bool ContinueExecute(float dt)
 	{
 		CheckIfStuck();
-		if (targetPos == null || stuck || currentPath == null)
-		{
+		if (targetPos == null || stuck || currentPath == null) return false;
+
+		if (duringDayTimeFrames != null && duringDayTimeFrames.Length != 0
+			&& !IntervalUtil.matchesCurrentTime(duringDayTimeFrames, entity.World))
 			return false;
-		}
-		if (duringDayTimeFrames != null && duringDayTimeFrames.Length != 0 && !IntervalUtil.matchesCurrentTime(duringDayTimeFrames, entity.World))
-		{
-			entity.World.Logger.Debug("Wander: Time window ended, stopping");
-			return false;
-		}
-		if (currentPathIndex >= currentPath.Count)
-		{
-			entity.World.Logger.Debug("Villager reached wander destination");
-			return false;
-		}
+
+		if (currentPathIndex >= currentPath.Count) return false;
+
 		HandlePathTraversal();
-		double num = ((Entity)entity).ServerPos.SquareDistanceTo(targetPos);
-		return num > 2.0;
+		return entity.Pos.SquareDistanceTo(targetPos) > 2.0;
 	}
 
 	public override void FinishExecute(bool cancelled)
@@ -187,12 +153,9 @@ public class AiTaskVillagerWander : AiTaskBase
 		base.FinishExecute(cancelled);
 		entity.Controls.WalkVector.Set(0.0, 0.0, 0.0);
 		entity.Controls.StopAllMovement();
-		if (animMeta != null)
-		{
-			entity.AnimManager.StopAnimation(animMeta.Code);
-		}
-		((Entity)entity).ServerPos.Motion.X = 0.0;
-		((Entity)entity).ServerPos.Motion.Z = 0.0;
+		if (animMeta != null) entity.AnimManager.StopAnimation(animMeta.Code);
+		entity.Pos.Motion.X = 0.0;
+		entity.Pos.Motion.Z = 0.0;
 		CloseAllOpenDoors();
 		targetPos = null;
 		currentPath = null;
@@ -204,214 +167,161 @@ public class AiTaskVillagerWander : AiTaskBase
 	private void ToggleDoor(bool opened, BlockPos target)
 	{
 		Block block = entity.World.BlockAccessor.GetBlock(target);
-		if (block != null && block.Code != null && (block.Code.Path.Contains("door") || block.Code.Path.Contains("gate")))
+		if (block?.Code == null || (!block.Code.Path.Contains("door") && !block.Code.Path.Contains("gate"))) return;
+
+		BlockSelection blockSel = new BlockSelection
 		{
-			BlockSelection blockSel = new BlockSelection
-			{
-				Block = block,
-				Position = target,
-				HitPosition = new Vec3d(0.5, 0.5, 0.5),
-				Face = BlockFacing.NORTH
-			};
-			TreeAttribute treeAttribute = new TreeAttribute();
-			treeAttribute.SetBool("opened", opened);
-			try
-			{
-				block.Activate(entity.World, new Caller
-				{
-					Entity = entity,
-					Type = EnumCallerType.Entity,
-					Pos = ((Entity)entity).Pos.XYZ
-				}, blockSel, treeAttribute);
-			}
-			catch (Exception ex)
-			{
-				entity.World.Logger.Error("Villager failed to toggle door: " + ex.Message);
-			}
+			Block = block, Position = target,
+			HitPosition = new Vec3d(0.5, 0.5, 0.5),
+			Face = BlockFacing.NORTH
+		};
+		TreeAttribute attrs = new TreeAttribute();
+		attrs.SetBool("opened", opened);
+		try
+		{
+			block.Activate(entity.World, new Caller { Entity = entity, Type = EnumCallerType.Entity, Pos = entity.Pos.XYZ }, blockSel, attrs);
+		}
+		catch (Exception ex)
+		{
+			entity.World.Logger.Error("[VsVillage] Wander: failed to toggle door: " + ex.Message);
 		}
 	}
 
 	private void CloseAllOpenDoors()
 	{
-		if (currentPath == null)
+		if (currentPath == null) return;
+		foreach (VillagerPathNode node in currentPath)
 		{
-			return;
-		}
-		for (int i = 0; i < currentPath.Count; i++)
-		{
-			VillagerPathNode villagerPathNode = currentPath[i];
-			if (villagerPathNode.IsDoor)
+			if (node.IsDoor)
 			{
-				Block block = entity.World.BlockAccessor.GetBlock(villagerPathNode.BlockPos);
-				if (block != null && block.Code != null && (block.Code.Path.Contains("opened") || block.Code.Path.Contains("open")))
-				{
-					ToggleDoor(opened: false, villagerPathNode.BlockPos);
-				}
+				Block block = entity.World.BlockAccessor.GetBlock(node.BlockPos);
+				if (block?.Code != null && (block.Code.Path.Contains("opened") || block.Code.Path.Contains("open")))
+					ToggleDoor(opened: false, node.BlockPos);
 			}
 		}
 	}
 
 	private void HandlePathTraversal()
 	{
-		if (currentPath == null || currentPathIndex >= currentPath.Count)
-		{
-			stuck = true;
-			return;
-		}
-		VillagerPathNode villagerPathNode = currentPath[currentPathIndex];
-		Vec3d vec3d = villagerPathNode.BlockPos.ToVec3d().Add(0.5, 0.0, 0.5);
-		Vec3d xYZ = ((Entity)entity).ServerPos.XYZ;
-		double num = xYZ.X - vec3d.X;
-		double num2 = xYZ.Z - vec3d.Z;
-		double num3 = Math.Sqrt(num * num + num2 * num2);
-		if (num3 < 0.5)
+		if (currentPath == null || currentPathIndex >= currentPath.Count) { stuck = true; return; }
+
+		VillagerPathNode node = currentPath[currentPathIndex];
+		Vec3d nodePos = node.BlockPos.ToVec3d().Add(0.5, 0.0, 0.5);
+		Vec3d myPos = entity.Pos.XYZ;
+		double dx = myPos.X - nodePos.X;
+		double dz = myPos.Z - nodePos.Z;
+		if (Math.Sqrt(dx * dx + dz * dz) < 0.5)
 		{
 			currentPathIndex++;
-			if (currentPathIndex < currentPath.Count)
+			if (currentPathIndex < currentPath.Count && currentPath[currentPathIndex].IsDoor)
+				ToggleDoor(opened: true, currentPath[currentPathIndex].BlockPos);
+
+			if (node.IsDoor)
 			{
-				VillagerPathNode villagerPathNode2 = currentPath[currentPathIndex];
-				if (villagerPathNode2.IsDoor)
-				{
-					entity.World.Logger.Debug("Villager opening door at " + villagerPathNode2.BlockPos.ToString());
-					ToggleDoor(opened: true, villagerPathNode2.BlockPos);
-				}
-			}
-			if (villagerPathNode.IsDoor)
-			{
-				entity.World.Logger.Debug("Villager closing door at " + villagerPathNode.BlockPos.ToString());
-				BlockPos doorPos = villagerPathNode.BlockPos.Copy();
-				entity.World.RegisterCallback(delegate
-				{
-					ToggleDoor(opened: false, doorPos);
-				}, 5000);
+				BlockPos doorPos = node.BlockPos.Copy();
+				entity.World.RegisterCallback(delegate { ToggleDoor(opened: false, doorPos); }, 5000);
 			}
 		}
 		if (currentPathIndex < currentPath.Count)
 		{
-			VillagerPathNode villagerPathNode3 = currentPath[currentPathIndex];
-			Vec3d vec3d2 = villagerPathNode3.BlockPos.ToVec3d().Add(0.5, 0.0, 0.5);
-			Vec3d vec3d3 = vec3d2.Clone().Sub(xYZ);
-			vec3d3.Y = 0.0;
-			vec3d3 = vec3d3.Normalize();
-			float yaw = (float)Math.Atan2(vec3d3.X, vec3d3.Z);
-			((Entity)entity).ServerPos.Yaw = yaw;
-			double num4 = moveSpeed;
-			entity.Controls.WalkVector.Set(vec3d3.X * num4, 0.0, vec3d3.Z * num4);
+			Vec3d next = currentPath[currentPathIndex].BlockPos.ToVec3d().Add(0.5, 0.0, 0.5);
+			Vec3d dir = next.Clone().Sub(myPos);
+			dir.Y = 0.0;
+			dir = dir.Normalize();
+			entity.Pos.Yaw = (float)Math.Atan2(dir.X, dir.Z);
+			entity.Controls.WalkVector.Set(dir.X * moveSpeed, 0.0, dir.Z * moveSpeed);
 			if (animMeta != null && !entity.AnimManager.IsAnimationActive(animMeta.Code))
-			{
 				entity.AnimManager.StartAnimation(animMeta);
-			}
 		}
 	}
 
 	private void CheckIfStuck()
 	{
-		long elapsedMilliseconds = entity.World.ElapsedMilliseconds;
-		if (elapsedMilliseconds - stuckCheckTime < 3000)
-		{
-			return;
-		}
-		Vec3d xYZ = ((Entity)entity).ServerPos.XYZ;
+		long now = entity.World.ElapsedMilliseconds;
+		if (now - stuckCheckTime < 3000) return;
+
+		Vec3d pos = entity.Pos.XYZ;
 		if (lastPosition != null)
 		{
-			double num = xYZ.DistanceTo(lastPosition);
-			if (num < 0.5)
+			double moved = pos.DistanceTo(lastPosition);
+			// Match GotoAndInteract's speed-scaled threshold.
+			double threshold = Math.Max(0.25, moveSpeed * 60 * 0.4);
+			if (moved < threshold)
 			{
 				timesStuck++;
-				entity.World.Logger.Warning("Wander: Villager stuck! Distance: " + num.ToString("F2") + " (count: " + timesStuck + ")");
 				if (timesStuck <= 5)
 				{
-					long num2 = elapsedMilliseconds - lastRepathTime;
-					if (num2 > 5000)
+					if (now - lastRepathTime > 5000)
 					{
-						entity.World.Logger.Notification("Wander recovery " + timesStuck + ": Re-pathing");
 						AttemptRepath();
-						lastRepathTime = elapsedMilliseconds;
+						lastRepathTime = now;
 					}
 				}
 				else if (timesStuck >= 6)
 				{
-					entity.World.Logger.Notification("Wander recovery FINAL: Teleporting");
 					TeleportToRecoveryPosition();
 					timesStuck = 0;
 				}
 			}
 			else
 			{
-				if (timesStuck > 0)
-				{
-					entity.World.Logger.Debug("Wander: Moving again! Distance: " + num.ToString("F2"));
-				}
 				timesStuck = 0;
 			}
 		}
-		lastPosition = xYZ.Clone();
-		stuckCheckTime = elapsedMilliseconds;
+		lastPosition = pos.Clone();
+		stuckCheckTime = now;
 	}
 
 	private void AttemptRepath()
 	{
-		if (!(targetPos == null))
+		if (targetPos == null) return;
+
+		pathfinder.blockAccessor.Begin();
+		pathfinder.SetEntityCollisionBox(entity);
+		BlockPos startPos = pathfinder.GetStartPos(entity.Pos.XYZ);
+		List<VillagerPathNode> newPath = pathfinder.FindPath(startPos, targetPos.AsBlockPos, 500);
+		pathfinder.blockAccessor.Commit();
+		if (newPath != null && newPath.Count > 0)
 		{
-			entity.World.Logger.Debug("Wander: Finding new path");
-			pathfinder.blockAccessor.Begin();
-			pathfinder.SetEntityCollisionBox(entity);
-			BlockPos startPos = pathfinder.GetStartPos(((Entity)entity).ServerPos.XYZ);
-			BlockPos asBlockPos = targetPos.AsBlockPos;
-			List<VillagerPathNode> list = pathfinder.FindPath(startPos, asBlockPos, 500);
-			pathfinder.blockAccessor.Commit();
-			if (list != null && list.Count > 0)
-			{
-				entity.World.Logger.Notification("Wander: New path with " + list.Count + " nodes");
-				currentPath = list;
-				currentPathIndex = 0;
-				stuck = false;
-			}
-			else
-			{
-				entity.World.Logger.Warning("Wander: No alternative path found");
-			}
+			currentPath = newPath;
+			currentPathIndex = 0;
+			stuck = false;
 		}
 	}
 
 	private void TeleportToRecoveryPosition()
 	{
-		Vec3d vec3d = null;
+		Vec3d dest = null;
 		if (currentPath != null && currentPathIndex < currentPath.Count)
 		{
-			int num = Math.Min(2, currentPath.Count - currentPathIndex - 1);
-			if (num > 0)
+			int skip = Math.Min(2, currentPath.Count - currentPathIndex - 1);
+			if (skip > 0)
 			{
-				VillagerPathNode villagerPathNode = currentPath[currentPathIndex + num];
-				vec3d = villagerPathNode.BlockPos.ToVec3d().Add(0.5, 0.1, 0.5);
-				currentPathIndex += num;
-				entity.World.Logger.Notification("Wander: Teleporting " + num + " nodes ahead");
+				dest = currentPath[currentPathIndex + skip].BlockPos.ToVec3d().Add(0.5, 0.1, 0.5);
+				currentPathIndex += skip;
 			}
 		}
-		if (vec3d == null && targetPos != null)
+		if (dest == null && targetPos != null)
 		{
-			Vec3d xYZ = ((Entity)entity).ServerPos.XYZ;
-			Vec3d vec3d2 = targetPos.Clone().Sub(xYZ).Normalize();
-			vec3d = xYZ.Add(vec3d2.X * 2.0, 0.5, vec3d2.Z * 2.0);
-			entity.World.Logger.Notification("Wander: Teleporting toward target");
+			Vec3d myPos = entity.Pos.XYZ;
+			Vec3d diff = targetPos.Clone().Sub(myPos);
+			if (diff.LengthSq() < 0.0001) return;
+			Vec3d dir = diff.Normalize();
+			dest = myPos.Add(dir.X * 2.0, 0.5, dir.Z * 2.0);
 		}
-		if (vec3d != null)
+		if (dest != null)
 		{
-			IBlockAccessor blockAccessor = entity.World.BlockAccessor;
-			BlockPos asBlockPos = vec3d.AsBlockPos;
-			Block block = blockAccessor.GetBlock(asBlockPos);
-			Block block2 = blockAccessor.GetBlock(asBlockPos.UpCopy());
-			bool flag = block.CollisionBoxes == null || block.CollisionBoxes.Length == 0;
-			bool flag2 = block2.CollisionBoxes == null || block2.CollisionBoxes.Length == 0;
-			if (flag && flag2)
+			IBlockAccessor ba = entity.World.BlockAccessor;
+			BlockPos bp = dest.AsBlockPos;
+			bool clear = ba.GetBlock(bp).CollisionBoxes == null || ba.GetBlock(bp).CollisionBoxes.Length == 0;
+			bool head  = ba.GetBlock(bp.UpCopy()).CollisionBoxes == null || ba.GetBlock(bp.UpCopy()).CollisionBoxes.Length == 0;
+			if (clear && head)
 			{
-				entity.TeleportTo(vec3d);
-				entity.World.Logger.Notification("Wander: Teleported to " + vec3d.ToString());
-				((Entity)entity).ServerPos.Motion.Y = 0.1;
+				entity.TeleportTo(dest);
+				entity.Pos.Motion.Y = 0.1;
 			}
 			else
 			{
-				entity.World.Logger.Warning("Wander: Teleport target unsafe");
 				stuck = true;
 			}
 		}

@@ -1,0 +1,54 @@
+using System;
+using System.Collections.Generic;
+using Vintagestory.API.Common;
+using Vintagestory.API.Datastructures;
+using Vintagestory.API.MathTools;
+using Vintagestory.GameContent;
+
+namespace VsVillage;
+
+/// <summary>
+/// Fires when the farmer has no crops to tend.
+/// Farmer patrols to random village waypoints.
+/// </summary>
+public class AiTaskVillagerFarmerHelp : AiTaskGotoAndInteract
+{
+    public AiTaskVillagerFarmerHelp(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
+        : base(entity, taskConfig, aiConfig) { }
+
+    protected override Vec3d GetTargetPos()
+    {
+        if (!IsFarmer()) return null;
+
+        // If any farmland nearby has a crop, farming tasks should fire instead.
+        bool hasCrops = false;
+        entity.Api.ModLoader.GetModSystem<POIRegistry>().GetNearestPoi(entity.Pos.XYZ, maxDistance, poi =>
+        {
+            if (!hasCrops && poi is BlockEntityFarmland bef && bef.GetCrop() != null)
+                hasCrops = true;
+            return false;
+        });
+
+        if (hasCrops) return null;
+
+        Village village = entity.GetBehavior<EntityBehaviorVillager>()?.Village;
+        if (village == null) return null;
+
+        // Pick a random waypoint; fall back to a random spot within village radius.
+        if (village.Waypoints.Count > 0)
+        {
+            var waypoints = new List<BlockPos>(village.Waypoints);
+            BlockPos wp = waypoints[entity.World.Rand.Next(waypoints.Count)];
+            return wp.ToVec3d().Add(0.5, 0, 0.5);
+        }
+
+        // No waypoints - wander within village radius.
+        double angle = entity.World.Rand.NextDouble() * Math.PI * 2;
+        double dist  = entity.World.Rand.NextDouble() * village.Radius * 0.8;
+        return village.Pos.ToVec3d().Add(Math.Cos(angle) * dist, 0, Math.Sin(angle) * dist);
+    }
+
+    protected override void ApplyInteractionEffect() { }
+
+    private bool IsFarmer() => entity?.Code?.Path?.EndsWith("-farmer") == true;
+}

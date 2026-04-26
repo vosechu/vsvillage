@@ -1,0 +1,184 @@
+{
+    "money": {
+        "avg": 30,
+        "var": 6
+    },
+    "selling": {
+        "maxItems": 14,
+        "list": [
+            {
+                "code": "vsvillage:workstation-mayor-east",
+                "type": "block",
+                "stacksize": 1,
+                "stock": { "avg": 2, "var": 1 },
+                "price": { "avg": 6, "var": 2 }
+            },
+            {
+                "code": "vsvillage:workstation-soldier-east",
+                "type": "block",
+                "stacksize": 1,
+                "stock": { "avg": 2, "var": 1 },
+                "price": { "avg": 6, "var": 2 }
+            },
+            {
+                "code": "vsvillage:workstation-farmer-east",
+                "type": "block",
+                "stacksize": 1,
+                "stock": { "avg": 2, "var": 1 },
+                "price": { "avg": 6, "var": 2 }
+            },
+            {
+                "code": "vsvillage:workstation-shepherd-east",
+                "type": "block",
+                "stacksize": 1,
+                "stock": { "avg": 2, "var": 1 },
+                "price": { "avg": 6, "var": 2 }
+            },
+            {
+                "code": "vsvillage:workstation-smith-east",
+                "type": "block",
+                "stacksize": 1,
+                "stock": { "avg": 2, "var": 1 },
+                "price": { "avg": 6, "var": 2 }
+            },
+            {
+                "code": "vsvillage:workstation-herbalist-east",
+                "type": "block",
+                "stacksize": 1,
+                "stock": { "avg": 2, "var": 1 },
+                "price": { "avg": 6, "var": 2 }
+            },
+            {
+                "code": "vsvillage:workstation-trader-east",
+                "type": "block",
+                "stacksize": 1,
+                "stock": { "avg": 2, "var": 1 },
+                "price": { "avg": 6, "var": 2 }
+            },
+            {
+                "code": "vsvillage:workstation-baker-east",
+                "type": "block",
+                "stacksize": 1,
+                "stock": { "avg": 2, "var": 1 },
+                "price": { "avg": 6, "var": 2 }
+            },
+            {
+                "code": "vsvillage:marketstall-east",
+                "type": "block",
+                "stacksize": 1,
+                "stock": { "avg": 2, "var": 1 },
+                "price": { "avg": 22, "var": 5 }
+            },
+            {
+                "code": "vsvillage:brazier-extinct",
+                "type": "block",
+                "stacksize": 1,
+                "stock": { "avg": 2, "var": 1 },
+                "price": { "avg": 8, "var": 2 }
+            },
+            {
+                "code": "vsvillage:waypoint",
+                "type": "block",
+                "stacksize": 8,
+                "stock": { "avg": 2, "var": 1 },
+                "price": { "avg": 6, "var": 2 }
+            },
+            {
+                "code": "vsvillage:villagebed-blueplaid-east",
+                "type": "block",
+                "stacksize": 1,
+                "stock": { "avg": 8, "var": 2 },
+                "price": { "avg": 2, "var": 1 }
+            },
+            {
+                "code": "vsvillage:villagebed-whiteplaid-east",
+                "type": "block",
+                "stacksize": 1,
+                "stock": { "avg": 8, "var": 2 },
+                "price": { "avg": 2, "var": 1 }
+            },
+            {
+                "code": "vsvillage:villagebed-pine-east",
+                "type": "block",
+                "stacksize": 1,
+                "stock": { "avg": 8, "var": 2 },
+                "price": { "avg": 2, "var": 1 }
+            }
+        ]
+    },
+    "buying": {
+        "maxItems": 10,
+        "list": [
+            {
+                "code": "game:gear-temporal",
+                "type": "item",
+                "stacksize": 1,
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 10, "var": 2 }
+            },
+            {
+                "code": "game:jonasparts-connector01",
+                "type": "item",
+                "stacksize": 1,
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 7, "var": 1.5 }
+            },
+            {
+                "code": "game:jonasparts-cylinder01",
+                "type": "item",
+                "stacksize": 1,
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 7, "var": 1.5 }
+            },
+            {
+                "code": "game:jonasparts-cylinder02",
+                "type": "item",
+                "stacksize": 1,
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 7, "var": 1.5 }
+            },
+            {
+                "code": "game:jonasparts-tank01",
+                "type": "item",
+                "stacksize": 1,
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 7, "var": 1.5 }
+            },
+            {
+                "code": "game:jonasparts-tank02",
+                "type": "item",
+                "stacksize": 1,
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 7, "var": 1.5 }
+            },
+            {
+                "code": "game:jonasparts-valve01",
+                "type": "item",
+                "stacksize": 1,
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 7, "var": 1.5 }
+            },
+            {
+                "code": "game:jonasparts-pumphead",
+                "type": "item",
+                "stacksize": 1,
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 7, "var": 1.5 }
+            },
+            {
+                "code": "game:metal-parts",
+                "type": "block",
+                "stacksize": 1,
+                "stock": { "avg": 6, "var": 2 },
+                "price": { "avg": 4, "var": 1 }
+            },
+            {
+                "code": "game:metal-scraps",
+                "type": "block",
+                "stacksize": 1,
+                "stock": { "avg": 8, "var": 2 },
+                "price": { "avg": 3, "var": 0.75 }
+            }
+        ]
+    }
+}

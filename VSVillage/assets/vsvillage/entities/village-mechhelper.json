@@ -1,0 +1,139 @@
+{
+    "code": "village-mechhelper",
+    "class": "EntityTrader",
+    "tags": ["mechanical", "trader", "habitat-land"],
+    "weight": 130,
+    "canClimb": true,
+    "canClimbAnywhere": true,
+    "climbTouchDistance": 0.1,
+    "rotateModelOnClimb": true,
+    "fallDamageMultiplier": 0.0,
+    "hitboxSize": { "x": 0.65, "y": 0.6 },
+    "deadHitboxSize": { "x": 0.65, "y": 0.5 },
+    "eyeHeight": 0.3,
+
+    "attributes": {
+        "isMechanical": true,
+        "shouldSwivelFromMotion": false,
+        "tradePropsFile": "vsvillage:config/tradelists/village-mechhelper",
+        "tradeProps": {
+            "money": { "avg": 30, "var": 6 }
+        }
+    },
+
+    "client": {
+        "renderer": "Shape",
+        "shape": { "base": "game:block/clutter/mech-helper" },
+        "glowLevel": 32,
+        "size": 1.2,
+        "behaviors": [
+            { "code": "repulseagents" },
+            { "code": "controlledphysics", "stepHeight": 0.6 },
+            { "code": "floatupwhenstuck", "onlyWhenDead": true },
+            { "code": "interpolateposition" },
+            {
+                "code": "nametag",
+                "showtagonlywhentargeted": true,
+                "selectFromRandomNameByType": {
+                    "*": [
+                        "v1ll463h3lp3r",
+                        "v1ll4634551574n7",
+                        "4551574n7b07",
+                        "m4n463m3n7b07",
+                        "m4y0rb07"
+                    ]
+                }
+            },
+            { "code": "conversable", "dialogueByType": { "*": "vsvillage:config/dialogue/mechhelper" } }
+        ],
+        "animations": [
+            {
+                "code": "hurt",
+                "animation": "hurt",
+                "animationSpeed": 2.2,
+                "weight": 5,
+                "blendMode": "AddAverage"
+            },
+            {
+                "code": "die",
+                "animation": "die",
+                "animationSpeed": 1.25,
+                "weight": 10,
+                "blendMode": "Average",
+                "triggeredBy": { "onControls": ["dead"] }
+            },
+            {
+                "code": "idle",
+                "animation": "idlecalm",
+                "blendMode": "Average",
+                "triggeredBy": { "defaultAnim": true }
+            }
+        ]
+    },
+
+    "server": {
+        "behaviors": [
+            { "code": "repulseagents" },
+            { "code": "controlledphysics", "stepHeight": 0.6 },
+            { "code": "safeonhurt" },
+            {
+                "code": "health",
+                "currenthealth": 50,
+                "maxhealth": 50
+            },
+            {
+                "code": "deaddecay",
+                "hoursToDecay": 96
+            },
+            { "code": "floatupwhenstuck", "onlyWhenDead": true },
+            {
+                "code": "nametag",
+                "showtagonlywhentargeted": true,
+                "selectFromRandomNameByType": {
+                    "*": [
+                        "v1ll463h3lp3r",
+                        "v1ll4634551574n7",
+                        "4551574n7b07",
+                        "m4n463m3n7b07",
+                        "m4y0rb07"
+                    ]
+                }
+            },
+            { "code": "conversable", "dialogueByType": { "*": "vsvillage:config/dialogue/mechhelper" } },
+            {
+                "code": "taskai",
+                "aitasks": [
+                    {
+                        "code": "mechhelpreturntobase",
+                        "priority": 1.5,
+                        "priorityForCancel": 1.5,
+                        "standoffRadius": 3,
+                        "movespeed": 0.04,
+                        "mincooldown": 2000,
+                        "maxcooldown": 4000,
+                        "animation": "idle"
+                    },
+                    {
+                        "code": "idle",
+                        "priority": 0.9,
+                        "priorityForCancel": 0.9,
+                        "minduration": 10000,
+                        "maxduration": 25000,
+                        "mincooldown": 30000,
+                        "maxcooldown": 60000,
+                        "animation": "sleep",
+                        "animationSpeed": 1.75
+                    }
+                ]
+            }
+        ]
+    },
+
+    "sounds": {
+        "hurt":  "game:creature/bell/charlemange/hurt/char-hit1",
+        "death": "game:creature/bell/death",
+        "idle":  { "path": "game:creature/bell/listen", "pitch": { "avg": 1.0, "var": 0.1 } },
+        "walk":  "game:creature/bell/charlemange/walk/char-walk-move1"
+    },
+    "idleSoundChance": 0.003
+}

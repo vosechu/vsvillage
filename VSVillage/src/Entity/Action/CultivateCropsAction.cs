@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using Vintagestory.API.Common;
-using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
 
@@ -31,14 +30,14 @@ public class CultivateCropsAction : EntityActionBase
 			return;
 		}
 		POIRegistry modSystem = vas.Entity.Api.ModLoader.GetModSystem<POIRegistry>();
-		targetFarmland = modSystem.GetNearestPoi(((Entity)vas.Entity).ServerPos.XYZ, 40f, IsValidFarmland) as BlockEntityFarmland;
+		targetFarmland = modSystem.GetNearestPoi(vas.Entity.Pos.XYZ, 40f, IsValidFarmland) as BlockEntityFarmland;
 		if (targetFarmland == null)
 		{
 			isFinished = true;
 			return;
 		}
 		isFinished = false;
-		BlockPos asBlockPos = ((Entity)vas.Entity).ServerPos.AsBlockPos;
+		BlockPos asBlockPos = vas.Entity.Pos.AsBlockPos;
 		BlockPos asBlockPos2 = targetFarmland.Position.AsBlockPos;
 		List<VillagerPathNode> list = behavior.Pathfind.FindPath(asBlockPos, asBlockPos2, behavior.Village);
 		if (list == null)
@@ -78,7 +77,7 @@ public class CultivateCropsAction : EntityActionBase
 
 	private void ApplyCultivation()
 	{
-		if (targetFarmland != null && targetFarmland.HasUnripeCrop())
+		if (targetFarmland != null && !targetFarmland.HasRipeCrop())
 		{
 			double currentTotalHours = vas.Entity.World.Calendar.TotalHours + targetFarmland.GetHoursForNextStage() + 1.0;
 			targetFarmland.TryGrowCrop(currentTotalHours);
@@ -94,7 +93,7 @@ public class CultivateCropsAction : EntityActionBase
 		{
 			return false;
 		}
-		return blockEntityFarmland.HasUnripeCrop();
+		return !blockEntityFarmland.HasRipeCrop();
 	}
 
 	public override bool IsFinished()

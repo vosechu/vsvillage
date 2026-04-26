@@ -1,6 +1,6 @@
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Vintagestory.API.Common;
-using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
@@ -16,6 +16,21 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 	private Dictionary<BlockPos, long> recentlyFilledTroughs;
 
 	private long troughCooldownMs = 60000L;
+
+	// ── Trough claiming ──────────────────────────────────────────────────────
+	// Prevents multiple shepherds from all converging on the same nearest
+	// trough simultaneously while the others stay empty.
+	// Key: trough BlockPos; Value: entity ID of the shepherd heading there.
+	private static readonly ConcurrentDictionary<BlockPos, long> TroughClaimOwner =
+		new ConcurrentDictionary<BlockPos, long>();
+
+	// Separate timestamp dict so we can expire stale claims (e.g. shepherd died
+	// or task cancelled before FinishExecute released the claim).
+	private static readonly ConcurrentDictionary<BlockPos, long> TroughClaimTime =
+		new ConcurrentDictionary<BlockPos, long>();
+
+	// How long a claim is valid before being treated as stale (ms).
+	private const long TroughClaimExpiryMs = 120_000L;
 
 	public AiTaskVillagerFillTrough(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
 		: base(entity, taskConfig, aiConfig)
@@ -34,96 +49,128 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 			return null;
 		}
 
-		POIRegistry poiReg = entity.Api.ModLoader.GetModSystem<POIRegistry>();
-		Vec3d myPos = ((Entity)entity).ServerPos.XYZ;
-		BlockPos skipPos = lastTroughPos;
+		// Release our previous claim and evict globally-stale entries so they
+		// don't permanently prevent other shepherds from accessing those troughs.
+		ReleaseClaim(lastTroughPos);
+		PurgeExpiredClaims();
 
-		// Prefer EMPTY troughs first (animals need feeding, not topping off)
+		POIRegistry poiReg = entity.Api.ModLoader.GetModSystem<POIRegistry>();
+		Vec3d myPos = entity.Pos.XYZ;
+		BlockPos skipPos = lastTroughPos;
 		nearestTrough = null;
+
+		// Match BOTH BlockEntityTrough (large trough) and BlockEntityTroughMiniBowl
+		// (small trough) — they share no common base class beyond IPointOfInterest, so
+		// we fall back to a block-code check for anything that isn't BlockEntityTrough.
 		if (skipPos != null)
 		{
-			nearestTrough = poiReg.GetNearestPoi(myPos, maxDistance,
-				poi => poi is BlockEntityTrough bt && !bt.Pos.Equals(skipPos) && isEmptyTrough(poi))
-				as BlockEntityTrough;
+			nearestTrough = poiReg.GetNearestPoi(myPos, base.maxDistance,
+				poi => IsTroughPoi(poi) && !IsClaimedByOther(GetTroughPos(poi))
+				    && !GetTroughPos(poi).Equals(skipPos) && isEmptyTrough(poi)) as BlockEntityTrough;
 		}
 		if (nearestTrough == null)
 		{
-			nearestTrough = poiReg.GetNearestPoi(myPos, maxDistance, isEmptyTrough) as BlockEntityTrough;
+			nearestTrough = poiReg.GetNearestPoi(myPos, base.maxDistance,
+				poi => IsTroughPoi(poi) && !IsClaimedByOther(GetTroughPos(poi))
+				    && isEmptyTrough(poi)) as BlockEntityTrough;
 		}
-
-		// Fall back to any trough that has room (not full)
 		if (nearestTrough == null && skipPos != null)
 		{
-			nearestTrough = poiReg.GetNearestPoi(myPos, maxDistance,
-				poi => poi is BlockEntityTrough bt && !bt.Pos.Equals(skipPos) && isValidTrough(poi))
-				as BlockEntityTrough;
+			nearestTrough = poiReg.GetNearestPoi(myPos, base.maxDistance,
+				poi => IsTroughPoi(poi) && !IsClaimedByOther(GetTroughPos(poi))
+				    && !GetTroughPos(poi).Equals(skipPos) && isValidTrough(poi)) as BlockEntityTrough;
 		}
 		if (nearestTrough == null)
 		{
-			nearestTrough = poiReg.GetNearestPoi(myPos, maxDistance, isValidTrough) as BlockEntityTrough;
+			nearestTrough = poiReg.GetNearestPoi(myPos, base.maxDistance,
+				poi => IsTroughPoi(poi) && !IsClaimedByOther(GetTroughPos(poi))
+				    && isValidTrough(poi)) as BlockEntityTrough;
 		}
-
 		if (nearestTrough == null)
 		{
 			return null;
 		}
 
+		// Claim this trough so other shepherds pick a different one.
 		lastTroughPos = nearestTrough.Pos.Copy();
-		entity.World.Logger.Notification("Shepherd found trough at: " + nearestTrough.Position.ToString());
+		ClaimTrough(lastTroughPos);
+
 		return GetTroughApproachPos(nearestTrough);
 	}
 
-	// Pick the adjacent cell closest to the shepherd that doesn't have a fence post.
-	// This lets the shepherd approach from the accessible side when troughs are placed
-	// against fences, avoiding forced gate traversal.
+	/// <summary>
+	/// Returns true for any block entity that represents a creature trough,
+	/// regardless of whether it is the large (BlockEntityTrough) or small
+	/// (BlockEntityTroughMiniBowl / any other VS variant) trough type.
+	/// </summary>
+	private static bool IsTroughPoi(IPointOfInterest poi)
+	{
+		if (poi is BlockEntityTrough) return true;
+		if (poi is BlockEntity be)
+			return be.Block?.Code?.Path?.Contains("trough") == true;
+		return false;
+	}
+
+	private static BlockPos GetTroughPos(IPointOfInterest poi)
+	{
+		return (poi as BlockEntity)?.Pos;
+	}
+
 	private Vec3d GetTroughApproachPos(BlockEntityTrough trough)
 	{
 		IBlockAccessor ba = entity.World.BlockAccessor;
 		BlockPos troughPos = trough.Pos;
-		Vec3d myPos = ((Entity)entity).ServerPos.XYZ;
+		Vec3d myPos = entity.Pos.XYZ;
 		Vec3d bestPos = null;
 		double bestDist = double.MaxValue;
-
 		foreach (BlockFacing facing in BlockFacing.HORIZONTALS)
 		{
 			BlockPos neighborPos = troughPos.AddCopy(facing.Normali.X, 0, facing.Normali.Z);
 			Block neighborBlock = ba.GetBlock(neighborPos);
+			if (neighborBlock.Code == null) continue;
+			string blockPath = neighborBlock.Code.Path;
 
-			// Skip fence posts (but allow gates — shepherd can open those)
-			if (neighborBlock.Code != null
-				&& neighborBlock.Code.Path.Contains("fence")
-				&& !neighborBlock.Code.Path.Contains("gate"))
-			{
-				continue;
-			}
+			// Hard-skip solid fence panels — can't walk through them.
+			// Gate and door blocks are kept: closed gates/doors have collision boxes but are
+			// passable (the villager pushes through), so we must not reject them here.
+			// Previously closed gates were incorrectly rejected via the neighborClear check,
+			// leaving troughs inside gated pens with zero valid approach positions.
+			if (blockPath.Contains("fence") && !blockPath.Contains("gate")) continue;
 
-			// Must have solid ground below and clear head space
-			Block above = ba.GetBlock(neighborPos.UpCopy());
 			Block below = ba.GetBlock(neighborPos.DownCopy());
-			bool headClear = above.CollisionBoxes == null || above.CollisionBoxes.Length == 0;
-			bool groundSolid = below.CollisionBoxes != null && below.CollisionBoxes.Length > 0;
-			if (!headClear || !groundSolid) continue;
+			bool groundSolid = below.CollisionBoxes != null && below.CollisionBoxes.Length != 0;
+			if (!groundSolid) continue;
 
-			Vec3d candidate = neighborPos.ToVec3d().Add(0.5, 0.0, 0.5);
-			double dist = candidate.SquareDistanceTo(myPos);
-			if (dist < bestDist)
+			bool isGate = blockPath.Contains("gate") || blockPath.Contains("door");
+			bool neighborClear = isGate
+				|| neighborBlock.CollisionBoxes == null
+				|| neighborBlock.CollisionBoxes.Length == 0;
+			Block above = ba.GetBlock(neighborPos.UpCopy());
+			bool headClear = above.CollisionBoxes == null || above.CollisionBoxes.Length == 0;
+
+			if (neighborClear && headClear)
 			{
-				bestDist = dist;
-				bestPos = candidate;
+				Vec3d candidate = neighborPos.ToVec3d().Add(0.5, 0.0, 0.5);
+				double dist = candidate.SquareDistanceTo(myPos);
+				if (dist < bestDist)
+				{
+					bestDist = dist;
+					bestPos = candidate;
+				}
 			}
 		}
-
-		// Fallback: target the trough block itself (pathfinder destination special-case handles it)
-		return bestPos ?? trough.Pos.ToVec3d().Add(0.5, 0.5, 0.5);
+		// Return null rather than navigating into the solid trough block.
+		return bestPos;
 	}
 
-	// Check interaction against the actual trough, not the approach waypoint,
-	// so the animation fires from any adjacent cell regardless of approach direction.
 	protected override bool InteractionPossible()
 	{
-		if (nearestTrough == null) return false;
+		if (nearestTrough == null)
+		{
+			return false;
+		}
 		Vec3d troughCenter = nearestTrough.Pos.ToVec3d().Add(0.5, 0.5, 0.5);
-		return ((Entity)entity).ServerPos.SquareDistanceTo(troughCenter) < 4.0;
+		return entity.Pos.SquareDistanceTo(troughCenter) < 4.0;
 	}
 
 	private bool isEmptyTrough(IPointOfInterest poi)
@@ -132,8 +179,7 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		{
 			return false;
 		}
-		ItemSlot itemSlot = blockEntityTrough.Inventory[0];
-		return itemSlot == null || itemSlot.Empty;
+		return blockEntityTrough.Inventory[0]?.Empty ?? true;
 	}
 
 	protected override void ApplyInteractionEffect()
@@ -142,16 +188,13 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		{
 			return;
 		}
-		entity.World.Logger.Notification("Shepherd found trough at: " + nearestTrough.Position.ToString());
 		Item item = (nearestTrough.Inventory[0].Empty ? entity.World.GetItem(new AssetLocation("grain-flax")) : nearestTrough.Inventory[0].Itemstack.Item);
-		entity.World.Logger.Notification("Item to fill: " + ((item != null) ? item.Code.ToString() : "NULL"));
 		if (item == null)
 		{
 			return;
 		}
 		ItemSlot itemSlot = new DummySlot(new ItemStack(item, 16));
 		ContentConfig contentConfig = ItemSlotTrough.getContentConfig(entity.Api.World, nearestTrough.contentConfigs, itemSlot);
-		entity.World.Logger.Notification("ContentConfig: " + ((contentConfig != null) ? "Valid" : "NULL"));
 		if (contentConfig != null)
 		{
 			entity.AnimManager.StartAnimation(new AnimationMetaData
@@ -161,16 +204,31 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 				AnimationSpeed = 1f,
 				BlendMode = EnumAnimationBlendMode.Average
 			}.Init());
+			// Capture the trough position for the delayed claim release.
+			BlockPos claimPos = nearestTrough.Pos.Copy();
 			entity.World.RegisterCallback(delegate
 			{
 				PerformFilling(itemSlot, contentConfig);
+				// Release claim here, AFTER filling, so no other shepherd swoops
+				// in during the 1500 ms animation window before food is placed.
+				ReleaseClaim(claimPos);
 			}, 1500);
+		}
+		else
+		{
+			// No valid content config — release the claim immediately so another
+			// shepherd can try a different item or the trough isn't locked forever.
+			ReleaseClaim(nearestTrough.Pos);
 		}
 	}
 
 	public override void FinishExecute(bool cancelled)
 	{
 		entity.AnimManager.StopAnimation("hoe-till");
+		// Release the claim if ApplyInteractionEffect was never called (e.g. task
+		// was cancelled before reaching the trough, or no contentConfig found).
+		// ReleaseClaim is safe to call redundantly — it's a no-op if already released.
+		ReleaseClaim(lastTroughPos);
 		base.FinishExecute(cancelled);
 	}
 
@@ -182,20 +240,23 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 	private bool IsTroughOnCooldown(BlockPos pos)
 	{
 		long elapsedMilliseconds = entity.World.ElapsedMilliseconds;
-		List<BlockPos> list = new List<BlockPos>();
+		// Fast path: nothing has been filled recently — no allocation needed.
+		if (recentlyFilledTroughs.Count == 0) return false;
+		// Purge expired entries; only allocate the removal list when there are entries.
+		List<BlockPos> list = null;
 		foreach (KeyValuePair<BlockPos, long> recentlyFilledTrough in recentlyFilledTroughs)
 		{
 			if (elapsedMilliseconds - recentlyFilledTrough.Value > troughCooldownMs)
 			{
-				list.Add(recentlyFilledTrough.Key);
+				(list ??= new List<BlockPos>()).Add(recentlyFilledTrough.Key);
 			}
 		}
-		for (int i = 0; i < list.Count; i++)
+		if (list != null)
 		{
-			recentlyFilledTroughs.Remove(list[i]);
+			for (int i = 0; i < list.Count; i++)
+				recentlyFilledTroughs.Remove(list[i]);
 		}
-		long value;
-		return recentlyFilledTroughs.TryGetValue(pos, out value) && elapsedMilliseconds - value < troughCooldownMs;
+		return recentlyFilledTroughs.TryGetValue(pos, out long value) && elapsedMilliseconds - value < troughCooldownMs;
 	}
 
 	private void MarkTroughFilled(BlockPos pos)
@@ -205,17 +266,19 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 
 	private void PerformFilling(ItemSlot itemSlot, ContentConfig contentConfig)
 	{
-		if (nearestTrough != null)
+		if (nearestTrough == null) return;
+
+		int transferred = itemSlot.TryPutInto(entity.World, nearestTrough.Inventory[0], contentConfig.QuantityPerFillLevel);
+		if (transferred > 0)
 		{
-			int num = itemSlot.TryPutInto(entity.World, nearestTrough.Inventory[0], contentConfig.QuantityPerFillLevel);
-			entity.World.Logger.Notification("Amount moved to trough: " + num);
+			// Only mark filled and show particles when food was actually placed.
 			nearestTrough.Inventory[0].MarkDirty();
 			MarkTroughFilled(nearestTrough.Pos);
 			SimpleParticleProperties simpleParticleProperties = new SimpleParticleProperties(10f, 15f, ColorUtil.ToRgba(255, 255, 233, 83), nearestTrough.Position.AddCopy(-0.4, 0.8, -0.4), nearestTrough.Position.AddCopy(-0.6, 0.8, -0.6), new Vec3f(-0.25f, 0f, -0.25f), new Vec3f(0.25f, 0f, 0.25f), 2f, 1f, 0.2f);
 			simpleParticleProperties.MinPos = nearestTrough.Position.AddCopy(0.5, 1.0, 0.5);
 			entity.World.SpawnParticles(simpleParticleProperties);
-			entity.AnimManager.StopAnimation("hoe-till");
 		}
+		entity.AnimManager.StopAnimation("hoe-till");
 	}
 
 	private bool isValidTrough(IPointOfInterest poi)
@@ -232,5 +295,53 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		int stackSize = itemSlot.StackSize;
 		int maxStackSize = itemSlot.Itemstack.Collectible.MaxStackSize;
 		return stackSize < maxStackSize;
+	}
+
+	// ── Claim helpers ────────────────────────────────────────────────────────
+
+	private bool IsClaimedByOther(BlockPos pos)
+	{
+		if (pos == null) return false;
+		if (!TroughClaimOwner.TryGetValue(pos, out long owner)) return false;
+		if (owner == entity.EntityId) return false; // our own claim
+		// Treat the claim as void if it has expired.
+		if (TroughClaimTime.TryGetValue(pos, out long claimedAt)
+		    && entity.World.ElapsedMilliseconds - claimedAt > TroughClaimExpiryMs)
+		{
+			TroughClaimOwner.TryRemove(pos, out _);
+			TroughClaimTime.TryRemove(pos, out _);
+			return false;
+		}
+		return true;
+	}
+
+	private void ClaimTrough(BlockPos pos)
+	{
+		if (pos == null) return;
+		TroughClaimOwner[pos] = entity.EntityId;
+		TroughClaimTime[pos]  = entity.World.ElapsedMilliseconds;
+	}
+
+	private static void ReleaseClaim(BlockPos pos)
+	{
+		if (pos == null) return;
+		TroughClaimOwner.TryRemove(pos, out _);
+		TroughClaimTime.TryRemove(pos, out _);
+	}
+
+	private static void PurgeExpiredClaims()
+	{
+		// Called once per GetTargetPos invocation — cheap because claim counts
+		// are tiny (one entry per shepherd currently seeking a trough).
+		long now = 0; // lazy-initialised below only if there are entries
+		foreach (BlockPos pos in TroughClaimTime.Keys)
+		{
+			if (now == 0) now = System.Environment.TickCount64; // avoids world access in static context
+			if (TroughClaimTime.TryGetValue(pos, out long t) && now - t > TroughClaimExpiryMs)
+			{
+				TroughClaimOwner.TryRemove(pos, out _);
+				TroughClaimTime.TryRemove(pos, out _);
+			}
+		}
 	}
 }

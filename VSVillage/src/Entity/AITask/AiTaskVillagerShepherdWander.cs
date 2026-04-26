@@ -8,10 +8,6 @@ using Vintagestory.GameContent;
 
 namespace VsVillage;
 
-/// <summary>
-/// Shepherd-specific wander that paths toward nearby livestock and troughs
-/// instead of random destinations, creating the illusion of active herding.
-/// </summary>
 public class AiTaskVillagerShepherdWander : AiTaskBase
 {
 	private Vec3d targetPos;
@@ -34,7 +30,12 @@ public class AiTaskVillagerShepherdWander : AiTaskBase
 
 	private int timesStuck;
 
-	private static readonly string[] livestockPrefixes = { "pig", "sheep", "cow", "goat", "chicken", "turkey", "hen", "rooster", "ram", "ewe", "lamb" };
+	// Lore / hostile mob prefixes — shepherd never wanders toward these.
+	private static readonly string[] LorePrefixes =
+	{
+		"bell-", "bellmini-", "bowtorn-", "drifter-", "locust-", "shiver-"
+	};
+	private static readonly string[] LoreExact = { "mechhelper" };
 
 	public AiTaskVillagerShepherdWander(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
 		: base(entity, taskConfig, aiConfig)
@@ -75,8 +76,6 @@ public class AiTaskVillagerShepherdWander : AiTaskBase
 		currentPath = null;
 		currentPathIndex = 0;
 		timesStuck = 0;
-
-		// 60% chance to head toward livestock, 40% toward a trough
 		if (entity.World.Rand.NextDouble() < 0.6)
 		{
 			targetPos = FindNearbyLivestock();
@@ -85,27 +84,25 @@ public class AiTaskVillagerShepherdWander : AiTaskBase
 		{
 			targetPos = FindNearbyTrough();
 		}
-		if (targetPos == null)
+		if (!(targetPos == null))
 		{
-			return;
+			pathfinder.blockAccessor.Begin();
+			pathfinder.SetEntityCollisionBox(entity);
+			BlockPos startPos = pathfinder.GetStartPos(entity.Pos.XYZ);
+			currentPath = pathfinder.FindPath(startPos, targetPos.AsBlockPos, 800);
+			pathfinder.blockAccessor.Commit();
+			if (currentPath == null || currentPath.Count == 0)
+			{
+				targetPos = null;
+				stuck = true;
+			}
+			else
+			{
+				currentPathIndex = 0;
+				lastPosition = entity.Pos.XYZ.Clone();
+				stuckCheckTime = entity.World.ElapsedMilliseconds;
+			}
 		}
-
-		pathfinder.blockAccessor.Begin();
-		pathfinder.SetEntityCollisionBox(entity);
-		BlockPos startPos = pathfinder.GetStartPos(((Entity)entity).ServerPos.XYZ);
-		currentPath = pathfinder.FindPath(startPos, targetPos.AsBlockPos, 800);
-		pathfinder.blockAccessor.Commit();
-
-		if (currentPath == null || currentPath.Count == 0)
-		{
-			targetPos = null;
-			stuck = true;
-			return;
-		}
-
-		currentPathIndex = 0;
-		lastPosition = ((Entity)entity).ServerPos.XYZ.Clone();
-		stuckCheckTime = entity.World.ElapsedMilliseconds;
 	}
 
 	public override bool ContinueExecute(float dt)
@@ -118,18 +115,15 @@ public class AiTaskVillagerShepherdWander : AiTaskBase
 		{
 			return false;
 		}
-
 		CheckIfStuck();
-
 		if (currentPathIndex >= currentPath.Count)
 		{
 			return false;
 		}
-		if (((Entity)entity).ServerPos.SquareDistanceTo(targetPos) < 3.0)
+		if (entity.Pos.SquareDistanceTo(targetPos) < 3.0)
 		{
 			return false;
 		}
-
 		HandlePathTraversal();
 		return true;
 	}
@@ -143,8 +137,8 @@ public class AiTaskVillagerShepherdWander : AiTaskBase
 		{
 			entity.AnimManager.StopAnimation(animMeta.Code);
 		}
-		((Entity)entity).ServerPos.Motion.X = 0.0;
-		((Entity)entity).ServerPos.Motion.Z = 0.0;
+		entity.Pos.Motion.X = 0.0;
+		entity.Pos.Motion.Z = 0.0;
 		targetPos = null;
 		currentPath = null;
 		currentPathIndex = 0;
@@ -154,53 +148,48 @@ public class AiTaskVillagerShepherdWander : AiTaskBase
 
 	private Vec3d FindNearbyLivestock()
 	{
-		Entity[] nearby = entity.World.GetEntitiesAround(
-			((Entity)entity).ServerPos.XYZ, wanderRange, 6f,
-			e => e != entity && e.Alive && IsLivestock(e)
-		);
+		Entity[] nearby = entity.World.GetEntitiesAround(entity.Pos.XYZ, wanderRange, 6f, (Entity e) => e != entity && e.Alive && IsWardAnimal(e));
 		if (nearby.Length == 0)
 		{
 			return null;
 		}
-
 		Entity target = nearby[entity.World.Rand.Next(nearby.Length)];
-		Vec3d animalPos = target.ServerPos.XYZ;
-
-		// Aim near the animal, not exactly on it
-		return new Vec3d(
-			animalPos.X + (entity.World.Rand.NextDouble() - 0.5) * 4.0,
-			animalPos.Y,
-			animalPos.Z + (entity.World.Rand.NextDouble() - 0.5) * 4.0
-		);
+		Vec3d animalPos = target.Pos.XYZ;
+		return new Vec3d(animalPos.X + (entity.World.Rand.NextDouble() - 0.5) * 4.0, animalPos.Y, animalPos.Z + (entity.World.Rand.NextDouble() - 0.5) * 4.0);
 	}
 
 	private Vec3d FindNearbyTrough()
 	{
-		IPointOfInterest poi = entity.Api.ModLoader.GetModSystem<POIRegistry>()
-			.GetNearestPoi(((Entity)entity).ServerPos.XYZ, wanderRange, p => p is BlockEntityTrough);
-		return poi?.Position;
+		return entity.Api.ModLoader.GetModSystem<POIRegistry>().GetNearestPoi(entity.Pos.XYZ, wanderRange, (IPointOfInterest p) => p is BlockEntityTrough)?.Position;
 	}
 
-	private bool IsLivestock(Entity e)
+	private static bool IsLoreEntity(string path)
 	{
-		if (e?.Code?.Path == null)
-		{
-			return false;
-		}
-		string path = e.Code.Path;
-		foreach (string prefix in livestockPrefixes)
-		{
-			if (path.StartsWith(prefix))
-			{
-				return true;
-			}
-		}
+		if (path == null) return false;
+		foreach (string e in LoreExact)
+			if (path == e) return true;
+		foreach (string p in LorePrefixes)
+			if (path.StartsWith(p)) return true;
 		return false;
+	}
+
+	/// <summary>
+	/// Returns true for any creature the shepherd should tend to: alive, not a
+	/// player, not a villager, not a lore/hostile mob.  No species whitelist —
+	/// modded animals are included automatically.
+	/// </summary>
+	private bool IsWardAnimal(Entity e)
+	{
+		if (e?.Code?.Path == null) return false;
+		if (e.Code?.Path == "player") return false;
+		if (e.Code.Domain == "vsvillage") return false;
+		return !IsLoreEntity(e.Code.Path);
 	}
 
 	private bool IsShepherd()
 	{
-		return entity?.Code?.Path?.EndsWith("-shepherd") == true;
+		EntityAgent entityAgent = entity;
+		return entityAgent != null && entityAgent.Code?.Path?.EndsWith("-shepherd") == true;
 	}
 
 	private void HandlePathTraversal()
@@ -210,18 +199,15 @@ public class AiTaskVillagerShepherdWander : AiTaskBase
 			stuck = true;
 			return;
 		}
-
 		VillagerPathNode node = currentPath[currentPathIndex];
 		Vec3d nodePos = node.BlockPos.ToVec3d().Add(0.5, 0.0, 0.5);
-		Vec3d myPos = ((Entity)entity).ServerPos.XYZ;
-
+		Vec3d myPos = entity.Pos.XYZ;
 		double dx = myPos.X - nodePos.X;
 		double dz = myPos.Z - nodePos.Z;
 		if (Math.Sqrt(dx * dx + dz * dz) < 0.5)
 		{
 			currentPathIndex++;
 		}
-
 		if (currentPathIndex < currentPath.Count)
 		{
 			VillagerPathNode nextNode = currentPath[currentPathIndex];
@@ -229,10 +215,8 @@ public class AiTaskVillagerShepherdWander : AiTaskBase
 			Vec3d dir = nextPos.Clone().Sub(myPos);
 			dir.Y = 0.0;
 			dir = dir.Normalize();
-
-			((Entity)entity).ServerPos.Yaw = (float)Math.Atan2(dir.X, dir.Z);
-			entity.Controls.WalkVector.Set(dir.X * moveSpeed, 0.0, dir.Z * moveSpeed);
-
+			entity.Pos.Yaw = (float)Math.Atan2(dir.X, dir.Z);
+			entity.Controls.WalkVector.Set(dir.X * (double)moveSpeed, 0.0, dir.Z * (double)moveSpeed);
 			if (animMeta != null && !entity.AnimManager.IsAnimationActive(animMeta.Code))
 			{
 				entity.AnimManager.StartAnimation(animMeta);
@@ -247,9 +231,8 @@ public class AiTaskVillagerShepherdWander : AiTaskBase
 		{
 			return;
 		}
-
-		Vec3d myPos = ((Entity)entity).ServerPos.XYZ;
-		if (lastPosition != null && myPos.DistanceTo(lastPosition) < 0.5)
+		Vec3d myPos = entity.Pos.XYZ;
+		if (lastPosition != null && (double)myPos.DistanceTo(lastPosition) < 0.5)
 		{
 			timesStuck++;
 			if (timesStuck >= 4)
@@ -262,7 +245,6 @@ public class AiTaskVillagerShepherdWander : AiTaskBase
 		{
 			timesStuck = 0;
 		}
-
 		lastPosition = myPos.Clone();
 		stuckCheckTime = now;
 	}

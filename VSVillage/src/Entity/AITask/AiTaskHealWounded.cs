@@ -1,4 +1,3 @@
-using System.Linq;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
@@ -18,45 +17,61 @@ public class AiTaskHealWounded : AiTaskGotoAndInteract
 
 	protected override Vec3d GetTargetPos()
 	{
-		if (!IsHerbalist())
+		if (!IsHerbalist()) return null;
+
+		// Phase 1 — scan nearby entities (no allocation beyond the entity array VS returns).
+		Entity[] nearby = entity.World.GetEntitiesAround(entity.Pos.XYZ, base.maxDistance, 5f,
+			e => e is EntityVillager || e is EntityTrader || e is EntityPlayer);
+
+		Entity best = null;
+		float bestDeficit = 0f;
+		foreach (Entity candidate in nearby)
+			ScoreCandidate(candidate, ref best, ref bestDeficit);
+
+		// Phase 2 — only scan village-wide if nobody nearby needs healing.
+		// Iterates VillagerSaveData directly to avoid the Village.Villagers property
+		// which allocates a fresh list + GetBehavior on every call.
+		if (best == null)
 		{
-			return null;
-		}
-		Entity[] array = entity.World.GetEntitiesAround(((Entity)entity).ServerPos.XYZ, base.maxDistance, 5f, (Entity entity) => entity is EntityVillager || entity is EntityTrader || entity is EntityPlayer);
-		EntityBehaviorVillager behavior = entity.GetBehavior<EntityBehaviorVillager>();
-		if (behavior?.Village != null)
-		{
-			Entity[] second = (from villager in behavior.Village.Villagers
-				where villager != null && villager.entity != null && villager.entity.Alive
-				select villager.entity).ToArray();
-			array = array.Concat(second).ToArray();
-		}
-		int num = 0;
-		float num2 = 0f;
-		for (int num3 = 0; num3 < array.Length; num3++)
-		{
-			EntityBehaviorHealth behavior2 = array[num3].GetBehavior<EntityBehaviorHealth>();
-			if (behavior2 != null && num2 < behavior2.MaxHealth - behavior2.Health)
+			EntityBehaviorVillager beh = entity.GetBehavior<EntityBehaviorVillager>();
+			if (beh?.Village != null)
 			{
-				num2 = behavior2.MaxHealth - behavior2.Health;
-				num = num3;
-			}
-			if (behavior2 != null && behavior2.Health <= 0f)
-			{
-				num2 = float.MaxValue;
-				num = num3;
+				foreach (VillagerData data in beh.Village.VillagerSaveData.Values)
+				{
+					Entity e = entity.World.GetEntityById(data.Id);
+					if (e == null || !e.Alive) continue;
+					ScoreCandidate(e, ref best, ref bestDeficit);
+				}
 			}
 		}
-		if (num2 > 0.5f)
+
+		woundedEntity = (bestDeficit > 0.5f) ? best : null;
+		return woundedEntity?.Pos?.XYZ;
+	}
+
+	/// <summary>Updates <paramref name="best"/> if <paramref name="candidate"/> has a
+	/// larger health deficit or is dead (needs reviving).</summary>
+	private static void ScoreCandidate(Entity candidate, ref Entity best, ref float bestDeficit)
+	{
+		EntityBehaviorHealth health = candidate.GetBehavior<EntityBehaviorHealth>();
+		if (health == null) return;
+		if (health.Health <= 0f)
 		{
-			woundedEntity = array[num];
+			bestDeficit = float.MaxValue;
+			best = candidate;
+			return;
 		}
-		return woundedEntity?.ServerPos?.XYZ;
+		float deficit = health.MaxHealth - health.Health;
+		if (deficit > bestDeficit)
+		{
+			bestDeficit = deficit;
+			best = candidate;
+		}
 	}
 
 	protected override bool InteractionPossible()
 	{
-		return IsHerbalist() && woundedEntity != null && ((Entity)entity).ServerPos.SquareDistanceTo(woundedEntity.ServerPos) < 9f;
+		return IsHerbalist() && woundedEntity != null && entity.Pos.SquareDistanceTo(woundedEntity.Pos) < 9f;
 	}
 
 	protected override void ApplyInteractionEffect()
@@ -77,22 +92,7 @@ public class AiTaskHealWounded : AiTaskGotoAndInteract
 		}
 	}
 
-	private bool IsHerbalist()
-	{
-		EntityAgent entityAgent = entity;
-		bool? flag;
-		if (entityAgent == null)
-		{
-			flag = null;
-		}
-		else
-		{
-			AssetLocation code = entityAgent.Code;
-			flag = ((!(code == null)) ? code.Path?.EndsWith("-herbalist") : ((bool?)null));
-		}
-		bool? flag2 = flag;
-		return flag2 == true;
-	}
+	private bool IsHerbalist() => entity?.Code?.Path?.EndsWith("-herbalist") == true;
 
 	private void PerformHealing()
 	{
@@ -103,7 +103,7 @@ public class AiTaskHealWounded : AiTaskGotoAndInteract
 				woundedEntity.ReceiveDamage(new DamageSource
 				{
 					DamageTier = 0,
-					HitPosition = woundedEntity.ServerPos.XYZ,
+					HitPosition = woundedEntity.Pos.XYZ,
 					Source = EnumDamageSource.Internal,
 					SourceEntity = entity,
 					Type = EnumDamageType.Heal
@@ -113,7 +113,7 @@ public class AiTaskHealWounded : AiTaskGotoAndInteract
 			{
 				woundedEntity.Revive();
 			}
-			Vec3d xYZ = woundedEntity.ServerPos.XYZ;
+			Vec3d xYZ = woundedEntity.Pos.XYZ;
 			SimpleParticleProperties simpleParticleProperties = new SimpleParticleProperties(20f, 30f, ColorUtil.ToRgba(75, 146, 175, 222), xYZ.AddCopy(-0.3, 0.5, -0.3), xYZ.AddCopy(0.3, 2.0, 0.3), new Vec3f(-0.25f, 0f, -0.25f), new Vec3f(0.25f, 0.5f, 0.25f), 0.8f, -0.075f, 0.5f, 3f, EnumParticleModel.Quad);
 			simpleParticleProperties.MinPos = xYZ.AddCopy(-0.5, 0.0, -0.5);
 			simpleParticleProperties.SelfPropelled = true;

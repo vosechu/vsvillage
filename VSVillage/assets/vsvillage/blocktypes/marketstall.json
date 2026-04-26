@@ -1,0 +1,59 @@
+{
+    "code": "marketstall",
+
+    // Plain Block — no VillagerWorkstation entity, no village registration.
+    // The TravellingTraderManager scans for this block code within the village
+    // radius to find where the travelling trader should stand.
+    "class": "Block",
+
+    "behaviors": [
+        { "name": "HorizontalOrientable" }
+    ],
+
+    "variantgroups": [
+        {
+            "code": "side",
+            "loadFromProperties": "abstract/horizontalorientation"
+        }
+    ],
+
+    // Only the east-facing variant appears in creative — HorizontalOrientable
+    // automatically produces the other three when placing.
+    "creativeinventory": {
+        "general": ["*-east"]
+    },
+
+    // Borrows the trader workstation shape while a dedicated market-stall shape
+    // is not yet available.  Swap "workstations/trader" for the new shape later.
+    "shape": {
+        "base": "workstations/trader",
+        "rotateYByType": {
+            "*-north": 0,
+            "*-east":  270,
+            "*-south": 180,
+            "*-west":  90
+        }
+    },
+
+    "blockmaterial": "Wood",
+    "sounds": {
+        "place": "game:block/planks",
+        "hit":   "game:block/planks",
+        "break": "game:block/planks",
+        "walk":  "game:walk/wood"
+    },
+
+    // Matches the trader workstation footprint — tall shape, can't be stepped on.
+    "sidesolid":  { "all": false },
+    "sideopaque": { "all": false },
+    "collisionboxes": [
+        { "x1": 0.0, "y1": 0.0, "z1": 0.0, "x2": 1.0, "y2": 2.0, "z2": 1.0 }
+    ],
+    "selectionboxes": [
+        { "x1": 0.0, "y1": 0.0, "z1": 0.0, "x2": 1.0, "y2": 1.0, "z2": 1.0 }
+    ],
+
+    "lightAbsorption": 1,
+    "maxStackSize": 4,
+    "canStep": false
+}

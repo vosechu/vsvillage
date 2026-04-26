@@ -34,7 +34,7 @@ public class VillagerAStar
 		blockAccess = api.World.GetCachingBlockAccessor(synchronize: true, relight: true);
 	}
 
-	public List<PathNode> FindPath(BlockPos start, BlockPos end, int maxFallHeight, float stepHeight, int searchDepth = 999, bool allowReachAlmost = true)
+	public List<PathNode> FindPath(BlockPos start, BlockPos end, int maxFallHeight, float stepHeight, int searchDepth = 9999, bool allowReachAlmost = true)
 	{
 		blockAccess.Begin();
 		NodesChecked = 0;
@@ -212,21 +212,13 @@ public class VillagerAStar
 		{
 			return asBlockPos.SouthCopy();
 		}
-		if (getDecimalPart(startPos.X) < 0.5 && traversable(blockAccess.GetBlock(asBlockPos.West())))
+		if (getDecimalPart(startPos.X) < 0.5 && traversable(blockAccess.GetBlock(asBlockPos.WestCopy())))
 		{
-			return asBlockPos;
+			return asBlockPos.WestCopy();
 		}
-		if (getDecimalPart(startPos.X) > 0.5 && traversable(blockAccess.GetBlock(asBlockPos.East())))
+		if (getDecimalPart(startPos.X) > 0.5 && traversable(blockAccess.GetBlock(asBlockPos.EastCopy())))
 		{
-			return asBlockPos;
-		}
-		if (getDecimalPart(startPos.Z) < 0.5 && traversable(blockAccess.GetBlock(asBlockPos.NorthCopy())))
-		{
-			return asBlockPos.NorthCopy();
-		}
-		if (getDecimalPart(startPos.Z) > 0.5 && traversable(blockAccess.GetBlock(asBlockPos.SouthCopy())))
-		{
-			return asBlockPos.SouthCopy();
+			return asBlockPos.EastCopy();
 		}
 		return startPos.AsBlockPos;
 	}

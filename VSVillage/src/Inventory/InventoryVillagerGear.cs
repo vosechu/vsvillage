@@ -32,11 +32,10 @@ public class InventoryVillagerGear : InventoryBase
 	public InventoryVillagerGear(string owningEntity, string inventoryID, ICoreAPI api)
 		: base(inventoryID, api)
 	{
-		InventoryVillagerGear inventory = this;
 		this.owningEntity = owningEntity;
 		leftHandSlot = new ItemSlotUniversal(this);
 		rightHandSlot = new ItemSlotUniversal(this);
-		List<ItemSlot> list = new List<string>(Enum.GetNames(typeof(VillagerGearType))).ConvertAll((Converter<string, ItemSlot>)((string gearType) => new ItemSlotVillagerGear((VillagerGearType)Enum.Parse(typeof(VillagerGearType), gearType), owningEntity, inventory)));
+		List<ItemSlot> list = new List<string>(Enum.GetNames(typeof(VillagerGearType))).ConvertAll((Converter<string, ItemSlot>)((string gearType) => new ItemSlotVillagerGear((VillagerGearType)Enum.Parse(typeof(VillagerGearType), gearType), owningEntity, this)));
 		list.Add(rightHandSlot);
 		list.Add(leftHandSlot);
 		slots = list.ToArray();

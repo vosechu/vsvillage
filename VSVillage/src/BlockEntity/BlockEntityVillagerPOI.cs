@@ -1,3 +1,4 @@
+using System;
 using System.Text;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -27,14 +28,57 @@ public abstract class BlockEntityVillagerPOI : BlockEntity
 		base.Initialize(api);
 		if (api.Side != EnumAppSide.Client)
 		{
-			Village village = ((!string.IsNullOrEmpty(VillageId)) ? api.ModLoader.GetModSystem<VillageManager>()?.GetVillage(VillageId) : api.ModLoader.GetModSystem<VillageManager>()?.GetVillage(Pos));
-			if (village != null && !BelongsToVillage(village))
+			VillageManager vm = api.ModLoader.GetModSystem<VillageManager>();
+			Village village = null;
+
+			if (!string.IsNullOrEmpty(VillageId))
+			{
+				village = vm?.GetVillage(VillageId);
+				// Stale VillageId from a copy-paste / different save: the village we
+				// found (if any) may be in a completely different location. If this
+				// block is outside that village's radius, discard the stale reference
+				// and fall back to a position search so we don't ghost-register.
+				if (village != null && !IsWithinVillageRadius(village))
+				{
+					api.Logger.Warning("[VsVillage] Block at " + Pos + " has stale VillageId '" + VillageId + "' pointing to a village at " + village.Pos + " (radius " + village.Radius + ") — clearing stale data.");
+					VillageId = null;
+					VillageName = null;
+					village = null;
+					MarkDirty();
+				}
+			}
+
+			if (village == null)
+			{
+				village = vm?.GetVillage(Pos);
+			}
+
+			if (village != null && !BelongsToVillage(village) && IsWithinVillageRadius(village))
 			{
 				VillageId = village.Id;
 				VillageName = village.Name;
 				AddToVillage(village);
 			}
+			else if (village == null)
+			{
+				// Not inside any known village radius — clear any leftover data so
+				// this block doesn't silently claim a village it was pasted from.
+				if (!string.IsNullOrEmpty(VillageId))
+				{
+					api.Logger.Warning("[VsVillage] Block at " + Pos + " references village '" + VillageId + "' but no matching village found — clearing.");
+					VillageId = null;
+					VillageName = null;
+				}
+			}
 		}
+	}
+
+	private bool IsWithinVillageRadius(Village village)
+	{
+		if (village?.Pos == null) return false;
+		int radius = village.Radius;
+		return Math.Abs(Pos.X - village.Pos.X) <= radius &&
+		       Math.Abs(Pos.Z - village.Pos.Z) <= radius;
 	}
 
 	public void RemoveVillage()

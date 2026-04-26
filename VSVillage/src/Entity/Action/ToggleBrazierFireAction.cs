@@ -9,7 +9,7 @@ using Vintagestory.GameContent;
 
 namespace VsVillage;
 
-[JsonObject(MemberSerialization.OptIn)]
+[JsonObject(/*Could not decode attribute arguments.*/)]
 public class ToggleBrazierFireAction : EntityActionBase
 {
 	public string[] states = new string[2] { "extinguish", "ignite" };
@@ -26,7 +26,7 @@ public class ToggleBrazierFireAction : EntityActionBase
 
 	public override void Start(EntityActivity entityActivity)
 	{
-		EntityPos pos = ((Entity)vas.Entity).ServerPos;
+		EntityPos pos = vas.Entity.Pos;
 		vas.Entity.GetBehavior<EntityBehaviorVillager>()?.Village?.Gatherplaces?.Foreach(delegate(BlockPos gatherplace)
 		{
 			if (gatherplace.DistanceSqTo(pos.X, pos.Y, pos.Z) < MaxDistance * MaxDistance)
@@ -50,7 +50,6 @@ public class ToggleBrazierFireAction : EntityActionBase
 	{
 		ElementBounds elementBounds = ElementBounds.Fixed(0.0, 0.0, 200.0, 25.0);
 		ElementBounds elementBounds2 = elementBounds.BelowCopy();
-		new List<VillagePointOfInterest>(Enum.GetValues<VillagePointOfInterest>()).ConvertAll((VillagePointOfInterest poi) => poi.ToString()).ToArray();
 		singleComposer.AddStaticText("Action", CairoFont.WhiteDetailText(), elementBounds).AddDropDown(states, states, 0, delegate
 		{
 		}, elementBounds.RightCopy(), "Action").AddStaticText("MaxDistance", CairoFont.WhiteDetailText(), elementBounds2)

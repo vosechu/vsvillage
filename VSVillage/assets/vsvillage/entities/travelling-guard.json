@@ -1,0 +1,640 @@
+{
+  "code": "travelling-guard",
+  "class": "EntityTravellingGuard",
+  "tags": [ "humanoid", "human", "habitat-land" ],
+  "canClimb": true,
+  "eyeHeight": 1.4,
+  "hitboxSize": {
+    "x": 0.5,
+    "y": 1.75
+  },
+  "deadHitboxSize": {
+    "x": 0.75,
+    "y": 0.5
+  },
+
+  "variantGroups": [
+    {
+      "code": "sex",
+      "states": [ "male", "female" ]
+    }
+  ],
+
+  "attributes": {
+    "shouldSwivelFromMotion": false,
+    "personality": "balanced",
+    "personalities": {
+      "balanced": {
+        "chordDelayMul": 1.3,
+        "pitchModifier": 0.7,
+        "volumneModifier": 1.1
+      }
+    },
+    "outfitConfigFileName": "game:villageraccessories-{sex}",
+    "voiceSoundsByType": {
+      "*-male": [
+        "game:sounds/voice/duduk/",
+        "game:sounds/voice/tuba/"
+      ],
+      "*-female": [
+        "game:sounds/voice/altoflute/",
+        "game:sounds/voice/oboe/"
+      ],
+      "*": [
+        "game:sounds/voice/duduk/",
+        "game:sounds/voice/oboe/"
+      ]
+    },
+    "partialRandomOutfits": {
+      "skin-face": [ { "Code": "skin-face-guard" } ],
+      "eyebrowsByType": {
+        "*-male": [
+          { "Code": "eyebrows-normal1" },
+          { "Code": "eyebrows-normal2" },
+          { "Code": "eyebrows-normal3" },
+          { "Code": "eyebrows-normal4" },
+          { "Code": "eyebrows-normal5" }
+        ],
+        "*-female": [
+          { "Code": "eyebrows-normal1" },
+          { "Code": "eyebrows-normal2" },
+          { "Code": "eyebrows-normal3" },
+          { "Code": "eyebrows-normal4" },
+          { "Code": "eyebrows-normal5" },
+          { "Code": "eyebrows-normal6" },
+          { "Code": "eyebrows-normal7" },
+          { "Code": "eyebrows-normal8" },
+          { "Code": "eyebrows-normal9" }
+        ]
+      },
+      "eyelashes": [
+        { "Code": "eyelashes-normal1" },
+        { "Code": "eyelashes-normal2" }
+      ],
+      "faceextra": [
+        { "Code": "nothing-w10" },
+        { "Code": "faceextra-freckles1" },
+        { "Code": "faceextra-freckles2" },
+        { "Code": "faceextra-freckles3" },
+        { "Code": "faceextra-notenoughsleep1" }
+      ],
+      "bodyskin": [
+        { "Code": "bodyskin-1" },
+        { "Code": "bodyskin-2" },
+        { "Code": "bodyskin-3" },
+        { "Code": "bodyskin-4" },
+        { "Code": "bodyskin-5" },
+        { "Code": "bodyskin-6" },
+        { "Code": "bodyskin-7" },
+        { "Code": "bodyskin-8" },
+        { "Code": "bodyskin-9" },
+        { "Code": "bodyskin-10" },
+        { "Code": "bodyskin-11" },
+        { "Code": "bodyskin-12" },
+        { "Code": "bodyskin-13" },
+        { "Code": "bodyskin-14" },
+        { "Code": "bodyskin-15" },
+        { "Code": "bodyskin-16" },
+        { "Code": "bodyskin-17" },
+        { "Code": "bodyskin-18" },
+        { "Code": "bodyskin-19" },
+        { "Code": "bodyskin-20" },
+        { "Code": "bodyskin-21" },
+        { "Code": "bodyskin-22" },
+        { "Code": "bodyskin-23" }
+      ],
+      "iris": [
+        { "Code": "iris-1" },
+        { "Code": "iris-2" },
+        { "Code": "iris-3" },
+        { "Code": "iris-4" },
+        { "Code": "iris-5" },
+        { "Code": "iris-6" },
+        { "Code": "iris-7" },
+        { "Code": "iris-8" },
+        { "Code": "iris-9" },
+        { "Code": "iris-10" },
+        { "Code": "iris-11" },
+        { "Code": "iris-12" },
+        { "Code": "iris-13" },
+        { "Code": "iris-14" },
+        { "Code": "iris-15" },
+        { "Code": "iris-16" },
+        { "Code": "iris-17" },
+        { "Code": "iris-18" },
+        { "Code": "iris-19" },
+        { "Code": "iris-20" },
+        { "Code": "iris-21" },
+        { "Code": "iris-22" },
+        { "Code": "iris-23" },
+        { "Code": "iris-24" },
+        { "Code": "iris-25" }
+      ],
+      "lips": [
+        { "Code": "lips-normal1" },
+        { "Code": "lips-normal2" },
+        { "Code": "lips-normal3" },
+        { "Code": "lips-normal4" },
+        { "Code": "lips-normal5" },
+        { "Code": "lips-normal6" },
+        { "Code": "lips-normal7" },
+        { "Code": "lips-normal8" },
+        { "Code": "lips-normal9" },
+        { "Code": "lips-normal10" },
+        { "Code": "lips-normal11" }
+      ],
+      "scar": [
+        {
+          "Code": "nothing-w10",
+          "Weight": 40.0
+        },
+        {
+          "Code": "scar-normal1",
+          "Weight": 1.0
+        }
+      ],
+      "sclera": [
+        { "Code": "sclera-normal1" },
+        { "Code": "sclera-normal2" },
+        { "Code": "sclera-normal3" }
+      ],
+      "tatoo": [
+        {
+          "Code": "nothing",
+          "Weight": 40.0
+        },
+        {
+          "Code": "tatoo-normal1",
+          "Weight": 1.0
+        },
+        {
+          "Code": "tatoo-normal2",
+          "Weight": 1.0
+        },
+        {
+          "Code": "tatoo-normal3",
+          "Weight": 1.0
+        },
+        {
+          "Code": "tatoo-normal4",
+          "Weight": 1.0
+        }
+      ],
+      "hair-baseByType": {
+        "*-male": [
+          { "Code": "hair-00" },
+          { "Code": "hair-01" },
+          { "Code": "hair-12" },
+          { "Code": "hair-13" },
+          { "Code": "hair-14" },
+          { "Code": "hair-15" },
+          { "Code": "hair-16" },
+          { "Code": "hair-18" },
+          { "Code": "hair-21" },
+          { "Code": "hair-23" },
+          { "Code": "hair-bald-horseshoe" },
+          { "Code": "hair-bald-none" },
+          { "Code": "hair-bald-tonsure" },
+          { "Code": "hair-medium-afro" },
+          { "Code": "hair-medium-basic" },
+          { "Code": "hair-medium-layered" },
+          { "Code": "hair-medium-ponytail" },
+          { "Code": "hair-short-indigenousbalding" },
+          { "Code": "hair-short-sideshave" },
+          { "Code": "hair-short-trimmed" }
+        ],
+        "*-female": [
+          { "Code": "hair-00" },
+          { "Code": "hair-04" },
+          { "Code": "hair-06" },
+          { "Code": "hair-08" },
+          { "Code": "hair-10" },
+          { "Code": "hair-13" },
+          { "Code": "hair-14" },
+          { "Code": "hair-15" },
+          { "Code": "hair-16" },
+          { "Code": "hair-18" },
+          { "Code": "hair-19" },
+          { "Code": "hair-20" },
+          { "Code": "hair-21" },
+          { "Code": "hair-22" },
+          { "Code": "hair-long-braid1" },
+          { "Code": "hair-long-braid2" },
+          { "Code": "hair-long-combed" },
+          { "Code": "hair-long-dreads2" },
+          { "Code": "hair-long-loose" },
+          { "Code": "hair-long-strands" },
+          { "Code": "hair-medium-ponytail" },
+          { "Code": "hair-short-bangs" },
+          { "Code": "hair-short-sidebraids1" }
+        ]
+      },
+      "hair-base2": [],
+      "hair-base3": [],
+      "haircolor": [
+        { "Code": "aged" },
+        { "Code": "cordovan" },
+        { "Code": "darkpurple" },
+        { "Code": "ecru" },
+        { "Code": "eerieblack" },
+        { "Code": "harvestgold" },
+        { "Code": "heliotropegray" },
+        { "Code": "indigodye" },
+        { "Code": "lightgray" },
+        { "Code": "liver" },
+        { "Code": "mossgreen" },
+        { "Code": "oldburgundy" },
+        { "Code": "palatinatepurple" },
+        { "Code": "rosewood" },
+        { "Code": "russet" },
+        { "Code": "sanddune" },
+        { "Code": "silverchalice" },
+        { "Code": "slategray" },
+        { "Code": "wheat" }
+      ],
+      "beardByType": {
+        "*-male": [
+          {
+            "Code": "nothing",
+            "Weight": 20.0
+          },
+          {
+            "Code": "beard-1",
+            "Weight": 1.0
+          },
+          {
+            "Code": "beard-2",
+            "Weight": 1.0
+          },
+          {
+            "Code": "beard-3",
+            "Weight": 1.0
+          },
+          {
+            "Code": "beard-4",
+            "Weight": 1.0
+          },
+          {
+            "Code": "beard-5",
+            "Weight": 1.0
+          },
+          {
+            "Code": "beard-6",
+            "Weight": 1.0
+          },
+          {
+            "Code": "beard-7",
+            "Weight": 1.0
+          },
+          {
+            "Code": "beard-8",
+            "Weight": 1.0
+          },
+          {
+            "Code": "beard-full1",
+            "Weight": 1.0
+          },
+          {
+            "Code": "beard-full2",
+            "Weight": 1.0
+          },
+          {
+            "Code": "beard-full3",
+            "Weight": 1.0
+          },
+          {
+            "Code": "beard-full4",
+            "Weight": 1.0
+          },
+          {
+            "Code": "beard-full5",
+            "Weight": 1.0
+          },
+          {
+            "Code": "beard-full6",
+            "Weight": 1.0
+          },
+          {
+            "Code": "beard-full7",
+            "Weight": 1.0
+          },
+          {
+            "Code": "beard-full8",
+            "Weight": 1.0
+          }
+        ],
+        "*-female": []
+      },
+      "mustacheByType": {
+        "*-male": [
+          {
+            "Code": "nothing",
+            "Weight": 10.0
+          },
+          {
+            "Code": "mustache-1",
+            "Weight": 1.0
+          },
+          {
+            "Code": "mustache-2",
+            "Weight": 1.0
+          },
+          {
+            "Code": "mustache-3",
+            "Weight": 1.0
+          },
+          {
+            "Code": "mustache-4",
+            "Weight": 1.0
+          },
+          {
+            "Code": "mustache-5",
+            "Weight": 1.0
+          }
+        ],
+        "*-female": []
+      },
+      "arm": [ { "Code": "arm-guard-bracers" } ],
+      "face": [],
+      "foot": [ { "Code": "foot-guard" } ],
+      "hand": [ { "Code": "hand-gloves" } ],
+      "head": [ { "Code": "head-guard" } ],
+      "lowerbody": [ { "Code": "lowerbody-pants-guard" } ],
+      "neck": [],
+      "shoulder": [ { "Code": "shoulder-{sex}-shortsleeve-guard" } ],
+      "upperbody": [ { "Code": "upperbody-{sex}-shortsleeve-guard" } ],
+      "upperbodyover": [],
+      "waist": [ { "Code": "waist-guard" } ]
+    }
+  },
+
+  "client": {
+    "renderer": "Shape",
+    "shapeByType": {
+      "*-male": { "base": "game:entity/humanoid/villager-male" },
+      "*-female": { "base": "game:entity/humanoid/villager-female" }
+    },
+    "behaviors": [
+      { "code": "villagerinventory" },
+      {
+        "code": "nametag",
+        "showtagonlywhentargeted": true
+      },
+      { "code": "repulseagents" },
+      {
+        "code": "controlledphysics",
+        "stepHeight": 1.2
+      },
+      { "code": "interpolateposition" },
+      { "code": "TravellingGuard" }
+    ],
+    "animations": [
+      {
+        "code": "idle",
+        "animation": "idle",
+        "blendMode": "average",
+        "triggeredBy": { "defaultAnim": true }
+      },
+      {
+        "code": "die",
+        "animation": "die",
+        "animationSpeed": 1.75,
+        "weight": 10,
+        "blendMode": "addAverage"
+      },
+      {
+        "code": "hurt",
+        "animation": "hurt",
+        "animationSpeed": 2.0,
+        "blendMode": "addAverage"
+      },
+      {
+        "animation": "balanced-walk",
+        "blendMode": "average"
+      },
+      {
+        "animation": "balanced-run",
+        "blendMode": "average"
+      },
+      {
+        "animation": "balanced-torch-hold",
+        "blendMode": "add",
+        "elementWeight": {
+          "UpperArmLHelper": 90,
+          "UpperArmL": 90,
+          "LowerArmLHelper": 90
+        },
+        "elementBlendMode": {
+          "UpperArmLHelper": "addAverage",
+          "UpperArmL": "addAverage",
+          "LowerArmLHelper": "addAverage"
+        }
+      },
+			{
+					"code": "spear-attack",
+					"animation": "balanced-spear-attack",
+					"blendMode": "Add",
+					"animationSounds": [{
+						"frame": 25,
+						"location": "tool/slash",
+						"pitch": { "avg": 1.0, "var": 0.25 }
+					}],
+					"elementWeight": {
+						"Neck": 100,
+						"Head": 100,
+						"LowerTorso": 100,
+						"UpperTorso": 100,
+						"UpperArmRHelper": 100,
+						"UpperArmR": 100,
+						"LowerArmRHelper": 100,
+						"LowerArmR": 100,
+						"UpperArmLHelper": 100,
+						"UpperArmL": 100,
+						"LowerArmLHelper": 100,
+						"LowerArmL": 100
+					},
+					"elementBlendMode": {
+						"Neck": "AddAverage",
+						"Head": "AddAverage",
+						"LowerTorso": "AddAverage",
+						"UpperTorso": "AddAverage",
+						"UpperArmRHelper": "AddAverage",
+						"LowerArmRHelper": "AddAverage",
+						"UpperArmR": "AddAverage",
+						"LowerArmR": "AddAverage",
+						"UpperArmLHelper": "AddAverage",
+						"LowerArmLHelper": "AddAverage",
+						"UpperArmL": "AddAverage",
+						"LowerArmL": "AddAverage"
+					}
+				}
+    ]
+  },
+
+  "server": {
+    "attributes": {
+      "pathfinder": {
+        "minTurnAnglePerSec": 720,
+        "maxTurnAnglePerSec": 1440
+      }
+    },
+    "behaviors": [
+      { "code": "villagerinventory" },
+      {
+        "code": "nametag",
+        "showtagonlywhentargeted": true,
+        "selectFromRandomNameByType": {
+          "*-male": [
+            "Gregor",
+            "Wolfram",
+            "Brutus",
+            "Henrik",
+            "Alaric",
+            "Gareth",
+            "Ulric",
+            "Hadrian",
+            "Osmund",
+            "Sigmund",
+            "Boris",
+            "Rashid",
+            "Hamza",
+            "Bilal"
+          ],
+          "*-female": [
+            "Isolde",
+            "Brunhilde",
+            "Walpurga",
+            "Valeria",
+            "Katarina",
+            "Dorothea",
+            "Gisela",
+            "Rania",
+            "Iman",
+            "Karima",
+            "Vesna",
+            "Radka",
+            "Zora"
+          ]
+        }
+      },
+      { "code": "repulseagents" },
+      { "code": "safeonhurt" },
+      {
+        "code": "controlledphysics",
+        "stepHeight": 1.2
+      },
+      {
+        "code": "health",
+        "currenthealth": 40,
+        "maxhealth": 40
+      },
+      {
+        "code": "emotionstates",
+        "states": [
+          {
+            "code": "aggressiveondamage",
+            "duration": 6,
+            "chance": 0.8,
+            "slot": 0,
+            "priority": 2,
+            "accumType": "noaccum"
+          },
+          {
+            "code": "fleeondamage",
+            "duration": 10,
+            "chance": 0.1,
+            "slot": 0,
+            "priority": 1,
+            "whenHealthRelBelow": 0.2,
+            "accumType": "max"
+          }
+        ]
+      },
+      {
+        "code": "deaddecay",
+        "hoursToDecay": 96,
+        "decayedBlock": "drycarcass-humanoid1"
+      },
+      { "code": "TravellingGuard" },
+      {
+        "code": "activitydriven",
+        "activityCollectionPathByType": {
+          "*": "vsvillage:config/activitycollections/working-guard"
+        }
+      },
+      {
+        "code": "taskai",
+        "aitasks": [
+          {
+            "code": "villagerstormshelter",
+            "priority": 12.0,
+            "movespeed": 0.014,
+            "animation": "Run",
+            "mincooldown": 5000,
+            "maxcooldown": 10000
+          },
+          {
+            "code": "villagermeleeattack",
+            "entityCodes": [ "bandit-*", "lonehuntergoblin-*", "ork-*", "surfacegoblin-*", "drifter-*", "shiver-*", "bowtorn-*", "direwolf-*", "hellboar-*", "bear-*", "wolf-*" ],
+            "priority": 9.0,
+            "movespeed": 0.012,
+            "damage": 12,
+            "damageTier": 2,
+            "mincooldown": 1500,
+            "maxcooldown": 2500,
+            "attackDurationMs": 900,
+            "animation": "Attack",
+            "stabanimation": "spear-attack",
+            "stabanimationspeed": 0.7,
+            "slashanimation": "speak-attack",
+            "slashanimationspeed": 0.7,
+            "animationSpeed": 2.0,
+            "durationMs": 1300,
+            "releaseAtMs": 1000,
+            "seekingRange": 25,
+	    "whenInEmotionState": "aggressiveondamage",
+            "armedDamageMultiplier": 4.0
+          },
+          {
+            "code": "villagerchaseentity",
+            "entityCodes": [ "bandit-*", "lonehuntergoblin-*", "ork-*", "surfacegoblin-*", "drifter-*", "shiver-*", "bowtorn-*", "direwolf-*", "hellboar-*", "bear-*", "wolf-*" ],
+            "priority": 8.0,
+            "seekingRange": 20,
+            "maxFollowTime": 120,
+            "maxdistance": 20,
+            "mincooldown": 1000,
+            "maxcooldown": 1500,
+	    "whenInEmotionState": "aggressiveondamage",
+            "movespeed": 0.012,
+            "animation": "Run",
+            "animationSpeed": 1.75
+          },
+          {
+            "code": "villagerflipweapon",
+            "priority": 7.5
+          },
+          {
+            "code": "travellingguardfollow",
+            "priority": 5.0,
+            "movespeed": 0.010,
+            "animation": "Walk",
+            "animationSpeed": 1.0,
+            "mincooldown": 500,
+            "maxcooldown": 1000
+          },
+          {
+            "code": "travellingguardstand",
+            "priority": 4.8,
+            "movespeed": 0.009,
+            "animation": "Walk",
+            "animationSpeed": 1.0,
+            "mincooldown": 1000,
+            "maxcooldown": 2000
+          }
+        ]
+      }
+    ]
+  },
+
+  "sounds": {}
+}

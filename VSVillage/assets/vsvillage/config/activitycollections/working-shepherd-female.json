@@ -1,0 +1,196 @@
+{
+  "$type": "Vintagestory.GameContent.EntityActivityCollection, VSSurvivalMod",
+  "Name": "working-shepherd-female",
+  "Activities": {
+    "$type": "System.Collections.Generic.List`1[[Vintagestory.GameContent.EntityActivity, VSSurvivalMod]], System.Private.CoreLib",
+    "$values": [
+
+      {
+        "$type": "Vintagestory.GameContent.EntityActivity, VSSurvivalMod",
+        "Slot": 0, "Priority": 20.0,
+        "Name": "onattacked", "Code": "onattacked",
+        "Conditions": {
+          "$type": "Vintagestory.GameContent.IActionCondition[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.EmotionStateCondition, VSSurvivalMod", "emotionState": "aggressiveondamage", "Invert": false }
+          ]
+        },
+        "Actions": {
+          "$type": "Vintagestory.GameContent.IEntityAction[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.UnequipAction, VSSurvivalMod", "Target": "righthand" },
+            { "$type": "Vintagestory.GameContent.UnequipAction, VSSurvivalMod", "Target": "lefthand" },
+            { "$type": "Vintagestory.GameContent.StandardAIAction, VSSurvivalMod", "durationSeconds": 60.0 }
+          ]
+        },
+        "ConditionsOp": 1
+      },
+
+      {
+        "$type": "Vintagestory.GameContent.EntityActivity, VSSurvivalMod",
+        "Slot": 0, "Priority": 20.0,
+        "Name": "tempstorm", "Code": "tempstorm",
+        "Conditions": {
+          "$type": "Vintagestory.GameContent.IActionCondition[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.TemporalStormCondition, VSSurvivalMod", "Invert": false }
+          ]
+        },
+        "Actions": {
+          "$type": "Vintagestory.GameContent.IEntityAction[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.UnequipAction, VSSurvivalMod", "Target": "righthand" },
+            { "$type": "Vintagestory.GameContent.UnequipAction, VSSurvivalMod", "Target": "lefthand" },
+            { "$type": "Vintagestory.GameContent.StandardAIAction, VSSurvivalMod", "durationSeconds": 30.0 }
+          ]
+        },
+        "ConditionsOp": 1
+      },
+
+      {
+        "$type": "Vintagestory.GameContent.EntityActivity, VSSurvivalMod",
+        "Slot": 2, "Priority": 7.0,
+        "Name": "equipshears", "Code": "equipshears",
+        "Conditions": {
+          "$type": "Vintagestory.GameContent.IActionCondition[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.TimeOfDayCondition, VSSurvivalMod", "minHour": 7.5, "maxHour": 16.0, "Invert": false },
+            { "$type": "Vintagestory.GameContent.MountedCondition, VSSurvivalMod", "mountCode": "*", "Invert": true },
+            { "$type": "Vintagestory.GameContent.HeldCondition, VSSurvivalMod", "Code": "game:shears-copper", "Invert": true }
+          ]
+        },
+        "Actions": {
+          "$type": "Vintagestory.GameContent.IEntityAction[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.EquipAction, VSSurvivalMod", "Target": "righthand", "Value": "{ type: \"item\", code: \"shears-copper\" }" }
+          ]
+        },
+        "ConditionsOp": 1
+      },
+
+      {
+        "$type": "Vintagestory.GameContent.EntityActivity, VSSurvivalMod",
+        "Slot": 2, "Priority": 5.5,
+        "Name": "unequipshears", "Code": "unequipshears",
+        "Conditions": {
+          "$type": "Vintagestory.GameContent.IActionCondition[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.TimeOfDayCondition, VSSurvivalMod", "minHour": 16.0, "maxHour": 7.5, "Invert": false },
+            { "$type": "Vintagestory.GameContent.HeldCondition, VSSurvivalMod", "Code": "game:shears-copper", "Invert": false },
+            { "$type": "Vintagestory.GameContent.MountedCondition, VSSurvivalMod", "mountCode": "*", "Invert": true }
+          ]
+        },
+        "Actions": {
+          "$type": "Vintagestory.GameContent.IEntityAction[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.UnequipAction, VSSurvivalMod", "Target": "righthand" }
+          ]
+        },
+        "ConditionsOp": 1
+      },
+
+      {
+        "$type": "Vintagestory.GameContent.EntityActivity, VSSurvivalMod",
+        "Slot": 0, "Priority": 5.0,
+        "Name": "unequipsleep", "Code": "unequipsleep",
+        "Conditions": {
+          "$type": "Vintagestory.GameContent.IActionCondition[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.MountedCondition, VSSurvivalMod", "mountCode": "bed*", "Invert": false },
+            { "$type": "Vintagestory.GameContent.HeldCondition, VSSurvivalMod", "Code": "game:*", "Invert": false }
+          ]
+        },
+        "Actions": {
+          "$type": "Vintagestory.GameContent.IEntityAction[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.UnequipAction, VSSurvivalMod", "Target": "righthand" },
+            { "$type": "Vintagestory.GameContent.UnequipAction, VSSurvivalMod", "Target": "lefthand" }
+          ]
+        },
+        "ConditionsOp": 1
+      },
+
+      {
+        "$type": "Vintagestory.GameContent.EntityActivity, VSSurvivalMod",
+        "Slot": 0, "Priority": 6.4,
+        "Name": "dresssummer", "Code": "dresssummer",
+        "Conditions": {
+          "$type": "Vintagestory.GameContent.IActionCondition[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.MountedCondition, VSSurvivalMod", "mountCode": "*", "Invert": true },
+            { "$type": "Vintagestory.GameContent.TemperatureCondition, VSSurvivalMod", "belowTemperature": 10.0, "Invert": true },
+            { "$type": "Vintagestory.GameContent.DressedCondition, VSSurvivalMod", "Code": "foot-winter1", "Slot": "foot", "Invert": false }
+          ]
+        },
+        "Actions": {
+          "$type": "Vintagestory.GameContent.IEntityAction[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.UndressAction, VSSurvivalMod", "Slot": "upperbodyover" },
+            { "$type": "Vintagestory.GameContent.UndressAction, VSSurvivalMod", "Slot": "foot" },
+            { "$type": "Vintagestory.GameContent.DressAction, VSSurvivalMod", "Code": "foot-shepherd", "Slot": "foot" }
+          ]
+        },
+        "ConditionsOp": 1
+      },
+
+      {
+        "$type": "Vintagestory.GameContent.EntityActivity, VSSurvivalMod",
+        "Slot": 0, "Priority": 6.3,
+        "Name": "dresswinter", "Code": "dresswinter",
+        "Conditions": {
+          "$type": "Vintagestory.GameContent.IActionCondition[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.MountedCondition, VSSurvivalMod", "mountCode": "*", "Invert": true },
+            { "$type": "Vintagestory.GameContent.TemperatureCondition, VSSurvivalMod", "belowTemperature": 10.0, "Invert": false },
+            { "$type": "Vintagestory.GameContent.DressedCondition, VSSurvivalMod", "Code": "foot-winter1", "Slot": "foot", "Invert": true }
+          ]
+        },
+        "Actions": {
+          "$type": "Vintagestory.GameContent.IEntityAction[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.UndressAction, VSSurvivalMod", "Slot": "upperbodyover" },
+            { "$type": "Vintagestory.GameContent.DressAction, VSSurvivalMod", "Code": "upperbodyover-female-shortsleeve-winter1", "Slot": "upperbodyover" },
+            { "$type": "Vintagestory.GameContent.UndressAction, VSSurvivalMod", "Slot": "foot" },
+            { "$type": "Vintagestory.GameContent.DressAction, VSSurvivalMod", "Code": "foot-winter1", "Slot": "foot" }
+          ]
+        },
+        "ConditionsOp": 1
+      },
+
+      {
+        "$type": "Vintagestory.GameContent.EntityActivity, VSSurvivalMod",
+        "Slot": 0, "Priority": 0.1,
+        "Name": "idle", "Code": "idle",
+        "Conditions": {
+          "$type": "Vintagestory.GameContent.IActionCondition[], VSSurvivalMod",
+          "$values": []
+        },
+        "Actions": {
+          "$type": "Vintagestory.GameContent.IEntityAction[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.StandardAIAction, VSSurvivalMod", "durationSeconds": 10.0 }
+          ]
+        },
+        "ConditionsOp": 1
+      },
+
+      {
+        "$type": "Vintagestory.GameContent.EntityActivity, VSSurvivalMod",
+        "Slot": 15, "Priority": 1.0,
+        "Name": "allowaitasks", "Code": "allowaitasks",
+        "Conditions": {
+          "$type": "Vintagestory.GameContent.IActionCondition[], VSSurvivalMod",
+          "$values": []
+        },
+        "Actions": {
+          "$type": "Vintagestory.GameContent.IEntityAction[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.StandardAIAction, VSSurvivalMod", "durationSeconds": 99999999.0 }
+          ]
+        },
+        "ConditionsOp": 1
+      }
+
+    ]
+  }
+}

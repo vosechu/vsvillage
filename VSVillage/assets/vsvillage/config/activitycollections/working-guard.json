@@ -1,0 +1,208 @@
+{
+  "$type": "Vintagestory.GameContent.EntityActivityCollection, VSSurvivalMod",
+  "Name": "working-guard",
+  "Activities": {
+    "$type": "System.Collections.Generic.List`1[[Vintagestory.GameContent.EntityActivity, VSSurvivalMod]], System.Private.CoreLib",
+    "$values": [
+
+      {
+        "$type": "Vintagestory.GameContent.EntityActivity, VSSurvivalMod",
+        "Slot": 0, "Priority": 20.0,
+        "Name": "onattacked", "Code": "onattacked",
+        "Conditions": {
+          "$type": "Vintagestory.GameContent.IActionCondition[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.EmotionStateCondition, VSSurvivalMod", "emotionState": "aggressiveondamage", "Invert": false }
+          ]
+        },
+        "Actions": {
+          "$type": "Vintagestory.GameContent.IEntityAction[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.UndressAction, VSSurvivalMod", "Slot": "heldl" },
+            { "$type": "Vintagestory.GameContent.UndressAction, VSSurvivalMod", "Slot": "heldr" },
+            { "$type": "Vintagestory.GameContent.UnequipAction, VSSurvivalMod", "Target": "righthand" },
+            { "$type": "Vintagestory.GameContent.UnequipAction, VSSurvivalMod", "Target": "lefthand" },
+            { "$type": "Vintagestory.GameContent.EquipAction, VSSurvivalMod", "Target": "righthand", "Value": "{ type: \"item\", code: \"spear-generic-blackbronze\" }" },
+            { "$type": "Vintagestory.GameContent.StandardAIAction, VSSurvivalMod", "durationSeconds": 60.0 }
+          ]
+        },
+        "ConditionsOp": 1
+      },
+
+      {
+        "$type": "Vintagestory.GameContent.EntityActivity, VSSurvivalMod",
+        "Slot": 0, "Priority": 20.0,
+        "Name": "tempstorm", "Code": "tempstorm",
+        "Conditions": {
+          "$type": "Vintagestory.GameContent.IActionCondition[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.TemporalStormCondition, VSSurvivalMod", "Invert": false }
+          ]
+        },
+        "Actions": {
+          "$type": "Vintagestory.GameContent.IEntityAction[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.UndressAction, VSSurvivalMod", "Slot": "heldl" },
+            { "$type": "Vintagestory.GameContent.UndressAction, VSSurvivalMod", "Slot": "heldr" },
+            { "$type": "Vintagestory.GameContent.UnequipAction, VSSurvivalMod", "Target": "righthand" },
+            { "$type": "Vintagestory.GameContent.UnequipAction, VSSurvivalMod", "Target": "lefthand" },
+            { "$type": "Vintagestory.GameContent.EquipAction, VSSurvivalMod", "Target": "righthand", "Value": "{ type: \"item\", code: \"spear-generic-blackbronze\" }" },
+            { "$type": "Vintagestory.GameContent.StandardAIAction, VSSurvivalMod", "durationSeconds": 30.0 }
+          ]
+        },
+        "ConditionsOp": 1
+      },
+
+      {
+        "$type": "Vintagestory.GameContent.EntityActivity, VSSurvivalMod",
+        "Slot": 0, "Priority": 6.2,
+        "Name": "equiptorch", "Code": "equiptorch",
+        "Conditions": {
+          "$type": "Vintagestory.GameContent.IActionCondition[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.TimeOfDayCondition, VSSurvivalMod", "minHour": 20.0, "maxHour": 6.0, "Invert": false },
+            { "$type": "Vintagestory.GameContent.MountedCondition, VSSurvivalMod", "mountCode": "*", "Invert": true },
+            { "$type": "Vintagestory.GameContent.HeldCondition, VSSurvivalMod", "Code": "game:torch-basic-lit-up", "Invert": true }
+          ]
+        },
+        "Actions": {
+          "$type": "Vintagestory.GameContent.IEntityAction[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.EquipAction, VSSurvivalMod", "Target": "lefthand", "Value": "{ type: \"block\", code: \"torch-basic-lit-up\" }" }
+          ]
+        },
+        "ConditionsOp": 1
+      },
+
+      {
+        "$type": "Vintagestory.GameContent.EntityActivity, VSSurvivalMod",
+        "Slot": 0, "Priority": 6.0,
+        "Name": "removetorch", "Code": "removetorch",
+        "Conditions": {
+          "$type": "Vintagestory.GameContent.IActionCondition[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.TimeOfDayCondition, VSSurvivalMod", "minHour": 20.0, "maxHour": 6.0, "Invert": true },
+            { "$type": "Vintagestory.GameContent.HeldCondition, VSSurvivalMod", "Code": "game:torch-basic-lit-up", "Invert": false },
+            { "$type": "Vintagestory.GameContent.LightLevelCondition, VSSurvivalMod", "minLight": 0.0, "maxLight": 11.0, "lightLevelType": 4, "Invert": true }
+          ]
+        },
+        "Actions": {
+          "$type": "Vintagestory.GameContent.IEntityAction[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.UnequipAction, VSSurvivalMod", "Target": "lefthand" },
+            { "$type": "Vintagestory.GameContent.StopAnimationAction, VSSurvivalMod", "Animation": "torch-hold" }
+          ]
+        },
+        "ConditionsOp": 1
+      },
+
+      {
+        "$type": "Vintagestory.GameContent.EntityActivity, VSSurvivalMod",
+        "Slot": 2, "Priority": 7.0,
+        "Name": "equipspear", "Code": "equipspear",
+        "Conditions": {
+          "$type": "Vintagestory.GameContent.IActionCondition[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.MountedCondition, VSSurvivalMod", "mountCode": "*", "Invert": true },
+            { "$type": "Vintagestory.GameContent.HeldCondition, VSSurvivalMod", "Code": "game:spear-generic-blackbronze", "Invert": true }
+          ]
+        },
+        "Actions": {
+          "$type": "Vintagestory.GameContent.IEntityAction[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.EquipAction, VSSurvivalMod", "Target": "righthand", "Value": "{ type: \"item\", code: \"spear-generic-blackbronze\" }" }
+          ]
+        },
+        "ConditionsOp": 1
+      },
+
+      {
+        "$type": "Vintagestory.GameContent.EntityActivity, VSSurvivalMod",
+        "Slot": 2, "Priority": 6.9,
+        "Name": "torchpose", "Code": "torchpose",
+        "Conditions": {
+          "$type": "Vintagestory.GameContent.IActionCondition[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.TimeOfDayCondition, VSSurvivalMod", "minHour": 20.0, "maxHour": 6.0, "Invert": false },
+            { "$type": "Vintagestory.GameContent.MountedCondition, VSSurvivalMod", "mountCode": "*", "Invert": true },
+            { "$type": "Vintagestory.GameContent.HeldCondition, VSSurvivalMod", "Code": "game:torch-basic-lit-up", "Invert": false }
+          ]
+        },
+        "Actions": {
+          "$type": "Vintagestory.GameContent.IEntityAction[], VSSurvivalMod",
+          "$values": [
+            {
+              "$type": "Vintagestory.GameContent.PlayAnimationAction, VSSurvivalMod",
+              "meta": {
+                "$type": "Vintagestory.API.Common.AnimationMetaData, VintagestoryAPI",
+                "Code": "torch-hold",
+                "Attributes": null,
+                "Animation": "torch-hold",
+                "Weight": 2.0,
+                "ElementWeight": { "$type": "System.Collections.Generic.Dictionary`2[[System.String, System.Private.CoreLib],[System.Single, System.Private.CoreLib]], System.Private.CoreLib" },
+                "AnimationSpeed": 1.0,
+                "MulWithWalkSpeed": false,
+                "WeightCapFactor": 0.0,
+                "EaseInSpeed": 10.0,
+                "EaseOutSpeed": 10.0,
+                "TriggeredBy": null,
+                "BlendMode": 0,
+                "ElementBlendMode": { "$type": "System.Collections.Generic.Dictionary`2[[System.String, System.Private.CoreLib],[Vintagestory.API.Common.EnumAnimationBlendMode, VintagestoryAPI]], System.Private.CoreLib" },
+                "SupressDefaultAnimation": false,
+                "HoldEyePosAfterEasein": 99.0,
+                "ClientSide": false,
+                "WithFpVariant": false,
+                "AnimationSound": null,
+                "FpVariant": null,
+                "StartFrameOnce": 0.0,
+                "CodeCrc32": 0,
+                "WasStartedFromTrigger": false,
+                "AdjustCollisionBox": false
+              },
+              "DurationHours": -1.0,
+              "DurationIrlSeconds": -1.0,
+              "OnAnimEnd": 0,
+              "OnInterrupt": 0
+            }
+          ]
+        },
+        "ConditionsOp": 1
+      },
+
+      {
+        "$type": "Vintagestory.GameContent.EntityActivity, VSSurvivalMod",
+        "Slot": 0, "Priority": 0.1,
+        "Name": "idle", "Code": "idle",
+        "Conditions": {
+          "$type": "Vintagestory.GameContent.IActionCondition[], VSSurvivalMod",
+          "$values": []
+        },
+        "Actions": {
+          "$type": "Vintagestory.GameContent.IEntityAction[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.StandardAIAction, VSSurvivalMod", "durationSeconds": 10.0 }
+          ]
+        },
+        "ConditionsOp": 1
+      },
+
+      {
+        "$type": "Vintagestory.GameContent.EntityActivity, VSSurvivalMod",
+        "Slot": 15, "Priority": 1.0,
+        "Name": "allowaitasks", "Code": "allowaitasks",
+        "Conditions": {
+          "$type": "Vintagestory.GameContent.IActionCondition[], VSSurvivalMod",
+          "$values": []
+        },
+        "Actions": {
+          "$type": "Vintagestory.GameContent.IEntityAction[], VSSurvivalMod",
+          "$values": [
+            { "$type": "Vintagestory.GameContent.StandardAIAction, VSSurvivalMod", "durationSeconds": 99999999.0 }
+          ]
+        },
+        "ConditionsOp": 1
+      }
+
+    ]
+  }
+}

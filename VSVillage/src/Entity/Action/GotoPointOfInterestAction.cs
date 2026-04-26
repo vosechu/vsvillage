@@ -11,7 +11,7 @@ using Vintagestory.GameContent;
 
 namespace VsVillage;
 
-[JsonObject(MemberSerialization.OptIn)]
+[JsonObject(/*Could not decode attribute arguments.*/)]
 public class GotoPointOfInterestAction : EntityActionBase
 {
 	public const string ActionType = "GotoPointOfInterest";
@@ -38,19 +38,19 @@ public class GotoPointOfInterestAction : EntityActionBase
 
 	public override void OnTick(float dt)
 	{
-		EntityPos serverPos = ((Entity)vas.Entity).ServerPos;
+		EntityPos Pos = vas.Entity.Pos;
 		int num = index;
 		List<VillagerPathNode> list = path;
-		if (!(num < ((list != null) ? new int?(list.Count - 1) : ((int?)null))))
+		if (list == null || num >= list.Count - 1)
 		{
 			return;
 		}
-		float num2 = path[index].BlockPos.DistanceSqTo(serverPos.X, serverPos.Y, serverPos.Z);
+		float num2 = path[index].BlockPos.DistanceSqTo(Pos.X, Pos.Y, Pos.Z);
 		if (num2 > 1f)
 		{
 			for (int i = index; i < path.Count; i++)
 			{
-				if (path[i].BlockPos.DistanceSqTo(serverPos.X, serverPos.Y, serverPos.Z) < num2)
+				if (path[i].BlockPos.DistanceSqTo(Pos.X, Pos.Y, Pos.Z) < num2)
 				{
 					index = i;
 					break;
@@ -77,14 +77,16 @@ public class GotoPointOfInterestAction : EntityActionBase
 		Village village = behavior?.Village;
 		if (village != null)
 		{
-			BlockPos asBlockPos = ((Entity)vas.Entity).ServerPos.AsBlockPos;
-			BlockPos end = Target switch
+			BlockPos asBlockPos = vas.Entity.Pos.AsBlockPos;
+			VillagePointOfInterest target = Target;
+			BlockPos blockPos = target switch
 			{
-				VillagePointOfInterest.workstation => behavior.Workstation, 
-				VillagePointOfInterest.bed => behavior.Bed, 
-				VillagePointOfInterest.gatherplace => (village.Gatherplaces.Count > 0) ? village.Gatherplaces.ElementAt(behavior.entity.World.Rand.Next() % village.Gatherplaces.Count) : null, 
-				_ => null, 
+				VillagePointOfInterest.workstation => behavior.Workstation,
+				VillagePointOfInterest.bed => behavior.Bed,
+				VillagePointOfInterest.gatherplace => (village.Gatherplaces.Count > 0) ? village.Gatherplaces.ElementAt(behavior.entity.World.Rand.Next() % village.Gatherplaces.Count) : null,
+				_ => null,
 			};
+			BlockPos end = blockPos;
 			index = 0;
 			path = behavior.Pathfind.FindPath(asBlockPos, end, behavior.Village);
 			if (path != null)
@@ -189,6 +191,8 @@ public class GotoPointOfInterestAction : EntityActionBase
 	private void toggleDoor(bool opened, BlockPos target)
 	{
 		Block block = vas.Entity.Api.World.BlockAccessor.GetBlock(target);
+		if (block == null || block.Code == null) return;
+		if (!block.Code.Path.Contains("door") && !block.Code.Path.Contains("gate")) return;
 		BlockSelection blockSel = new BlockSelection
 		{
 			Block = block,
@@ -198,11 +202,18 @@ public class GotoPointOfInterestAction : EntityActionBase
 		};
 		TreeAttribute treeAttribute = new TreeAttribute();
 		treeAttribute.SetBool("opened", opened);
-		block.Activate(vas.Entity.World, new Caller
+		try
 		{
-			Entity = vas.Entity,
-			Type = EnumCallerType.Entity,
-			Pos = ((Entity)vas.Entity).Pos.XYZ
-		}, blockSel, treeAttribute);
+			block.Activate(vas.Entity.World, new Caller
+			{
+				Entity = vas.Entity,
+				Type = EnumCallerType.Entity,
+				Pos = vas.Entity.Pos.XYZ
+			}, blockSel, treeAttribute);
+		}
+		catch (Exception ex)
+		{
+			vas.Entity.World.Logger.Error("[VsVillage] GotoPointOfInterestAction: failed to toggle door at " + target + ": " + ex.Message);
+		}
 	}
 }

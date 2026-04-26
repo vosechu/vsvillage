@@ -10,7 +10,7 @@ using Vintagestory.GameContent;
 
 namespace VsVillage;
 
-[JsonObject(MemberSerialization.OptIn)]
+[JsonObject(/*Could not decode attribute arguments.*/)]
 public class CloseToPointOfInterestCondition : IActionCondition, IStorableTypedComponent
 {
 	public const string ConditionType = "CloseToPointOfInterest";
@@ -41,7 +41,7 @@ public class CloseToPointOfInterestCondition : IActionCondition, IStorableTypedC
 		BlockPos blockPos = findPointOfInterest(entity.GetBehavior<EntityBehaviorVillager>());
 		if (blockPos != null)
 		{
-			return blockPos.DistanceSqTo(entity.ServerPos.X, entity.ServerPos.Y, entity.ServerPos.Z) < MaxDistance * MaxDistance;
+			return blockPos.DistanceSqTo(entity.Pos.X, entity.Pos.Y, entity.Pos.Z) < MaxDistance * MaxDistance;
 		}
 		return false;
 	}
@@ -68,7 +68,7 @@ public class CloseToPointOfInterestCondition : IActionCondition, IStorableTypedC
 			return villager.Workstation;
 		case VillagePointOfInterest.gatherplace:
 		{
-			EntityPos pos = villager.entity.ServerPos;
+			EntityPos pos = villager.entity.Pos;
 			return villager.Village?.Gatherplaces?.MinBy((BlockPos gatherplace) => gatherplace.DistanceSqTo(pos.X, pos.Y, pos.Z));
 		}
 		default:
@@ -80,7 +80,6 @@ public class CloseToPointOfInterestCondition : IActionCondition, IStorableTypedC
 	{
 		ElementBounds elementBounds = ElementBounds.Fixed(0.0, 0.0, 200.0, 25.0);
 		ElementBounds elementBounds2 = elementBounds.BelowCopy();
-		elementBounds2.BelowCopy().BelowCopy();
 		string[] array = new List<VillagePointOfInterest>(Enum.GetValues<VillagePointOfInterest>()).ConvertAll((VillagePointOfInterest poi) => poi.ToString()).ToArray();
 		singleComposer.AddStaticText("Point of Interest", CairoFont.WhiteDetailText(), elementBounds).AddDropDown(array, array, 0, delegate
 		{

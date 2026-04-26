@@ -29,8 +29,8 @@ public class EntityBehaviorReplaceWithEntity : EntityBehavior
 		Entity entity = base.entity.World.ClassRegistry.CreateEntity(entityType);
 		if (entity != null)
 		{
-			entity.ServerPos.SetFrom(base.entity.ServerPos);
-			entity.PositionBeforeFalling.Set(entity.ServerPos.X, entity.ServerPos.Y, entity.ServerPos.Z);
+			entity.Pos.SetFrom(base.entity.Pos);
+			entity.PositionBeforeFalling.Set(entity.Pos.X, entity.Pos.Y, entity.Pos.Z);
 			base.entity.World.SpawnEntity(entity);
 			base.entity.Die(EnumDespawnReason.Removed);
 		}

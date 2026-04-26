@@ -56,7 +56,7 @@ public class CooldownCondition : IActionCondition, IStorableTypedComponent
 
 	public void StoreState(ITreeAttribute tree)
 	{
-		tree.SetFloat("LastSuccessfulCheck", LastSuccessfulCheck);
+		tree.SetLong("LastSuccessfulCheck", LastSuccessfulCheck);
 	}
 
 	public IActionCondition Clone()

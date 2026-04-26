@@ -33,6 +33,10 @@ public class VillagerAStarNew
 
 	public List<string> traversableCodes;
 
+	// Single shared Random per pathfinder instance — avoids two new Random() calls per
+	// FindPath invocation which could produce correlated seeds when called in the same ms.
+	private readonly Random _rng = new Random();
+
 	public VillagerAStarNew(ICachingBlockAccessor blockAccessor)
 	{
 		this.blockAccessor = blockAccessor;
@@ -45,73 +49,66 @@ public class VillagerAStarNew
 		tmpPos = new BlockPos(0);
 	}
 
-	public List<VillagerPathNode> FindPath(BlockPos start, BlockPos end, int searchDepth = 8000)
+	public List<VillagerPathNode> FindPath(BlockPos start, BlockPos end, int searchDepth = 12000)
 	{
-		List<VillagerPathNode> result;
-		if (start == null || end == null)
+		if (start == null || end == null) return null;
+
+		// Keep the test point near the block centre so narrow collision boxes
+		// (fences, fence posts, signs) are reliably detected.  The previous
+		// range (0.3–0.7) could drop the probe into the gaps on either side
+		// of a fence post, causing diagonal fence-corner cuts.
+		centerOffsetX = 0.45 + _rng.NextDouble() * 0.10;
+		centerOffsetZ = 0.45 + _rng.NextDouble() * 0.10;
+
+		// Open set: SortedSet gives O(log n) min-extraction; parallel Dictionary gives
+		// O(1) lookup by position (replaces the old O(n) linear scan per neighbour).
+		SortedSet<VillagerPathNode> openSet    = new SortedSet<VillagerPathNode>();
+		Dictionary<BlockPos, VillagerPathNode> openLookup = new Dictionary<BlockPos, VillagerPathNode>();
+		HashSet<VillagerPathNode> closedSet    = new HashSet<VillagerPathNode>();
+
+		VillagerPathNode startNode = new VillagerPathNode(start, end, isDoor(blockAccessor.GetBlock(start)));
+		openSet.Add(startNode);
+		openLookup[start] = startNode;
+
+		int iterations = 0;
+		while (iterations++ < searchDepth && openSet.Count > 0)
 		{
-			result = null;
-		}
-		else
-		{
-			centerOffsetX = 0.3 + new Random().NextDouble() * 0.4;
-			centerOffsetZ = 0.3 + new Random().NextDouble() * 0.4;
-			SortedSet<VillagerPathNode> sortedSet = new SortedSet<VillagerPathNode>();
-			HashSet<VillagerPathNode> hashSet = new HashSet<VillagerPathNode>();
-			VillagerPathNode item = new VillagerPathNode(start, end, isDoor(blockAccessor.GetBlock(start)));
-			sortedSet.Add(item);
-			int num = 0;
-			while (num < searchDepth && sortedSet.Count > 0)
+			VillagerPathNode current = openSet.Min;
+			openSet.Remove(current);
+			openLookup.Remove(current.BlockPos);
+			closedSet.Add(current);
+
+			if (current.BlockPos.Equals(end))
+				return current.RetracePath();
+
+			foreach (Cardinal cardinal in Cardinal.ALL)
 			{
-				num++;
-				VillagerPathNode min = sortedSet.Min;
-				sortedSet.Remove(min);
-				hashSet.Add(min);
-				if (min.BlockPos.Equals(end))
+				VillagerPathNode neighbour = new VillagerPathNode(current, cardinal);
+				if (closedSet.Contains(neighbour)) continue;
+
+				float extraCost = 0f;
+				if (!traversable(neighbour, end, cardinal, ref extraCost)) continue;
+
+				neighbour.SetGCostFromParent(current, extraCost);
+				neighbour.Init(end, isDoor(blockAccessor.GetBlock(neighbour.BlockPos)));
+
+				if (openLookup.TryGetValue(neighbour.BlockPos, out VillagerPathNode existing))
 				{
-					return min.RetracePath();
+					if (neighbour.gCost < existing.gCost - 0.0001f)
+					{
+						openSet.Remove(existing);
+						openSet.Add(neighbour);
+						openLookup[neighbour.BlockPos] = neighbour;
+					}
 				}
-				Cardinal[] aLL = Cardinal.ALL;
-				foreach (Cardinal cardinal in aLL)
+				else
 				{
-					VillagerPathNode villagerPathNode = new VillagerPathNode(min, cardinal);
-					if (hashSet.Contains(villagerPathNode))
-					{
-						continue;
-					}
-					float extraCost = 0f;
-					if (!traversable(villagerPathNode, end, cardinal, ref extraCost))
-					{
-						continue;
-					}
-					villagerPathNode.SetGCostFromParent(min, extraCost);
-					villagerPathNode.Init(end, isDoor(blockAccessor.GetBlock(villagerPathNode.BlockPos)));
-					VillagerPathNode villagerPathNode2 = null;
-					foreach (VillagerPathNode item2 in sortedSet)
-					{
-						if (item2.BlockPos.Equals(villagerPathNode.BlockPos))
-						{
-							villagerPathNode2 = item2;
-							break;
-						}
-					}
-					if (villagerPathNode2 != null)
-					{
-						if (villagerPathNode.gCost < villagerPathNode2.gCost - 0.0001f)
-						{
-							sortedSet.Remove(villagerPathNode2);
-							sortedSet.Add(villagerPathNode);
-						}
-					}
-					else
-					{
-						sortedSet.Add(villagerPathNode);
-					}
+					openSet.Add(neighbour);
+					openLookup[neighbour.BlockPos] = neighbour;
 				}
 			}
-			result = null;
 		}
-		return result;
+		return null;
 	}
 
 	private bool isDoor(Block block)
@@ -156,7 +153,8 @@ public class VillagerAStarNew
 				asBlockPos.EastCopy()
 			};
 			BlockPos[] array2 = array;
-			foreach (BlockPos blockPos in array2)
+			BlockPos[] array3 = array2;
+			foreach (BlockPos blockPos in array3)
 			{
 				tmpVec.Set((double)blockPos.X + 0.5, blockPos.Y, (double)blockPos.Z + 0.5);
 				if (!collTester.IsColliding(blockAccessor, entityCollBox, tmpVec, alsoCheckTouch: false))
@@ -167,6 +165,54 @@ public class VillagerAStarNew
 			result = startPos.AsBlockPos;
 		}
 		return result;
+	}
+
+	/// <summary>
+	/// Returns true if the block at the given position is a narrow barrier
+	/// (fence, fence post, handrail, glass pane, etc.) that villagers must never
+	/// traverse.  These blocks have narrow collision boxes that can slip through
+	/// the AABB probe in CollisionTester.IsColliding depending on centerOffset,
+	/// so an explicit string-based check is required.
+	/// Gates and doors are explicitly allowed (they're traversable).
+	/// </summary>
+	protected bool IsNarrowBarrier(BlockPos pos)
+	{
+		Block b = blockAccessor.GetBlock(pos);
+		string path = b?.Code?.Path;
+		if (path == null) return false;
+
+		// Allow-list: gates, doors, and trapdoors are traversable even if they
+		// share a substring with "fence" or other barrier terms.
+		if (path.Contains("gate") || path.Contains("door")) return false;
+
+		// Barrier patterns — any of these substrings means "do not traverse".
+		// Verified against vanilla 1.22 blocktypes:
+		//   - "fence"      : fence-bamboo, fence-coral-*, fence-free, fence-snow (fencegate/fence-bamboogate are excluded above by the "gate" check).
+		//   - "glasspane"  : glasspane-{glass}-{wood}-{ns|ew} — narrow 0.15-block-thick collision.
+		//   - "handrail"   : not in vanilla 1.22, kept defensively for modded content.
+		// NOT included (handled correctly by normal collision/step-up logic):
+		//   - "glass-slab" / "slab-*"      : 0.5-tall steppable half-blocks.
+		//   - "full-colored" / full glass  : full-block collision, caught by IsColliding.
+		return path.Contains("fence")
+			|| path.Contains("glasspane")
+			|| path.Contains("handrail");
+	}
+
+	/// <summary>
+	/// For diagonal moves from `fromPos` to `toPos`, returns true if either of
+	/// the two corner blocks the path cuts across is a narrow barrier.  A
+	/// diagonal NE move from (x,z) to (x+1,z+1) passes between (x+1,z) and
+	/// (x,z+1); both must be clear of fences/railings/etc.
+	/// </summary>
+	private bool DiagonalCornerBlocked(BlockPos toPos, Cardinal fromDir)
+	{
+		// fromDir points from source -> target.  The two corners that share
+		// one axis with the target are at (toPos - dx) and (toPos - dz).
+		// A diagonal NE move to (x+1, z+1) cuts the corner between (x, z+1)
+		// and (x+1, z) — a fence post at either of those is the slip-through.
+		BlockPos cornerA = new BlockPos(toPos.X - fromDir.Normali.X, toPos.Y, toPos.Z);
+		BlockPos cornerB = new BlockPos(toPos.X, toPos.Y, toPos.Z - fromDir.Normali.Z);
+		return IsNarrowBarrier(cornerA) || IsNarrowBarrier(cornerB);
 	}
 
 	protected virtual bool traversable(VillagerPathNode node, BlockPos target, Cardinal fromDir, ref float extraCost)
@@ -181,8 +227,24 @@ public class VillagerAStarNew
 			tmpVec.Set((double)node.BlockPos.X + centerOffsetX, node.BlockPos.Y, (double)node.BlockPos.Z + centerOffsetZ);
 			tmpPos.Set(node.BlockPos.X, node.BlockPos.Y, node.BlockPos.Z);
 			Block nodeBlock = blockAccessor.GetBlock(tmpPos);
-			bool forceTraversable = nodeBlock != null && nodeBlock.Code != null &&
-				traversableCodes.Exists(c => nodeBlock.Code.Path.Contains(c));
+
+			// HARD BLOCK 1: the target block itself is a narrow barrier.
+			// Covers fences, fence posts, handrails, glass panes — regardless of
+			// centerOffset or which branch below would have run.  (The block
+			// above is already covered by the entity's 1.8-tall AABB in
+			// CollisionTester.IsColliding, so no need to check it explicitly.)
+			if (IsNarrowBarrier(tmpPos)) return false;
+
+			// HARD BLOCK 2: diagonal moves must not cut across a fence corner.
+			// Without this, two fences meeting at a post can be slipped through
+			// diagonally because the CollisionTester probe lands just outside
+			// the fence post's narrow collision box.
+			if (fromDir.IsDiagonal && DiagonalCornerBlocked(node.BlockPos, fromDir))
+			{
+				return false;
+			}
+
+			bool forceTraversable = nodeBlock != null && nodeBlock.Code != null && traversableCodes.Exists((string c) => nodeBlock.Code.Path.Contains(c));
 			if (forceTraversable || !collTester.IsColliding(blockAccessor, entityCollBox, tmpVec, alsoCheckTouch: false))
 			{
 				int num = 0;
@@ -203,7 +265,7 @@ public class VillagerAStarNew
 					if (collisionBoxes != null && collisionBoxes.Length != 0)
 					{
 						extraCost += traversalCost;
-						if (fromDir.IsDiagnoal)
+						if (fromDir.IsDiagonal)
 						{
 							tmpVec.Add((0f - (float)fromDir.Normali.X) / 2f, 0.0, (0f - (float)fromDir.Normali.Z) / 2f);
 							if (collTester.IsColliding(blockAccessor, entityCollBox, tmpVec, alsoCheckTouch: false))
@@ -219,9 +281,7 @@ public class VillagerAStarNew
 							return false;
 						}
 						extraCost += traversalCost2;
-						// Penalize diagonal approach to gates/doors — forces straight-through traversal,
-						// preventing entity width from clipping adjacent fence posts.
-						if (forceTraversable && fromDir.IsDiagnoal)
+						if (forceTraversable && fromDir.IsDiagonal)
 						{
 							extraCost += 8f;
 						}
@@ -245,14 +305,9 @@ public class VillagerAStarNew
 				{
 					result = false;
 				}
-				else if (block3.Code != null &&
-					block3.Code.Path.Contains("fence") &&
-					!block3.Code.Path.Contains("gate") &&
-					!block3.Code.Path.Contains("door"))
+				else if (IsNarrowBarrier(tmpPos))
 				{
-					// Fence posts have narrow collision boxes — the step-up check clears their
-					// tops at Y+1.7 even though the entity can't actually stand on them.
-					// Block traversal explicitly so pathfinder routes around fence lines.
+					// Narrow barrier (fence, handrail, glass pane) — never step up onto.
 					result = false;
 				}
 				else
@@ -270,7 +325,8 @@ public class VillagerAStarNew
 						if (collisionBoxes2 != null && collisionBoxes2.Length != 0)
 						{
 							Cuboidf[] array = collisionBoxes2;
-							foreach (Cuboidf cuboidf in array)
+							Cuboidf[] array2 = array;
+							foreach (Cuboidf cuboidf in array2)
 							{
 								if (cuboidf.Y2 > num2)
 								{
@@ -278,17 +334,14 @@ public class VillagerAStarNew
 								}
 							}
 						}
-						// Only allow stepping up onto blocks shorter than stepHeight (1.2).
-						// Taller blocks (workstations at 2.0, walls, etc.) must be routed around,
-						// not climbed — prevents pathfinder from routing up and over obstacles.
-						if (num2 > stepHeight)
+						if (num2 > 1.2f)
 						{
 							return false;
 						}
 						tmpVec.Set((double)node.BlockPos.X + centerOffsetX, (double)node.BlockPos.Y + 1.2000000476837158 + (double)num2 - 1.0, (double)node.BlockPos.Z + centerOffsetZ);
 						if (!collTester.IsColliding(blockAccessor, entityCollBox, tmpVec, alsoCheckTouch: false))
 						{
-							if (fromDir.IsDiagnoal && collisionBoxes2 != null && collisionBoxes2.Length != 0)
+							if (fromDir.IsDiagonal && collisionBoxes2 != null && collisionBoxes2.Length != 0)
 							{
 								tmpVec.Add((0f - (float)fromDir.Normali.X) / 2f, 0.0, (0f - (float)fromDir.Normali.Z) / 2f);
 								if (collTester.IsColliding(blockAccessor, entityCollBox, tmpVec, alsoCheckTouch: false))

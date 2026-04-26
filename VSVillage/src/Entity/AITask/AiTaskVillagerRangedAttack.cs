@@ -47,15 +47,23 @@ public class AiTaskVillagerRangedAttack : AiTaskBaseTargetable
 
 	private float damage;
 
+	/// <summary>Pre-computed: false when this task doesn't apply to this entity type (e.g. non-archers skip the archer-only ranged task).</summary>
+	private readonly bool _isApplicableToThisEntity;
+
 	public AiTaskVillagerRangedAttack(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
 		: base(entity, taskConfig, aiConfig)
 	{
+		string onlyFor = taskConfig["onlyForEntitySuffix"].AsString(null);
+		_isApplicableToThisEntity = onlyFor == null || (entity.Code?.Path?.EndsWith(onlyFor) ?? false);
 		durationMs = taskConfig["durationMs"].AsInt(1500);
 		releaseAtMs = taskConfig["releaseAtMs"].AsInt(1000);
 		minDist = taskConfig["minDist"].AsFloat(3f);
 		minVertDist = taskConfig["minVertDist"].AsFloat(2f);
 		maxDist = taskConfig["maxDist"].AsFloat(15f);
-		projectileType = entity.World.GetEntityType(new AssetLocation(taskConfig["projectile"].AsString()));
+		string projectileCode = taskConfig["projectile"].AsString();
+		projectileType = entity.World.GetEntityType(new AssetLocation(projectileCode));
+		if (projectileType == null && _isApplicableToThisEntity)
+			entity.World.Logger.Warning("[VsVillage] AiTaskVillagerRangedAttack: projectile entity type '{0}' not found — archer will not shoot. Check the 'projectile' key in villager.json.", projectileCode);
 		if (taskConfig["drawingsound"].Exists)
 		{
 			drawingsound = new AssetLocation(taskConfig["drawingsound"].AsString());
@@ -77,6 +85,8 @@ public class AiTaskVillagerRangedAttack : AiTaskBaseTargetable
 
 	public override bool ShouldExecute()
 	{
+		if (!_isApplicableToThisEntity) return false;
+		if (projectileType == null) return false;
 		if (cooldownUntilMs > entity.World.ElapsedMilliseconds)
 		{
 			return false;
@@ -98,7 +108,7 @@ public class AiTaskVillagerRangedAttack : AiTaskBaseTargetable
 		{
 			float range = maxDist;
 			lastSearchTotalMs = entity.World.ElapsedMilliseconds;
-			targetEntity = partitionUtil.GetNearestInteractableEntity(((Entity)entity).ServerPos.XYZ, range, (Entity e) => base.IsTargetableEntity(e, range * 4f, false) && hasDirectContact(e, range * 4f, range / 2f));
+			targetEntity = partitionUtil.GetNearestInteractableEntity(entity.Pos.XYZ, range, (Entity e) => base.IsTargetableEntity(e, range * 4f) && hasDirectContact(e, range * 4f, range / 2f));
 		}
 		return targetEntity?.Alive ?? false;
 	}
@@ -134,12 +144,11 @@ public class AiTaskVillagerRangedAttack : AiTaskBaseTargetable
 
 	public override bool ContinueExecute(float dt)
 	{
-Vec3f vec3f = targetEntity.ServerPos.XYZFloat.Sub(((Entity)entity).ServerPos.XYZFloat);
-		vec3f.Set((float)(targetEntity.ServerPos.X - ((Entity)entity).ServerPos.X), (float)(targetEntity.ServerPos.Y - ((Entity)entity).ServerPos.Y), (float)(targetEntity.ServerPos.Z - ((Entity)entity).ServerPos.Z));
+		Vec3f vec3f = new Vec3f((float)(targetEntity.Pos.X - entity.Pos.X), (float)(targetEntity.Pos.Y - entity.Pos.Y), (float)(targetEntity.Pos.Z - entity.Pos.Z));
 		float end = (float)Math.Atan2(vec3f.X, vec3f.Z);
-		float num = GameMath.AngleRadDistance(((Entity)entity).ServerPos.Yaw, end);
-		((Entity)entity).ServerPos.Yaw += GameMath.Clamp(num, (0f - curTurnRadPerSec) * dt, curTurnRadPerSec * dt);
-		((Entity)entity).ServerPos.Yaw = ((Entity)entity).ServerPos.Yaw % ((float)Math.PI * 2f);
+		float num = GameMath.AngleRadDistance(entity.Pos.Yaw, end);
+		entity.Pos.Yaw += GameMath.Clamp(num, (0f - curTurnRadPerSec) * dt, curTurnRadPerSec * dt);
+		entity.Pos.Yaw = entity.Pos.Yaw % ((float)Math.PI * 2f);
 		if ((double)Math.Abs(num) > 0.02)
 		{
 			return true;
@@ -171,14 +180,13 @@ Vec3f vec3f = targetEntity.ServerPos.XYZFloat.Sub(((Entity)entity).ServerPos.XYZ
 			val.ProjectileStack = new ItemStack();
 			val.DropOnImpactChance = 0f;
 			val.World = entity.World;
-			Vec3d vec3d = ((Entity)entity).ServerPos.AheadCopy(0.5).XYZ.AddCopy(0.0, entity.LocalEyePos.Y, 0.0);
-			Vec3d vec3d2 = targetEntity.ServerPos.XYZ.AddCopy(0.0, targetEntity.LocalEyePos.Y, 0.0);
+			Vec3d vec3d = entity.Pos.AheadCopy(0.5).XYZ.AddCopy(0.0, entity.LocalEyePos.Y, 0.0);
+			Vec3d vec3d2 = targetEntity.Pos.XYZ.AddCopy(0.0, targetEntity.LocalEyePos.Y, 0.0);
 			double num2 = Math.Pow(vec3d.SquareDistanceTo(vec3d2), 0.1);
 			Vec3d pos = (vec3d2 - vec3d + new Vec3d(0.0, vec3d.DistanceTo(vec3d2) / 16f, 0.0)).Normalize() * GameMath.Clamp(num2 - 1.0, 0.10000000149011612, 1.0);
-			val.ServerPos.SetPos(((Entity)entity).ServerPos.AheadCopy(0.5).XYZ.Add(0.0, entity.LocalEyePos.Y, 0.0));
-			val.ServerPos.Motion.Set(pos);
-			val.Pos.SetFrom(val.ServerPos);
-			val.SetRotation();
+			val.Pos.SetPos(entity.Pos.AheadCopy(0.5).XYZ.Add(0.0, entity.LocalEyePos.Y, 0.0));
+			val.Pos.Motion.Set(pos);
+			val.Pos.SetFrom(val.Pos);
 			entity.World.SpawnEntity(val);
 			if (shootingSound != null)
 			{
@@ -198,8 +206,13 @@ Vec3f vec3f = targetEntity.ServerPos.XYZFloat.Sub(((Entity)entity).ServerPos.XYZ
 	{
 		EntitySelection entitySelection = new EntitySelection();
 		BlockSelection blockSelection = new BlockSelection();
-		entity.World.RayTraceForSelection(((Entity)entity).ServerPos.XYZ.AddCopy(entity.LocalEyePos), targetEntity.ServerPos.XYZ.AddCopy(targetEntity.LocalEyePos), ref blockSelection, ref entitySelection);
-		return entitySelection?.Entity != targetEntity;
+		entity.World.RayTraceForSelection(entity.Pos.XYZ.AddCopy(entity.LocalEyePos), targetEntity.Pos.XYZ.AddCopy(targetEntity.LocalEyePos), ref blockSelection, ref entitySelection);
+		// If a block was hit the path is obstructed
+		if (blockSelection?.Position != null) return true;
+		// If no entity was struck the ray went past everything — clear shot
+		if (entitySelection?.Entity == null) return false;
+		// Obstructed only when the thing struck is NOT the intended target
+		return entitySelection.Entity != targetEntity;
 	}
 
 	public override void FinishExecute(bool cancelled)
@@ -225,13 +238,13 @@ Vec3f vec3f = targetEntity.ServerPos.XYZFloat.Sub(((Entity)entity).ServerPos.XYZ
 		}
 	}
 
-	public override bool IsTargetableEntity(Entity e, float range, bool ignoreEntityCode = false)
+	public override bool IsTargetableEntity(Entity e, float range)
 	{
 		if (e == attackedByEntity && e != null && e.Alive)
 		{
 			return true;
 		}
-		return base.IsTargetableEntity(e, range, ignoreEntityCode);
+		return base.IsTargetableEntity(e, range);
 	}
 
 	public void OnAllyAttacked(Entity byEntity)

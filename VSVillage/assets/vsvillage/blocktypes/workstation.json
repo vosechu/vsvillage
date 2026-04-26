@@ -2,7 +2,7 @@
     "code": "workstation",
     "classByType": {
         "workstation-mayor-*": "MayorWorkstation",
-        "*": "Block"
+        "*": "VsWorkstation"
     },
     "entityClass": "VillagerWorkstation",
     "behaviors": [
@@ -20,7 +20,8 @@
                 "mayor",
                 "soldier",
                 "herbalist",
-                "trader"
+                "trader",
+                "baker"
             ]
         },
         {
@@ -56,7 +57,7 @@
         "all": false
     },
     "collisionboxes": [
-        { "x1": 0.0, "y1": 0.0, "z1": 0.0, "x2": 1.0, "y2": 2.0, "z2": 1.0 }
+        { "x1": 0.0, "y1": 0.0, "z1": 0.0, "x2": 1.0, "y2": 1.3, "z2": 1.0 }
     ],
     "selectionboxes": [
         { "x1": 0.0, "y1": 0.0, "z1": 0.0, "x2": 1.0, "y2": 1.0, "z2": 1.0 }

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using Vintagestory.API.Common;
-using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 
@@ -39,64 +38,77 @@ public class AiTaskVillagerSleep : AiTaskBase
 
 	private bool isExecuting;
 
+	/// <summary>
+	/// Pre-computed in the constructor: false when this task entry doesn't apply to this
+	/// entity type (based on onlyForEntitySuffix / excludeEntitySuffix in the task config).
+	/// Avoids repeated string allocations and EndsWith calls on every AI tick.
+	/// </summary>
+	private readonly bool _isApplicableToThisEntity;
+
 	public AiTaskVillagerSleep(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
 		: base(entity, taskConfig, aiConfig)
 	{
 		moveSpeed = taskConfig["movespeed"].AsFloat(0.06f);
 		offset = (float)entity.World.Rand.Next(taskConfig["minoffset"].AsInt(-50), taskConfig["maxoffset"].AsInt(50)) / 100f;
 		pathfinder = new VillagerAStarNew(entity.World.GetCachingBlockAccessor(synchronize: false, relight: false));
+
+		string codePath = entity.Code?.Path ?? "";
+		string onlyFor  = taskConfig["onlyForEntitySuffix"].AsString(null);
+		string exclude  = taskConfig["excludeEntitySuffix"].AsString(null);
+		_isApplicableToThisEntity =
+			(onlyFor  == null || codePath.EndsWith(onlyFor))  &&
+			(exclude  == null || !codePath.EndsWith(exclude));
 	}
 
 	public override bool ShouldExecute()
 	{
-		float hourOfDay = entity.World.Calendar.HourOfDay;
-		if (!ManualTimeCheck(hourOfDay))
-		{
+		if (!_isApplicableToThisEntity) return false;
+
+		// Respect the duringDayTimeFrames configured in JSON (handles midnight wrap-around).
+		if (duringDayTimeFrames == null || duringDayTimeFrames.Length == 0
+			|| !IntervalUtil.matchesCurrentTime(duringDayTimeFrames, entity.World, offset))
 			return false;
-		}
-		if (isExecuting)
-		{
-			return true;
-		}
-		long elapsedMilliseconds = entity.World.ElapsedMilliseconds;
-		if (elapsedMilliseconds - lastSearchTime <= 5000)
-		{
-			return false;
-		}
-		lastSearchTime = elapsedMilliseconds;
-		entity.World.Logger.Debug("Sleep: Entity " + entity.EntityId + " searching for bed...");
+
+		// Soldiers don't go back to sleep while their village is under attack.
+		if (IsVillageUnderAlarm()) return false;
+
+		if (isExecuting) return true;
+
+		long now = entity.World.ElapsedMilliseconds;
+		if (now - lastSearchTime <= 5000) return false;
+		lastSearchTime = now;
+
 		EntityBehaviorVillager villagerBehavior = entity.GetBehavior<EntityBehaviorVillager>();
 		Village village = villagerBehavior?.Village;
-		if (village == null)
+		if (village == null) return false;
+
+		BlockPos blockPos = villagerBehavior.Bed;
+		if (blockPos == null)
 		{
-			entity.World.Logger.Warning("Sleep: No village found for entity " + entity.EntityId);
-			return false;
+			blockPos = village.FindFreeBed(entity.EntityId);
+			if (blockPos != null)
+				villagerBehavior.Bed = blockPos; // persist so we don't search every 5 s
 		}
-		// Prefer previously assigned bed to prevent bed-shifting on chunk reload
-		BlockPos blockPos = villagerBehavior.Bed ?? village.FindFreeBed(entity.EntityId);
-		// Verify the bed block still physically exists (it may have been destroyed)
 		if (blockPos != null)
 		{
 			Block bedBlock = entity.World.BlockAccessor.GetBlock(blockPos);
 			if (bedBlock == null || bedBlock.Id == 0 || !bedBlock.Code.Path.Contains("villagebed"))
 			{
-				entity.World.Logger.Warning("Sleep: Assigned bed at " + blockPos + " was destroyed, seeking new bed");
+				// Assigned bed was destroyed — release it and search again.
 				villagerBehavior.Bed = null;
 				village.ClearBedOwner(entity.EntityId);
 				blockPos = village.FindFreeBed(entity.EntityId);
+				if (blockPos != null)
+					villagerBehavior.Bed = blockPos; // persist the replacement
 			}
 		}
-		if (blockPos == null)
-		{
-			entity.World.Logger.Warning("Sleep: No free bed found for entity " + entity.EntityId);
-			return false;
-		}
+		if (blockPos == null) return false;
+
 		targetBedPos = blockPos.Copy();
-		entity.World.Logger.Notification("Sleep: Entity " + entity.EntityId + " found bed at " + targetBedPos.ToString());
 		Vec3d bedStandingPos = GetBedStandingPos(targetBedPos.ToVec3d());
 		if (bedStandingPos == null)
 		{
-			entity.World.Logger.Warning("Sleep: Could not find standing position near bed");
+			entity.World.Logger.Warning("[VsVillage] Sleep: no standing position near bed at " + targetBedPos);
 			targetBedPos = null;
 			return false;
 		}
@@ -107,19 +119,16 @@ public class AiTaskVillagerSleep : AiTaskBase
 	public override void StartExecute()
 	{
 		base.StartExecute();
-		stuck = false; // reset from any previous failed attempt so we start clean
+		stuck = false;
 		isExecuting = true;
-		entity.World.Logger.Notification("Sleep: StartExecute for entity " + entity.EntityId);
+
 		if (targetPos == null)
 		{
-			entity.World.Logger.Warning("Sleep: StartExecute but targetPos is null!");
 			stuck = true;
 			return;
 		}
-		// Already at bed (e.g. after server restart while sleeping) — skip pathing.
-		if (targetBedPos != null && ((Entity)entity).ServerPos.SquareDistanceTo(targetBedPos.ToVec3d().Add(0.5, 0.5, 0.5)) < 4.0)
+		if (targetBedPos != null && entity.Pos.SquareDistanceTo(targetBedPos.ToVec3d().Add(0.5, 0.5, 0.5)) < 4.0)
 		{
-			entity.World.Logger.Notification("Sleep: Entity " + entity.EntityId + " already at bed, sleeping immediately");
 			currentPath = new List<VillagerPathNode>();
 			currentPathIndex = 0;
 			stuck = false;
@@ -127,59 +136,49 @@ public class AiTaskVillagerSleep : AiTaskBase
 			StartSleeping();
 			return;
 		}
-
 		pathfinder.blockAccessor.Begin();
 		pathfinder.SetEntityCollisionBox(entity);
-		BlockPos startPos = pathfinder.GetStartPos(((Entity)entity).ServerPos.XYZ);
-		BlockPos asBlockPos = targetPos.AsBlockPos;
-		entity.World.Logger.Notification("Sleep: Pathing from " + startPos + " to target " + asBlockPos + " (bed " + targetBedPos + ")");
-		currentPath = pathfinder.FindPath(startPos, asBlockPos, 3000);
+		BlockPos startPos = pathfinder.GetStartPos(entity.Pos.XYZ);
+		currentPath = pathfinder.FindPath(startPos, targetPos.AsBlockPos, 10000);
 		pathfinder.blockAccessor.Commit();
 		if (currentPath != null && currentPath.Count > 0)
 		{
-			entity.World.Logger.Notification("Sleep: Found path with " + currentPath.Count + " nodes to bed");
 			currentPathIndex = 0;
 			stuck = false;
 			reachedBed = false;
-			lastPosition = ((Entity)entity).ServerPos.XYZ.Clone();
+			lastPosition = entity.Pos.XYZ.Clone();
 			stuckCheckTime = entity.World.ElapsedMilliseconds;
 			timesStuck = 0;
 		}
 		else
 		{
-			entity.World.Logger.Warning("Sleep: No path found to bed at " + targetPos.ToString() + " (from " + startPos + ")");
+			entity.World.Logger.Warning("[VsVillage] Sleep: no path to bed at " + targetPos + " (from " + startPos + ")");
 			stuck = true;
 		}
 	}
 
 	public override bool ContinueExecute(float dt)
 	{
-		if (targetPos == null || stuck || currentPath == null)
-		{
-			entity.World.Logger.Debug("Sleep: ContinueExecute ending - targetPos:" + (targetPos == null) + " stuck:" + stuck + " path:" + (currentPath == null));
+		if (targetPos == null || stuck || currentPath == null) return false;
+
+		if (duringDayTimeFrames == null || duringDayTimeFrames.Length == 0
+			|| !IntervalUtil.matchesCurrentTime(duringDayTimeFrames, entity.World, offset))
 			return false;
-		}
-		float hourOfDay = entity.World.Calendar.HourOfDay;
-		if (!ManualTimeCheck(hourOfDay))
-		{
-			entity.World.Logger.Notification("Sleep: Time to wake up! Entity " + entity.EntityId);
-			return false;
-		}
-		if (reachedBed)
-		{
-			return entity.AnimManager.IsAnimationActive("Lie");
-		}
+
+		// Wake sleeping soldiers when their village raises an alarm.
+		if (IsVillageUnderAlarm()) return false;
+
+		if (reachedBed) return entity.AnimManager.IsAnimationActive("Lie");
+
 		CheckIfStuck();
 		if (currentPathIndex >= currentPath.Count)
 		{
-			entity.World.Logger.Notification("Sleep: Entity " + entity.EntityId + " reached end of path, starting sleep");
 			StartSleeping();
 			return true;
 		}
 		HandlePathTraversal();
 		if (IsAtBed())
 		{
-			entity.World.Logger.Notification("Sleep: Entity " + entity.EntityId + " at bed, starting sleep");
 			StartSleeping();
 			return true;
 		}
@@ -190,29 +189,19 @@ public class AiTaskVillagerSleep : AiTaskBase
 	{
 		base.FinishExecute(cancelled);
 		isExecuting = false;
-		stuck = false; // always reset so the next ShouldExecute→StartExecute cycle starts clean
-		entity.World.Logger.Debug("Sleep: FinishExecute for entity " + entity.EntityId + ", cancelled: " + cancelled);
+		stuck = false;
 		entity.Controls.WalkVector.Set(0.0, 0.0, 0.0);
 		entity.Controls.StopAllMovement();
-		((Entity)entity).ServerPos.Motion.Set(0.0, 0.0, 0.0);
+		entity.Pos.Motion.Set(0.0, 0.0, 0.0);
 		CloseAllOpenDoors();
 		if (animMeta != null)
-		{
 			entity.AnimManager.StopAnimation(animMeta.Code);
-		}
 		entity.AnimManager.StopAnimation("Lie");
-		// Wake-up relocation: if the entity was sleeping (snapped inside the bed block),
-		// move it to a clear standing position next to the bed BEFORE we clear state.
-		// This ensures other AI tasks (gotomayor, gotowork) can immediately find a valid
-		// start position without colliding with the bed's collision box.
 		if (reachedBed && targetBedPos != null)
 		{
 			Vec3d wakePos = GetBedStandingPos(targetBedPos.ToVec3d());
 			if (wakePos != null && IsPositionSafe(wakePos))
-			{
 				entity.TeleportTo(wakePos);
-				entity.World.Logger.Notification("Sleep: Entity " + entity.EntityId + " woke up at " + wakePos);
-			}
 		}
 		targetPos = null;
 		targetBedPos = null;
@@ -243,100 +232,75 @@ public class AiTaskVillagerSleep : AiTaskBase
 				{
 					Entity = entity,
 					Type = EnumCallerType.Entity,
-					Pos = ((Entity)entity).Pos.XYZ
+					Pos = entity.Pos.XYZ
 				}, blockSel, treeAttribute);
 			}
 			catch (Exception ex)
 			{
-				entity.World.Logger.Error("Sleep: Failed to toggle door: " + ex.Message);
+				entity.World.Logger.Error("[VsVillage] Sleep: failed to toggle door: " + ex.Message);
 			}
 		}
 	}
 
 	private void HandlePathTraversal()
 	{
-		if (currentPath == null || currentPathIndex >= currentPath.Count)
-		{
-			return;
-		}
-		VillagerPathNode villagerPathNode = currentPath[currentPathIndex];
-		Vec3d vec3d = villagerPathNode.BlockPos.ToVec3d().Add(0.5, 0.0, 0.5);
-		Vec3d xYZ = ((Entity)entity).ServerPos.XYZ;
-		double num = xYZ.X - vec3d.X;
-		double num2 = xYZ.Z - vec3d.Z;
-		double num3 = Math.Sqrt(num * num + num2 * num2);
-		if (num3 < 0.5)
+		if (currentPath == null || currentPathIndex >= currentPath.Count) return;
+
+		VillagerPathNode node = currentPath[currentPathIndex];
+		Vec3d nodePos = node.BlockPos.ToVec3d().Add(0.5, 0.0, 0.5);
+		Vec3d myPos = entity.Pos.XYZ;
+		double dx = myPos.X - nodePos.X;
+		double dz = myPos.Z - nodePos.Z;
+		if (Math.Sqrt(dx * dx + dz * dz) < 0.5)
 		{
 			currentPathIndex++;
-			if (currentPathIndex < currentPath.Count)
+			if (currentPathIndex < currentPath.Count && currentPath[currentPathIndex].IsDoor)
+				ToggleDoor(opened: true, currentPath[currentPathIndex].BlockPos);
+
+			if (node.IsDoor)
 			{
-				VillagerPathNode villagerPathNode2 = currentPath[currentPathIndex];
-				if (villagerPathNode2.IsDoor)
-				{
-					ToggleDoor(opened: true, villagerPathNode2.BlockPos);
-				}
-			}
-			if (villagerPathNode.IsDoor)
-			{
-				BlockPos doorPos = villagerPathNode.BlockPos.Copy();
-				entity.World.RegisterCallback(delegate
-				{
-					ToggleDoor(opened: false, doorPos);
-				}, 5000);
+				BlockPos doorPos = node.BlockPos.Copy();
+				entity.World.RegisterCallback(delegate { ToggleDoor(opened: false, doorPos); }, 5000);
 			}
 		}
 		if (currentPathIndex < currentPath.Count)
 		{
-			VillagerPathNode villagerPathNode3 = currentPath[currentPathIndex];
-			Vec3d vec3d2 = villagerPathNode3.BlockPos.ToVec3d().Add(0.5, 0.0, 0.5);
-			Vec3d vec3d3 = vec3d2.Clone().Sub(xYZ);
-			vec3d3.Y = 0.0;
-			vec3d3 = vec3d3.Normalize();
-			float yaw = (float)Math.Atan2(vec3d3.X, vec3d3.Z);
-			((Entity)entity).ServerPos.Yaw = yaw;
-			double num4 = moveSpeed;
-			entity.Controls.WalkVector.Set(vec3d3.X * num4, 0.0, vec3d3.Z * num4);
+			Vec3d next = currentPath[currentPathIndex].BlockPos.ToVec3d().Add(0.5, 0.0, 0.5);
+			Vec3d dir = next.Clone().Sub(myPos);
+			dir.Y = 0.0;
+			dir = dir.Normalize();
+			entity.Pos.Yaw = (float)Math.Atan2(dir.X, dir.Z);
+			entity.Controls.WalkVector.Set(dir.X * moveSpeed, 0.0, dir.Z * moveSpeed);
 			if (animMeta != null && !entity.AnimManager.IsAnimationActive(animMeta.Code))
-			{
 				entity.AnimManager.StartAnimation(animMeta);
-			}
 		}
 	}
 
 	private void CloseAllOpenDoors()
 	{
-		if (currentPath == null)
+		if (currentPath == null) return;
+		foreach (VillagerPathNode node in currentPath)
 		{
-			return;
-		}
-		for (int i = 0; i < currentPath.Count; i++)
-		{
-			VillagerPathNode villagerPathNode = currentPath[i];
-			if (villagerPathNode.IsDoor)
+			if (node.IsDoor)
 			{
-				Block block = entity.World.BlockAccessor.GetBlock(villagerPathNode.BlockPos);
+				Block block = entity.World.BlockAccessor.GetBlock(node.BlockPos);
 				if (block != null && block.Code != null && (block.Code.Path.Contains("opened") || block.Code.Path.Contains("open")))
-				{
-					ToggleDoor(opened: false, villagerPathNode.BlockPos);
-				}
+					ToggleDoor(opened: false, node.BlockPos);
 			}
 		}
 	}
 
 	private bool IsAtBed()
 	{
-		return targetPos != null && ((Entity)entity).ServerPos.SquareDistanceTo(targetPos) < 2.25;
+		return targetPos != null && entity.Pos.SquareDistanceTo(targetPos) < 2.25;
 	}
 
 	private void StartSleeping()
 	{
 		entity.Controls.WalkVector.Set(0.0, 0.0, 0.0);
 		entity.Controls.StopAllMovement();
-		((Entity)entity).ServerPos.Motion.Set(0.0, 0.0, 0.0);
-		if (animMeta != null)
-		{
-			entity.AnimManager.StopAnimation(animMeta.Code);
-		}
+		entity.Pos.Motion.Set(0.0, 0.0, 0.0);
+		if (animMeta != null) entity.AnimManager.StopAnimation(animMeta.Code);
 		entity.AnimManager.StopAnimation("walk");
 		entity.AnimManager.StopAnimation("Walk");
 		entity.AnimManager.StopAnimation("balanced-walk");
@@ -346,113 +310,78 @@ public class AiTaskVillagerSleep : AiTaskBase
 			BlockEntityVillagerBed blockEntity = entity.World.BlockAccessor.GetBlockEntity<BlockEntityVillagerBed>(targetBedPos);
 			if (blockEntity != null)
 			{
-				Vec3d bedSleepPosition = GetBedSleepPosition(blockEntity);
-				((Entity)entity).ServerPos.SetPos(bedSleepPosition);
-				((Entity)entity).ServerPos.Yaw = blockEntity.Yaw;
+				entity.Pos.SetPos(GetBedSleepPosition(blockEntity));
+				entity.Pos.Yaw = blockEntity.Yaw;
 			}
 			else
 			{
 				FaceBed();
 			}
 		}
-		AnimationMetaData animdata = new AnimationMetaData
-		{
-			Code = "Lie",
-			Animation = "Lie",
-			AnimationSpeed = 1f
-		}.Init();
-		entity.AnimManager.StartAnimation(animdata);
+		entity.AnimManager.StartAnimation(new AnimationMetaData { Code = "Lie", Animation = "Lie", AnimationSpeed = 1f }.Init());
 		reachedBed = true;
-		entity.World.Logger.Notification("Sleep: Entity " + entity.EntityId + " now sleeping at " + ((targetBedPos != null) ? targetBedPos.ToString() : "unknown"));
 	}
 
 	private void FaceBed()
 	{
-		if (targetBedPos != null)
-		{
-			Vec3d xYZ = ((Entity)entity).ServerPos.XYZ;
-			Vec3d vec3d = targetBedPos.ToVec3d().Add(0.5, 0.5, 0.5);
-			double y = vec3d.X - xYZ.X;
-			double x = vec3d.Z - xYZ.Z;
-			float yaw = (float)Math.Atan2(y, x);
-			((Entity)entity).ServerPos.Yaw = yaw;
-			((Entity)entity).Pos.Yaw = yaw;
-		}
+		if (targetBedPos == null) return;
+		Vec3d myPos = entity.Pos.XYZ;
+		Vec3d bedPos = targetBedPos.ToVec3d().Add(0.5, 0.5, 0.5);
+		entity.Pos.Yaw = (float)Math.Atan2(bedPos.X - myPos.X, bedPos.Z - myPos.Z);
 	}
 
 	private Vec3d GetBedStandingPos(Vec3d bedCenter)
 	{
 		if (bedCenter == null) return null;
-		IBlockAccessor blockAccessor = entity.World.BlockAccessor;
+
+		IBlockAccessor ba = entity.World.BlockAccessor;
 		BlockPos bedBlockPos = bedCenter.AsBlockPos;
-		Vec3d myPos = ((Entity)entity).ServerPos.XYZ;
+		Vec3d myPos = entity.Pos.XYZ;
 		Vec3d bestPos = null;
 		double bestDist = double.MaxValue;
 
-		// Scan all 4 cardinal sides of the bed for the closest walkable standing position.
-		// The original code only checked the side opposite the bed's facing AND had a broken
-		// flag2 check that required the standing block to be non-air (always false for open air),
-		// so it always fell back to bedCenter (the raw bed-block corner). This caused FindPath to
-		// target the bed block itself, which had no clear accessible neighbors in some layouts.
 		foreach (BlockFacing facing in BlockFacing.HORIZONTALS)
 		{
-			BlockPos neighborPos = bedBlockPos.AddCopy(facing.Normali.X, 0, facing.Normali.Z);
-			Block atPos  = blockAccessor.GetBlock(neighborPos);             // entity body space — must be air
-			Block above  = blockAccessor.GetBlock(neighborPos.UpCopy());    // head space — must be air
-			Block below  = blockAccessor.GetBlock(neighborPos.DownCopy()); // floor — must be solid
-
-			bool posClear    = atPos.CollisionBoxes == null || atPos.CollisionBoxes.Length == 0;
-			bool headClear   = above.CollisionBoxes == null || above.CollisionBoxes.Length == 0;
-			bool groundSolid = below.CollisionBoxes != null && below.CollisionBoxes.Length > 0;
-
-			if (!posClear || !headClear || !groundSolid) continue;
-
-			Vec3d candidate = neighborPos.ToVec3d().Add(0.5, 0.0, 0.5);
-			double dist = candidate.SquareDistanceTo(myPos);
-			if (dist < bestDist)
+			BlockPos nb = bedBlockPos.AddCopy(facing.Normali.X, 0, facing.Normali.Z);
+			bool posClear  = ba.GetBlock(nb).CollisionBoxes == null || ba.GetBlock(nb).CollisionBoxes.Length == 0;
+			bool headClear = ba.GetBlock(nb.UpCopy()).CollisionBoxes == null || ba.GetBlock(nb.UpCopy()).CollisionBoxes.Length == 0;
+			bool grounded  = ba.GetBlock(nb.DownCopy()).CollisionBoxes != null && ba.GetBlock(nb.DownCopy()).CollisionBoxes.Length != 0;
+			if (posClear && headClear && grounded)
 			{
-				bestDist = dist;
-				bestPos = candidate;
+				Vec3d candidate = nb.ToVec3d().Add(0.5, 0.0, 0.5);
+				double dist = candidate.SquareDistanceTo(myPos);
+				if (dist < bestDist) { bestDist = dist; bestPos = candidate; }
 			}
 		}
+		if (bestPos != null) return bestPos;
 
-		if (bestPos != null)
-		{
-			entity.World.Logger.Debug("Sleep: Found accessible bed standing position at " + bestPos);
-			return bestPos;
-		}
-		// Last resort — path to the bed block itself and let the pathfinder route adjacent.
-		entity.World.Logger.Warning("Sleep: No accessible neighbor found around bed " + bedBlockPos + ", falling back to bed center");
+		entity.World.Logger.Warning("[VsVillage] Sleep: no clear neighbour around bed " + bedBlockPos + " — using bed centre");
 		return bedCenter;
 	}
 
 	private void CheckIfStuck()
 	{
-		long elapsedMilliseconds = entity.World.ElapsedMilliseconds;
-		if (elapsedMilliseconds - stuckCheckTime < 3000)
-		{
-			return;
-		}
-		Vec3d xYZ = ((Entity)entity).ServerPos.XYZ;
+		long now = entity.World.ElapsedMilliseconds;
+		if (now - stuckCheckTime < 3000) return;
+
+		Vec3d pos = entity.Pos.XYZ;
 		if (lastPosition != null)
 		{
-			double num = xYZ.DistanceTo(lastPosition);
-			if (num < 0.5)
+			double moved = pos.DistanceTo(lastPosition);
+			double threshold = Math.Max(0.25, moveSpeed * 60 * 0.4);
+			if (moved < threshold)
 			{
 				timesStuck++;
-				entity.World.Logger.Warning("Sleep: Entity " + entity.EntityId + " stuck! (count: " + timesStuck + ")");
 				if (timesStuck <= 3)
 				{
-					long num2 = elapsedMilliseconds - lastRepathTime;
-					if (num2 > 5000)
+					if (now - lastRepathTime > 5000)
 					{
 						AttemptRepath();
-						lastRepathTime = elapsedMilliseconds;
+						lastRepathTime = now;
 					}
 				}
 				else if (timesStuck >= 4)
 				{
-					entity.World.Logger.Notification("Sleep: Entity " + entity.EntityId + " teleporting to safe location");
 					TeleportToSafeLocation();
 					timesStuck = 0;
 				}
@@ -462,135 +391,122 @@ public class AiTaskVillagerSleep : AiTaskBase
 				timesStuck = 0;
 			}
 		}
-		lastPosition = xYZ.Clone();
-		stuckCheckTime = elapsedMilliseconds;
+		lastPosition = pos.Clone();
+		stuckCheckTime = now;
 	}
 
 	private void AttemptRepath()
 	{
-		if (!(targetPos == null))
+		if (targetPos == null) return;
+
+		pathfinder.blockAccessor.Begin();
+		pathfinder.SetEntityCollisionBox(entity);
+		BlockPos startPos = pathfinder.GetStartPos(entity.Pos.XYZ);
+		List<VillagerPathNode> newPath = pathfinder.FindPath(startPos, targetPos.AsBlockPos);
+		pathfinder.blockAccessor.Commit();
+		if (newPath != null && newPath.Count > 0)
 		{
-			entity.World.Logger.Debug("Sleep: Entity " + entity.EntityId + " attempting repath");
-			pathfinder.blockAccessor.Begin();
-			pathfinder.SetEntityCollisionBox(entity);
-			BlockPos startPos = pathfinder.GetStartPos(((Entity)entity).ServerPos.XYZ);
-			BlockPos asBlockPos = targetPos.AsBlockPos;
-			List<VillagerPathNode> list = pathfinder.FindPath(startPos, asBlockPos);
-			pathfinder.blockAccessor.Commit();
-			if (list != null && list.Count > 0)
-			{
-				entity.World.Logger.Debug("Sleep: Found new path with " + list.Count + " nodes");
-				currentPath = list;
-				currentPathIndex = 0;
-			}
-			else
-			{
-				entity.World.Logger.Warning("Sleep: Could not find alternative path");
-			}
+			currentPath = newPath;
+			currentPathIndex = 0;
+		}
+		else
+		{
+			entity.World.Logger.Warning("[VsVillage] Sleep: no alternative path to bed for entity " + entity.EntityId);
 		}
 	}
 
-	private bool ManualTimeCheck(float currentHour)
+	/// <summary>
+	/// Returns true when this soldier's village has an active alarm.
+	/// Only soldiers respond to alarms — archers and civilians sleep through them.
+	/// </summary>
+	private bool IsVillageUnderAlarm()
 	{
-		float num = 21.5f + offset;
-		float num2 = 6f + offset;
-		if (num > num2)
-		{
-			return currentHour >= num || currentHour <= num2;
-		}
-		return currentHour >= num && currentHour <= num2;
+		string codePath = entity.Code?.Path ?? "";
+		if (!codePath.EndsWith("-soldier") && !codePath.EndsWith("-archer")) return false;
+
+		Village village = entity.GetBehavior<EntityBehaviorVillager>()?.Village;
+		if (village == null) return false;
+
+		if (!AiTaskVillagerMeleeAttack.VillageAlarms.TryGetValue(village.Id, out long alarmRaisedAt))
+			return false;
+
+		long elapsed = entity.World.ElapsedMilliseconds - alarmRaisedAt;
+		return elapsed >= 0 && elapsed < AiTaskVillagerMeleeAttack.AlarmDurationMs;
 	}
 
 	private void TeleportToSafeLocation()
 	{
-		Vec3d vec3d = null;
-		string text = "";
+		Vec3d dest = null;
+		string label = "";
+
 		if (targetPos != null && IsPositionSafe(targetPos))
 		{
-			vec3d = targetPos;
-			text = "bed";
+			dest = targetPos;
+			label = "bed";
 		}
-		if (vec3d == null)
+		if (dest == null)
 		{
 			Village village = entity.GetBehavior<EntityBehaviorVillager>()?.Village;
 			if (village != null)
 			{
-				BlockPos blockPos = village.FindRandomGatherplace();
-				if (blockPos != null)
+				BlockPos gp = village.FindRandomGatherplace();
+				if (gp != null)
 				{
-					Vec3d vec3d2 = blockPos.ToVec3d().Add(0.5, 1.0, 0.5);
-					if (IsPositionSafe(vec3d2))
-					{
-						vec3d = vec3d2;
-						text = "gatherplace";
-					}
+					Vec3d candidate = gp.ToVec3d().Add(0.5, 1.0, 0.5);
+					if (IsPositionSafe(candidate)) { dest = candidate; label = "gatherplace"; }
 				}
 			}
 		}
-		if (vec3d == null)
+		if (dest == null)
 		{
-			EntityBehaviorVillager behavior = entity.GetBehavior<EntityBehaviorVillager>();
-			Village village2 = behavior?.Village;
-			if (village2 != null && behavior != null)
+			EntityBehaviorVillager bv = entity.GetBehavior<EntityBehaviorVillager>();
+			Village v = bv?.Village;
+			if (v != null && bv != null)
 			{
-				BlockPos blockPos2 = village2.FindFreeWorkstation(entity.EntityId, behavior.Profession);
-				if (blockPos2 != null)
+				BlockPos ws = v.FindFreeWorkstation(entity.EntityId, bv.Profession);
+				if (ws != null)
 				{
-					Vec3d vec3d3 = blockPos2.ToVec3d().Add(0.5, 1.0, 0.5);
-					if (IsPositionSafe(vec3d3))
-					{
-						vec3d = vec3d3;
-						text = "workstation";
-					}
+					Vec3d candidate = ws.ToVec3d().Add(0.5, 1.0, 0.5);
+					if (IsPositionSafe(candidate)) { dest = candidate; label = "workstation"; }
 				}
 			}
 		}
-		if (vec3d != null)
+
+		if (dest != null)
 		{
-			entity.TeleportTo(vec3d);
-			entity.World.Logger.Notification("Sleep: Teleported entity " + entity.EntityId + " to " + text + " at " + vec3d.ToString());
-			if (text == "bed")
-			{
-				StartSleeping();
-			}
-			else
-			{
-				AttemptRepath();
-			}
+			entity.TeleportTo(dest);
+			if (label == "bed") StartSleeping();
+			else AttemptRepath();
 		}
 		else
 		{
-			entity.World.Logger.Warning("Sleep: Entity " + entity.EntityId + " could not find safe teleport location, giving up");
+			entity.World.Logger.Warning("[VsVillage] Sleep: entity " + entity.EntityId + " has no safe teleport destination — giving up");
 			stuck = true;
 		}
 	}
 
 	private bool IsPositionSafe(Vec3d pos)
 	{
-		if (pos == null)
-		{
-			return false;
-		}
-		IBlockAccessor blockAccessor = entity.World.BlockAccessor;
-		BlockPos asBlockPos = pos.AsBlockPos;
-		Block block = blockAccessor.GetBlock(asBlockPos);
-		Block block2 = blockAccessor.GetBlock(asBlockPos.UpCopy());
-		bool flag = block.CollisionBoxes == null || block.CollisionBoxes.Length == 0;
-		bool flag2 = block2.CollisionBoxes == null || block2.CollisionBoxes.Length == 0;
-		Block block3 = blockAccessor.GetBlock(asBlockPos.DownCopy());
-		bool flag3 = block3.CollisionBoxes != null && block3.CollisionBoxes.Length != 0;
-		return flag && flag2 && flag3;
+		if (pos == null) return false;
+		IBlockAccessor ba = entity.World.BlockAccessor;
+		BlockPos bp = pos.AsBlockPos;
+		bool atClear   = ba.GetBlock(bp).CollisionBoxes == null || ba.GetBlock(bp).CollisionBoxes.Length == 0;
+		bool headClear = ba.GetBlock(bp.UpCopy()).CollisionBoxes == null || ba.GetBlock(bp.UpCopy()).CollisionBoxes.Length == 0;
+		bool grounded  = ba.GetBlock(bp.DownCopy()).CollisionBoxes != null && ba.GetBlock(bp.DownCopy()).CollisionBoxes.Length != 0;
+		return atClear && headClear && grounded;
 	}
 
 	private Vec3d GetBedSleepPosition(BlockEntityVillagerBed bed)
 	{
-		Cardinal cardinal = bed.Block.Variant["side"] switch
+		string side = null;
+		bed.Block?.Variant?.TryGetValue("side", out side);
+		Cardinal dir = side switch
 		{
-			"north" => Cardinal.North, 
-			"east" => Cardinal.East, 
-			"south" => Cardinal.South, 
-			_ => Cardinal.West, 
+			"north" => Cardinal.North,
+			"east"  => Cardinal.East,
+			"south" => Cardinal.South,
+			_       => Cardinal.West,
 		};
-		return bed.Pos.ToVec3d().Add(0.5, 0.0, 0.5).Add(cardinal.Normalf.Clone().Mul(0.7f));
+		return bed.Pos.ToVec3d().Add(0.5, 0.0, 0.5).Add(dir.Normalf.Clone().Mul(0.7f));
 	}
 }

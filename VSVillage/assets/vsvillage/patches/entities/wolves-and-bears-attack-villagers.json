@@ -1,0 +1,52 @@
+[
+    // =========================================================================
+    // WOLF — attack and seek villagers
+    // server.behaviors[10] = taskai
+    // =========================================================================
+
+    // aitasks[0] = meleeattack (prey, priority 2.1) — deer, goat, player, etc.
+    // Add villagers to this group so wolves bite them on contact.
+    {
+        "file": "game:entities/animal/mammal/wolf-adult.json",
+        "op": "add",
+        "path": "/server/behaviors/10/aitasks/0/entityCodes/-",
+        "value": "villager-*",
+        "side": "server"
+    },
+
+    // aitasks[5] = seekentity (prey, priority 1.5) — active hunting list.
+    // Add villagers so wolves will chase them from up to 15 blocks away.
+    {
+        "file": "game:entities/animal/mammal/wolf-adult.json",
+        "op": "add",
+        "path": "/server/behaviors/10/aitasks/5/entityCodes/-",
+        "value": "villager-*",
+        "side": "server"
+    },
+
+    // =========================================================================
+    // BEAR — attack and seek villagers
+    // server.behaviors[9] = taskai
+    // =========================================================================
+
+    // aitasks[2] = meleeattack (prey, priority 1.65) — player, chicken, deer, etc.
+    // Add villagers to this melee list (all bear types incl. black/brown/polar).
+    {
+        "file": "game:entities/animal/mammal/bear-adult.json",
+        "op": "add",
+        "path": "/server/behaviors/9/aitasks/2/entityCodes/-",
+        "value": "villager-*",
+        "side": "server"
+    },
+
+    // aitasks[3] = seekentity (prey, priority 1.6) — entityCodesByType.
+    // The "*" bucket covers black, brown, and polar bears.
+    // Panda and sun bears have their own empty buckets and are NOT affected.
+    {
+        "file": "game:entities/animal/mammal/bear-adult.json",
+        "op": "add",
+        "path": "/server/behaviors/9/aitasks/3/entityCodesByType/*/-",
+        "value": "villager-*",
+        "side": "server"
+    }
+]

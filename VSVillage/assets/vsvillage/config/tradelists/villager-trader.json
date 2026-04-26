@@ -98,6 +98,32 @@
                 }
             },
             {
+                "code": "vsvillage:marketstall-east",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 2,
+                    "var": 1
+                },
+                "price": {
+                    "avg": 22,
+                    "var": 5
+                }
+            },
+            {
+                "code": "vsvillage:workstation-baker-east",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 2,
+                    "var": 1
+                },
+                "price": {
+                    "avg": 6,
+                    "var": 2
+                }
+            },
+            {
                 "code": "vsvillage:brazier-extinct",
                 "type": "block",
                 "stacksize": 1,
@@ -161,6 +187,104 @@
                     "avg": 2,
                     "var": 1
                 }
+            },
+ {
+                "code": "game:feather",
+                "type": "item",
+                "stacksize": 8,
+                "stock": { "avg": 8, "var": 2 },
+                "price": { "avg": 2, "var": 0.5 }
+            },
+            {
+                "code": "game:charcoal",
+                "type": "item",
+                "stacksize": 8,
+                "stock": { "avg": 8, "var": 2 },
+                "price": { "avg": 2, "var": 0.5 }
+            },
+            {
+                "code": "game:flaxtwine",
+                "type": "item",
+                "stacksize": 4,
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 3, "var": 0.75 }
+            },
+            {
+                "code": "game:nugget-nativecopper",
+                "type": "item",
+                "stacksize": 16,
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 2, "var": 0.5 }
+            },
+            {
+                "code": "game:lime",
+                "type": "item",
+                "stacksize": 16,
+                "stock": { "avg": 12, "var": 3 },
+                "price": { "avg": 2, "var": 0.5 }
+            },
+            {
+                "code": "game:peatbrick",
+                "type": "block",
+                "stacksize": 16,
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 2, "var": 0.5 }
+            },
+            {
+                "code": "game:linen-diamond-down",
+                "type": "block",
+                "stacksize": 2,
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 6, "var": 1.5 }
+            },
+            {
+                "code": "game:linen-normal-down",
+                "type": "block",
+                "stacksize": 2,
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 6, "var": 1.5 }
+            },
+            {
+                "code": "game:linen-offset-down",
+                "type": "block",
+                "stacksize": 2,
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 6, "var": 1.5 }
+            },
+            {
+                "code": "game:linen-square-down",
+                "type": "block",
+                "stacksize": 2,
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 6, "var": 1.5 }
+            },
+            {
+                "code": "game:paper-parchment",
+                "type": "item",
+                "stacksize": 5,
+                "stock": { "avg": 3, "var": 0.75 },
+                "price": { "avg": 1, "var": 0.25 }
+            },
+            {
+                "code": "game:resin",
+                "type": "item",
+                "stacksize": 2,
+                "stock": { "avg": 5, "var": 1.25 },
+                "price": { "avg": 2, "var": 0.5 }
+            },
+            {
+                "code": "game:sewingkit",
+                "type": "item",
+                "stacksize": 1,
+                "stock": { "avg": 2, "var": 0.5 },
+                "price": { "avg": 3, "var": 0.75 }
+            },
+            {
+                "code": "game:clay-fire",
+                "type": "item",
+                "stacksize": 16,
+                "stock": { "avg": 5, "var": 1.25 },
+                "price": { "avg": 2, "var": 0.5 }
             }
         ]
     },
@@ -270,6 +394,127 @@
                     "avg": 2,
                     "var": 0.5
                 }
+            },
+ {
+                "code": "game:crate",
+                "type": "block",
+                "stacksize": 1,
+                "stock": { "avg": 2, "var": 0.5 },
+                "price": { "avg": 1, "var": 0.25 },
+                "attributes": { "type": "wood-aged" }
+            },
+            {
+                "code": "game:chest-east",
+                "type": "block",
+                "stacksize": 1,
+                "stock": { "avg": 3, "var": 0.75 },
+                "price": { "avg": 10, "var": 2.5 },
+                "attributes": { "type": "owl" }
+            },
+            {
+                "code": "game:lootvessel-seed",
+                "type": "block",
+                "stacksize": 1,
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 11, "var": 2.75 }
+            },
+            {
+                "code": "game:lootvessel-food",
+                "type": "block",
+                "stacksize": 1,
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 9, "var": 2.25 }
+            },
+            {
+                "code": "game:lootvessel-forage",
+                "type": "block",
+                "stacksize": 1,
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 9, "var": 2.25 }
+            },
+            {
+                "code": "game:lootvessel-ore",
+                "type": "block",
+                "stacksize": 1,
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 9, "var": 2.25 }
+            },
+            {
+                "code": "game:lootvessel-tool",
+                "type": "block",
+                "stacksize": 1,
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 9, "var": 2.25 }
+            },
+            {
+                "code": "game:lootvessel-farming",
+                "type": "block",
+                "stacksize": 1,
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 9, "var": 2.25 }
+            },
+            {
+                "code": "game:clothes-arm-merchant-bracelet",
+                "type": "item",
+                "stacksize": 1,
+                "stock": { "avg": 2, "var": 0.5 },
+                "price": { "avg": 3, "var": 0.75 }
+            },
+            {
+                "code": "game:clothes-foot-merchant-shoes",
+                "type": "item",
+                "stacksize": 1,
+                "stock": { "avg": 2, "var": 0.5 },
+                "price": { "avg": 4, "var": 1 }
+            },
+            {
+                "code": "game:clothes-head-merchant-hat",
+                "type": "item",
+                "stacksize": 1,
+                "stock": { "avg": 2, "var": 0.5 },
+                "price": { "avg": 4, "var": 1 }
+            },
+            {
+                "code": "game:clothes-lowerbody-merchant-pants",
+                "type": "item",
+                "stacksize": 1,
+                "stock": { "avg": 2, "var": 0.5 },
+                "price": { "avg": 5, "var": 1.25 }
+            },
+            {
+                "code": "game:clothes-neck-merchant-amulet",
+                "type": "item",
+                "stacksize": 1,
+                "stock": { "avg": 2, "var": 0.5 },
+                "price": { "avg": 4, "var": 1 }
+            },
+            {
+                "code": "game:clothes-upperbody-merchant-shirt",
+                "type": "item",
+                "stacksize": 1,
+                "stock": { "avg": 2, "var": 0.5 },
+                "price": { "avg": 5, "var": 1.25 }
+            },
+            {
+                "code": "game:clothes-waist-merchant-belt",
+                "type": "item",
+                "stacksize": 1,
+                "stock": { "avg": 2, "var": 0.5 },
+                "price": { "avg": 4, "var": 1 }
+            },
+            {
+                "code": "game:hoovedwearables-blanket-merchant",
+                "type": "item",
+                "stacksize": 1,
+                "stock": { "avg": 1, "var": 0.25 },
+                "price": { "avg": 3, "var": 0.75 }
+            },
+            {
+                "code": "game:hoovedwearables-blanket-alchemist",
+                "type": "item",
+                "stacksize": 1,
+                "stock": { "avg": 1, "var": 0.25 },
+                "price": { "avg": 10, "var": 2.5 }
             }
         ]
     }

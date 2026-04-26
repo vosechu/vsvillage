@@ -1,0 +1,160 @@
+[
+    // -------------------------------------------------------------------------
+    // Hare — flees all villagers
+    // behaviors[11]/aitasks[0] = fleeentity
+    // -------------------------------------------------------------------------
+    {
+        "file": "game:entities/animal/mammal/hare-adult.json",
+        "op": "addeach",
+        "path": "/server/behaviors/11/aitasks/0/entityCodes/-",
+        "value": [ "villager-*" ],
+        "side": "server"
+    },
+
+    // -------------------------------------------------------------------------
+    // Fox — flees all villagers
+    // behaviors[11]/aitasks[3] = fleeentity
+    // -------------------------------------------------------------------------
+    {
+        "file": "game:entities/animal/mammal/fox-adult.json",
+        "op": "addeach",
+        "path": "/server/behaviors/11/aitasks/3/entityCodes/-",
+        "value": [ "villager-*" ],
+        "side": "server"
+    },
+
+    // -------------------------------------------------------------------------
+    // Raccoon — flees all villagers
+    // behaviors[10]/aitasks[2] = fleeentity
+    // -------------------------------------------------------------------------
+    {
+        "file": "game:entities/animal/mammal/raccoon-adult.json",
+        "op": "addeach",
+        "path": "/server/behaviors/10/aitasks/2/entityCodes/-",
+        "value": [ "villager-*" ],
+        "side": "server"
+    },
+
+    // -------------------------------------------------------------------------
+    // Deer — flees all villagers
+    // behaviors[10]/aitasks[2] = fleeentity
+    // -------------------------------------------------------------------------
+    {
+        "file": "game:entities/animal/mammal/hooved/deer-adult.json",
+        "op": "addeach",
+        "path": "/server/behaviors/10/aitasks/2/entityCodes/-",
+        "value": [ "villager-*" ],
+        "side": "server"
+    },
+
+    // -------------------------------------------------------------------------
+    // Goat — flees all villagers EXCEPT shepherd
+    // behaviors[12]/aitasks[2] = fleeentity
+    // -------------------------------------------------------------------------
+    {
+        "file": "game:entities/animal/mammal/hooved/goat-adult.json",
+        "op": "addeach",
+        "path": "/server/behaviors/12/aitasks/2/entityCodes/-",
+        "value": [
+            "villager-*-smith",
+            "villager-*-farmer",
+            "villager-*-mayor",
+            "villager-*-soldier",
+            "villager-*-archer",
+            "villager-*-herbalist",
+            "villager-*-trader",
+            "villager-*-baker"
+        ],
+        "side": "server"
+    },
+
+    // -------------------------------------------------------------------------
+    // Sheep — flees all villagers EXCEPT shepherd
+    // behaviors[10] has THREE fleeentity tasks: aitasks[2], [7], [9]
+    // -------------------------------------------------------------------------
+    {
+        "file": "game:entities/animal/mammal/hooved/sheep-adult.json",
+        "op": "addeach",
+        "path": "/server/behaviors/10/aitasks/2/entityCodes/-",
+        "value": [
+            "villager-*-smith",
+            "villager-*-farmer",
+            "villager-*-mayor",
+            "villager-*-soldier",
+            "villager-*-archer",
+            "villager-*-herbalist",
+            "villager-*-trader",
+            "villager-*-baker"
+        ],
+        "side": "server"
+    },
+    {
+        "file": "game:entities/animal/mammal/hooved/sheep-adult.json",
+        "op": "addeach",
+        "path": "/server/behaviors/10/aitasks/7/entityCodes/-",
+        "value": [
+            "villager-*-smith",
+            "villager-*-farmer",
+            "villager-*-mayor",
+            "villager-*-soldier",
+            "villager-*-archer",
+            "villager-*-herbalist",
+            "villager-*-trader",
+            "villager-*-baker"
+        ],
+        "side": "server"
+    },
+    {
+        "file": "game:entities/animal/mammal/hooved/sheep-adult.json",
+        "op": "addeach",
+        "path": "/server/behaviors/10/aitasks/9/entityCodes/-",
+        "value": [
+            "villager-*-smith",
+            "villager-*-farmer",
+            "villager-*-mayor",
+            "villager-*-soldier",
+            "villager-*-archer",
+            "villager-*-herbalist",
+            "villager-*-trader",
+            "villager-*-baker"
+        ],
+        "side": "server"
+    },
+
+    // -------------------------------------------------------------------------
+    // Chicken — flees all villagers EXCEPT shepherd
+    // behaviors[11] has TWO fleeentity tasks: aitasks[2] and [4]
+    // -------------------------------------------------------------------------
+    {
+        "file": "game:entities/animal/bird/chicken-adult.json",
+        "op": "addeach",
+        "path": "/server/behaviors/11/aitasks/2/entityCodes/-",
+        "value": [
+            "villager-*-smith",
+            "villager-*-farmer",
+            "villager-*-mayor",
+            "villager-*-soldier",
+            "villager-*-archer",
+            "villager-*-herbalist",
+            "villager-*-trader",
+            "villager-*-baker"
+        ],
+        "side": "server"
+    },
+    {
+        "file": "game:entities/animal/bird/chicken-adult.json",
+        "op": "addeach",
+        "path": "/server/behaviors/11/aitasks/4/entityCodes/-",
+        "value": [
+            "villager-*-smith",
+            "villager-*-farmer",
+            "villager-*-mayor",
+            "villager-*-soldier",
+            "villager-*-archer",
+            "villager-*-herbalist",
+            "villager-*-trader",
+            "villager-*-baker"
+        ],
+        "side": "server"
+    }
+]

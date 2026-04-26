@@ -4,24 +4,18 @@ using Vintagestory.GameContent;
 
 namespace VsVillage;
 
+/// <summary>
+/// Placeholder task that triggers the villager weapon-flip behaviour via the
+/// priority system.  ShouldExecute always returns false so it never actually
+/// runs its own tick — the weapon flip is driven externally by
+/// AiTaskVillagerMeleeAttack hooking into this task's priority slot.
+/// </summary>
 public class AiTaskVillagerFlipWeapon : AiTaskIdle
 {
-	private string weapon;
-
 	public AiTaskVillagerFlipWeapon(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
 		: base(entity, taskConfig, aiConfig)
 	{
-		weapon = taskConfig["weapon"].AsString("sword");
 	}
 
-	public override bool ShouldExecute()
-	{
-		base.ShouldExecute();
-		return false;
-	}
-
-	public override void StartExecute()
-	{
-		base.StartExecute();
-	}
+	public override bool ShouldExecute() => false;
 }

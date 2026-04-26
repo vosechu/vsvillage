@@ -8,5 +8,6 @@ public enum EnumVillagerProfession
 	mayor,
 	soldier,
 	herbalist,
-	trader
+	trader,
+	baker
 }

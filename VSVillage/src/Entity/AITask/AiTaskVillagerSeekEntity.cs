@@ -1,129 +1,259 @@
+using System;
+using System.Collections.Generic;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
+using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
 
 namespace VsVillage;
 
-public class AiTaskVillagerSeekEntity : AiTaskSeekEntity
+/// <summary>
+/// Self-defence seek task for all villagers (combatant and non-combatant alike).
+/// Previously extended vanilla AiTaskSeekEntity, which used the stock pathfinder
+/// and therefore couldn't open gates, navigate fences, or recover from stuck
+/// states. This version extends AiTaskGotoAndInteract so it runs on the same
+/// VillagerAStarNew pathfinder as the rest of our custom tasks (chase, goto-work,
+/// guard-follow, etc.).
+///
+/// JSON config keys:
+///   entityCodes            — flat list of entity code patterns (supports trailing *).
+///   seekingRange           — aggro radius (blocks).
+///   minRange               — optional minimum distance; targets closer than this
+///                            are ignored (lets melee attack take over cleanly).
+///   maxFollowTime          — abort chase after this many seconds.
+///   requiredEntitySuffixes — optional allow-list of entity-code suffixes.
+/// </summary>
+public class AiTaskVillagerSeekEntity : AiTaskGotoAndInteract
 {
-	protected float minRange;
+    // The entity we are currently pursuing.
+    public Entity targetEntity;
 
-	protected long lastCheckTotalMs { get; set; }
+    // Entity code patterns read from JSON "entityCodes".
+    private readonly List<string> entityCodes = new List<string>();
 
-	protected long lastCheckCooldown { get; set; } = 500L;
+    // Optional entity-suffix allow-list (usually empty — applies to all villagers).
+    private readonly List<string> requiredSuffixes = new List<string>();
 
-	protected long lastCallForHelp { get; set; }
+    // Pursuit configuration.
+    private float seekingRange;
+    private float minRange;
+    private float maxFollowTimeSec;
+    private long  pursuitStartedAtMs;
 
-	public AiTaskVillagerSeekEntity(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
-		: base(entity, taskConfig, aiConfig)
-	{
-		minRange = taskConfig["minRange"].AsFloat();
-	}
+    // Repath as target moves.
+    private long lastTargetUpdateMs;
+    private const long TargetUpdateIntervalMs = 800;
 
-	public override bool ShouldExecute()
-	{
-		if (lastCheckTotalMs + lastCheckCooldown > entity.World.ElapsedMilliseconds)
-		{
-			return false;
-		}
-		lastCheckTotalMs = entity.World.ElapsedMilliseconds;
-		if (targetEntity != null && targetEntity.Alive && entityInReach(targetEntity))
-		{
-			targetPos = targetEntity.ServerPos.XYZ;
-			return true;
-		}
-		targetEntity = null;
-		if (attackedByEntity != null && attackedByEntity.Alive && entityInReach(attackedByEntity))
-		{
-			targetEntity = attackedByEntity;
-			targetPos = targetEntity.ServerPos.XYZ;
-			return true;
-		}
-		attackedByEntity = null;
-		if (lastSearchTotalMs + searchWaitMs < entity.World.ElapsedMilliseconds)
-		{
-			lastSearchTotalMs = entity.World.ElapsedMilliseconds;
-			targetEntity = partitionUtil.GetNearestInteractableEntity(((Entity)entity).ServerPos.XYZ, seekingRange, (Entity potentialTarget) => ((AiTaskBaseTargetable)this).IsTargetableEntity(potentialTarget, seekingRange, false));
-			if (targetEntity != null && targetEntity.Alive && entityInReach(targetEntity))
-			{
-				targetPos = targetEntity.ServerPos.XYZ;
-				return true;
-			}
-			targetEntity = null;
-		}
-		return false;
-	}
+    // Ally call-for-help throttle.
+    private long lastCallForHelp;
 
-	private bool entityInReach(Entity candidate)
-	{
-		double num = candidate.ServerPos.SquareDistanceTo(((Entity)entity).ServerPos.XYZ);
-		if (num < (double)(seekingRange * seekingRange * 2f))
-		{
-			return num > (double)(minRange * minRange);
-		}
-		return false;
-	}
+    public AiTaskVillagerSeekEntity(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
+        : base(entity, taskConfig, aiConfig)
+    {
+        seekingRange     = taskConfig["seekingRange"].AsFloat(20f);
+        minRange         = taskConfig["minRange"].AsFloat(0f);
+        maxFollowTimeSec = taskConfig["maxFollowTime"].AsFloat(60f);
 
-	public override void StartExecute()
-	{
-		base.StartExecute();
-	}
+        JsonObject[] codes = taskConfig["entityCodes"].AsArray();
+        if (codes != null)
+            foreach (JsonObject c in codes)
+            {
+                string s = c.AsString();
+                if (!string.IsNullOrEmpty(s)) entityCodes.Add(s);
+            }
 
-	public override bool ContinueExecute(float dt)
-	{
-		if (targetEntity != null && entityInReach(targetEntity))
-		{
-			return base.ContinueExecute(dt);
-		}
-		return false;
-	}
+        JsonObject[] suffixes = taskConfig["requiredEntitySuffixes"].AsArray();
+        if (suffixes != null)
+            foreach (JsonObject s in suffixes)
+            {
+                string sfx = s.AsString();
+                if (!string.IsNullOrEmpty(sfx)) requiredSuffixes.Add(sfx);
+            }
+    }
 
-	public override void OnEntityHurt(DamageSource source, float damage)
-	{
-		Entity causeEntity = source.CauseEntity;
-		if (causeEntity != null && causeEntity.HasBehavior<EntityBehaviorVillager>())
-		{
-			return;
-		}
-		Entity sourceEntity = source.SourceEntity;
-		if (sourceEntity != null && sourceEntity.HasBehavior<EntityBehaviorVillager>())
-		{
-			return;
-		}
-		base.OnEntityHurt(source, damage);
-		if (source.Type != EnumDamageType.Heal && (source.CauseEntity != null || source.SourceEntity != null) && lastCallForHelp + 5000 < entity.World.ElapsedMilliseconds)
-		{
-			lastCallForHelp = entity.World.ElapsedMilliseconds;
-			Entity[] entitiesAround = entity.World.GetEntitiesAround(((Entity)entity).ServerPos.XYZ, 15f, 4f, delegate(Entity entity)
-			{
-				EntityBehaviorVillager behavior = entity.GetBehavior<EntityBehaviorVillager>();
-				return behavior != null && behavior.Profession == EnumVillagerProfession.soldier;
-			});
-			for (int num = 0; num < entitiesAround.Length; num++)
-			{
-				AiTaskManager taskManager = entitiesAround[num].GetBehavior<EntityBehaviorTaskAI>().TaskManager;
-				taskManager.GetTask<AiTaskVillagerSeekEntity>()?.OnAllyAttacked(source.SourceEntity);
-				taskManager.GetTask<AiTaskVillagerMeleeAttack>()?.OnAllyAttacked(source.SourceEntity);
-				taskManager.GetTask<AiTaskVillagerRangedAttack>()?.OnAllyAttacked(source.SourceEntity);
-			}
-		}
-	}
+    // -----------------------------------------------------------------------
+    // Target acquisition
+    // -----------------------------------------------------------------------
 
-	public void OnAllyAttacked(Entity byEntity)
-	{
-		if (targetEntity == null || !targetEntity.Alive)
-		{
-			targetEntity = byEntity;
-		}
-	}
+    protected override Vec3d GetTargetPos()
+    {
+        if (!IsAllowedEntityType()) return null;
 
-	public override bool IsTargetableEntity(Entity e, float range, bool ignoreEntityCode = false)
-	{
-		if (e == attackedByEntity && e != null && e.Alive)
-		{
-			return true;
-		}
-		return base.IsTargetableEntity(e, range, ignoreEntityCode);
-	}
+        // Keep existing live target if still valid.
+        if (targetEntity != null && targetEntity.Alive && InRange(targetEntity))
+            return targetEntity.Pos.XYZ;
+
+        targetEntity = null;
+
+        // Scan for the nearest matching hostile.
+        targetEntity = entity.World.GetNearestEntity(
+            entity.Pos.XYZ, seekingRange, seekingRange * 0.5f,
+            e => e != entity && e.Alive && e.IsInteractable && MatchesCode(e) && IsBeyondMinRange(e));
+
+        if (targetEntity != null)
+        {
+            pursuitStartedAtMs = entity.World.ElapsedMilliseconds;
+            return targetEntity.Pos.XYZ;
+        }
+        return null;
+    }
+
+    // -----------------------------------------------------------------------
+    // Execution
+    // -----------------------------------------------------------------------
+
+    public override void StartExecute()
+    {
+        pursuitStartedAtMs = entity.World.ElapsedMilliseconds;
+        lastTargetUpdateMs = entity.World.ElapsedMilliseconds;
+        base.StartExecute();
+    }
+
+    private const double MeleeHandoffDistSq = 6.25; // 2.5 blocks
+
+    public override bool ContinueExecute(float dt)
+    {
+        if (targetEntity == null || !targetEntity.Alive || !InRange(targetEntity))
+            return false;
+
+        if (entity.World.ElapsedMilliseconds - pursuitStartedAtMs > maxFollowTimeSec * 1000f)
+            return false;
+
+        // Within melee/ranged strike range — stop and let the attack task take over.
+        if (entity.Pos.SquareDistanceTo(targetEntity.Pos) <= MeleeHandoffDistSq)
+            return false;
+
+        // Periodically repath toward the moving target.
+        long now = entity.World.ElapsedMilliseconds;
+        if (now - lastTargetUpdateMs > TargetUpdateIntervalMs)
+        {
+            lastTargetUpdateMs = now;
+            Vec3d approachPos = GetApproachPos(targetEntity.Pos.XYZ, 2.0);
+            if (targetPos == null || approachPos.SquareDistanceTo(targetPos) > 4.0)
+            {
+                targetPos = approachPos;
+                AttemptRepath();
+            }
+        }
+
+        return base.ContinueExecute(dt);
+    }
+
+    private Vec3d GetApproachPos(Vec3d rawTarget, double stopDist)
+    {
+        Vec3d myPos = entity.Pos.XYZ;
+        double dx = myPos.X - rawTarget.X;
+        double dz = myPos.Z - rawTarget.Z;
+        double dist = Math.Sqrt(dx * dx + dz * dz);
+        if (dist < stopDist + 0.5) return rawTarget.Clone();
+        double scale = stopDist / dist;
+        return new Vec3d(rawTarget.X + dx * scale, rawTarget.Y, rawTarget.Z + dz * scale);
+    }
+
+    public override void FinishExecute(bool cancelled)
+    {
+        base.FinishExecute(cancelled);
+        // Always apply cooldown — targetReached is never flagged on pursuit tasks.
+        lastExecution = entity.World.ElapsedMilliseconds;
+        targetEntity  = null;
+    }
+
+    // Seek just navigates — the melee/ranged attack task handles the strike.
+    protected override bool InteractionPossible() => false;
+    protected override void ApplyInteractionEffect() { }
+
+    // -----------------------------------------------------------------------
+    // Ally coordination (preserved from previous implementation)
+    // -----------------------------------------------------------------------
+
+    public override void OnEntityHurt(DamageSource source, float damage)
+    {
+        Entity cause = source.CauseEntity;
+        if (cause != null && cause.HasBehavior<EntityBehaviorVillager>()) return;
+        Entity src = source.SourceEntity;
+        if (src   != null && src.HasBehavior<EntityBehaviorVillager>())   return;
+
+        base.OnEntityHurt(source, damage);
+
+        if (source.Type == EnumDamageType.Heal) return;
+        if (cause == null && src == null) return;
+
+        Entity attacker = src ?? cause;
+
+        // Retaliate: if we have no target or it's dead, lock onto our attacker.
+        if (attacker != null && attacker.Alive && (targetEntity == null || !targetEntity.Alive))
+            targetEntity = attacker;
+
+        // Throttled call-for-help to nearby soldier allies.
+        if (entity.World.ElapsedMilliseconds - lastCallForHelp < 5000) return;
+        lastCallForHelp = entity.World.ElapsedMilliseconds;
+
+        Entity[] allies = entity.World.GetEntitiesAround(
+            entity.Pos.XYZ, 15f, 4f,
+            e =>
+            {
+                EntityBehaviorVillager bv = e.GetBehavior<EntityBehaviorVillager>();
+                return bv != null && bv.Profession == EnumVillagerProfession.soldier;
+            });
+
+        foreach (Entity ally in allies)
+        {
+            AiTaskManager tm = ally.GetBehavior<EntityBehaviorTaskAI>()?.TaskManager;
+            if (tm == null) continue;
+            tm.GetTask<AiTaskVillagerSeekEntity>()?.OnAllyAttacked(attacker);
+            tm.GetTask<AiTaskVillagerChaseEntity>()?.OnAllyAttacked(attacker);
+            tm.GetTask<AiTaskVillagerMeleeAttack>()?.OnAllyAttacked(attacker);
+            tm.GetTask<AiTaskVillagerRangedAttack>()?.OnAllyAttacked(attacker);
+        }
+    }
+
+    public void OnAllyAttacked(Entity byEntity)
+    {
+        if (byEntity != null && byEntity.Alive && (targetEntity == null || !targetEntity.Alive))
+            targetEntity = byEntity;
+    }
+
+    // -----------------------------------------------------------------------
+    // Helpers
+    // -----------------------------------------------------------------------
+
+    private bool IsAllowedEntityType()
+    {
+        if (requiredSuffixes.Count == 0) return true;
+        string path = entity.Code?.Path ?? "";
+        foreach (string sfx in requiredSuffixes)
+            if (path.EndsWith(sfx, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
+
+    private bool InRange(Entity e)
+    {
+        double distSq = entity.Pos.SquareDistanceTo(e.Pos);
+        return distSq <= seekingRange * seekingRange * 2f && distSq >= minRange * minRange;
+    }
+
+    private bool IsBeyondMinRange(Entity e)
+    {
+        if (minRange <= 0f) return true;
+        return entity.Pos.SquareDistanceTo(e.Pos) >= minRange * minRange;
+    }
+
+    private bool MatchesCode(Entity e)
+    {
+        string path = e.Code?.Path ?? "";
+        foreach (string pattern in entityCodes)
+        {
+            if (pattern.EndsWith("*"))
+            {
+                string prefix = pattern.Substring(0, pattern.Length - 1);
+                if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            else if (string.Equals(path, pattern, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 }

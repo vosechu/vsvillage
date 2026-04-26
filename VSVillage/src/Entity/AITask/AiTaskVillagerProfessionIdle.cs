@@ -1,23 +1,20 @@
 using Vintagestory.API.Common;
-using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
-using Vintagestory.GameContent;
 
 namespace VsVillage;
 
-/// <summary>
-/// Generic station-idle task: walks to the villager's assigned workstation and
-/// plays a configurable animation. Used for herbalists (grinding) and traders (sweep).
-/// Configure via JSON: "professionSuffix" filters which entity type runs this task,
-/// "interactionAnimation" names the animation to play, "animationDuration" sets how long.
-/// </summary>
 public class AiTaskVillagerProfessionIdle : AiTaskGotoAndInteract
 {
 	private string professionSuffix;
+
 	private string interactionAnimation;
+
 	private float interactionAnimationSpeed;
+
 	private int animationDuration;
+
+	private bool plantFlowerpot;
 
 	public AiTaskVillagerProfessionIdle(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
 		: base(entity, taskConfig, aiConfig)
@@ -26,6 +23,7 @@ public class AiTaskVillagerProfessionIdle : AiTaskGotoAndInteract
 		interactionAnimation = taskConfig["interactionAnimation"].AsString("hoe-till");
 		interactionAnimationSpeed = taskConfig["interactionAnimationSpeed"].AsFloat(1f);
 		animationDuration = taskConfig["animationDuration"].AsInt(2500);
+		plantFlowerpot = taskConfig["plantFlowerpot"].AsBool();
 	}
 
 	protected override Vec3d GetTargetPos()
@@ -34,8 +32,7 @@ public class AiTaskVillagerProfessionIdle : AiTaskGotoAndInteract
 		{
 			return null;
 		}
-		EntityBehaviorVillager villager = entity.GetBehavior<EntityBehaviorVillager>();
-		BlockPos ws = villager?.Workstation;
+		BlockPos ws = entity.GetBehavior<EntityBehaviorVillager>()?.Workstation;
 		if (ws == null)
 		{
 			return null;
@@ -45,23 +42,24 @@ public class AiTaskVillagerProfessionIdle : AiTaskGotoAndInteract
 
 	protected override void ApplyInteractionEffect()
 	{
-		if (!IsProfession())
+		if (IsProfession())
 		{
-			return;
+			entity.AnimManager.StartAnimation(new AnimationMetaData
+			{
+				Animation = interactionAnimation,
+				Code = interactionAnimation,
+				AnimationSpeed = interactionAnimationSpeed,
+				BlendMode = EnumAnimationBlendMode.Average
+			}.Init());
+			entity.World.RegisterCallback(delegate
+			{
+				entity.AnimManager.StopAnimation(interactionAnimation);
+			}, animationDuration);
+			if (plantFlowerpot)
+			{
+				TryPlantFlowerpot();
+			}
 		}
-
-		entity.AnimManager.StartAnimation(new AnimationMetaData
-		{
-			Animation = interactionAnimation,
-			Code = interactionAnimation,
-			AnimationSpeed = interactionAnimationSpeed,
-			BlendMode = EnumAnimationBlendMode.Average
-		}.Init());
-
-		entity.World.RegisterCallback(delegate
-		{
-			entity.AnimManager.StopAnimation(interactionAnimation);
-		}, animationDuration);
 	}
 
 	public override void FinishExecute(bool cancelled)
@@ -76,6 +74,47 @@ public class AiTaskVillagerProfessionIdle : AiTaskGotoAndInteract
 		{
 			return true;
 		}
-		return entity?.Code?.Path?.EndsWith(professionSuffix) == true;
+		EntityAgent entityAgent = entity;
+		return entityAgent != null && entityAgent.Code?.Path?.EndsWith(professionSuffix) == true;
+	}
+
+	private void TryPlantFlowerpot()
+	{
+		EntityBehaviorVillager villager = entity.GetBehavior<EntityBehaviorVillager>();
+		if (villager?.Workstation == null)
+		{
+			return;
+		}
+		Block horsetailPot = FindBlock("game:flowerpot-horsetail-free") ?? FindBlock("game:flowerpot-horsetail") ?? FindBlock("game:flowerpot-wildhorsetail-free");
+		if (horsetailPot == null)
+		{
+			return;
+		}
+		IBlockAccessor ba = entity.World.BlockAccessor;
+		BlockPos ws = villager.Workstation;
+		BlockPos tmp = ws.Copy();
+		for (int dx = -4; dx <= 4; dx++)
+		{
+			for (int dy = -1; dy <= 2; dy++)
+			{
+				for (int dz = -4; dz <= 4; dz++)
+				{
+					tmp.Set(ws.X + dx, ws.Y + dy, ws.Z + dz);
+					Block b = ba.GetBlock(tmp);
+					if (b != null && b.Code?.Path?.Contains("flowerpot") == true && !b.Code.Path.Contains("horsetail"))
+					{
+						ba.SetBlock(horsetailPot.Id, tmp);
+						ba.TriggerNeighbourBlockUpdate(tmp);
+						return;
+					}
+				}
+			}
+		}
+	}
+
+	private Block FindBlock(string code)
+	{
+		Block b = entity.World.GetBlock(new AssetLocation(code));
+		return (b != null && b.Id != 0) ? b : null;
 	}
 }

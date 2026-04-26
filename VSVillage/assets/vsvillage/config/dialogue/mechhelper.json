@@ -1,0 +1,275 @@
+{
+    "components": [
+        {
+            "code": "testhasmet",
+            "owner": "mechhelper",
+            "type": "condition",
+            "variable": "entity.hasmet",
+            "isNotValue": "true",
+            "thenJumpTo": "firstmeet",
+            "elseJumpTo": "welcomeback"
+        },
+        {
+            "code": "firstmeet",
+            "owner": "mechhelper",
+            "type": "talk",
+            "setVariables": { "entity.hasmet": "true" },
+            "text": [
+                { "value": "vsvillage:dialogue-mechgreet" }
+            ],
+            "jumpTo": "main"
+        },
+        {
+            "code": "welcomeback",
+            "owner": "mechhelper",
+            "type": "talk",
+            "text": [
+                { "value": "vsvillage:dialogue-mechwelcomeback" }
+            ],
+            "jumpTo": "main"
+        },
+        {
+            "code": "main",
+            "owner": "player",
+            "type": "talk",
+            "text": [
+                { "value": "vsvillage:dialogue-mechopentrade",       "jumpTo": "opentrade" },
+                { "value": "vsvillage:dialogue-mechopenquests",      "jumpTo": "openquests" },
+                { "value": "What is Project Regenesis?",             "jumpTo": "regenesis" },
+                { "value": "Tell me about founding a Village again.", "jumpTo": "villagefounding" },
+                { "value": "I have questions about Village administration.", "jumpTo": "admin" },
+                { "value": "Can you tell me anything about what happened....before all of this?", "jumpTo": "beforetimes" }
+            ]
+        },
+
+        {
+            "code": "opentrade",
+            "owner": "mechhelper",
+            "trigger": "opentrade"
+        },
+
+        {
+            "code": "openquests",
+            "owner": "mechhelper",
+            "type": "talk",
+            "text": [
+                { "value": "vsvillage:dialogue-mechno-quests" }
+            ],
+            "jumpTo": "main"
+        },
+
+        {
+            "code": "regenesis",
+            "owner": "mechhelper",
+            "type": "talk",
+            "text": [
+                { "value": "vsvillage:dialogue-mechregenesis" }
+            ],
+            "jumpTo": "regenesis2"
+        },
+        {
+            "code": "regenesis2",
+            "owner": "mechhelper",
+            "type": "talk",
+            "text": [
+                { "value": "vsvillage:dialogue-mechregenesis2" }
+            ],
+            "jumpTo": "regenesis3"
+        },
+        {
+            "code": "regenesis3",
+            "owner": "mechhelper",
+            "type": "talk",
+            "text": [
+                { "value": "vsvillage:dialogue-mechregenesis3" }
+            ],
+            "jumpTo": "main"
+        },
+
+        {
+            "code": "villagefounding",
+            "owner": "mechhelper",
+            "type": "talk",
+            "text": [
+                { "value": "vsvillage:dialogue-mechvillagefounding" }
+            ],
+            "jumpTo": "main"
+        },
+
+        {
+            "code": "admin",
+            "owner": "mechhelper",
+            "type": "talk",
+            "text": [
+                { "value": "vsvillage:dialogue-mechadmin" }
+            ],
+            "jumpTo": "adminmain"
+        },
+        {
+            "code": "adminmain",
+            "owner": "player",
+            "type": "talk",
+            "text": [
+                { "value": "Tell me about Villager Jobs.",                                       "jumpTo": "jobstalk" },
+                { "value": "What is up with the Brazier?",                                      "jumpTo": "gathering" },
+                { "value": "Why do I need to get beds from you? Are the Villagers picky?",      "jumpTo": "beds" },
+                { "value": "Waypoints? Aren't those just posts?",                               "jumpTo": "waypoints" },
+                { "value": "What's the Marketstall for?",                                       "jumpTo": "marketstall" },
+                { "value": "What do I do if I need to remove a Villager?",                      "jumpTo": "remove" },
+                { "value": "What can I do if I realize this area is terrible for a Village?",   "jumpTo": "destroy" },
+                { "value": "Nevermind, let's circle back.",                                      "jumpTo": "welcomeback" }
+            ]
+        },
+        {
+            "code": "gathering",
+            "owner": "mechhelper",
+            "type": "talk",
+            "text": [
+                { "value": "vsvillage:dialogue-mechadmingathering" }
+            ],
+            "jumpTo": "adminmain"
+        },
+        {
+            "code": "beds",
+            "owner": "mechhelper",
+            "type": "talk",
+            "text": [
+                { "value": "vsvillage:dialogue-mechadminbeds" }
+            ],
+            "jumpTo": "adminmain"
+        },
+        {
+            "code": "waypoints",
+            "owner": "mechhelper",
+            "type": "talk",
+            "text": [
+                { "value": "vsvillage:dialogue-mechadminwaypoints" }
+            ],
+            "jumpTo": "adminmain"
+        },
+        {
+            "code": "marketstall",
+            "owner": "mechhelper",
+            "type": "talk",
+            "text": [
+                { "value": "vsvillage:dialogue-mechadminmarketstall" }
+            ],
+            "jumpTo": "adminmain"
+        },
+        {
+            "code": "remove",
+            "owner": "mechhelper",
+            "type": "talk",
+            "text": [
+                { "value": "vsvillage:dialogue-mechadminremove" }
+            ],
+            "jumpTo": "adminmain"
+        },
+        {
+            "code": "destroy",
+            "owner": "mechhelper",
+            "type": "talk",
+            "text": [
+                { "value": "vsvillage:dialogue-mechadmindestroy" }
+            ],
+            "jumpTo": "adminmain"
+        },
+        {
+            "code": "jobstalk",
+            "owner": "mechhelper",
+            "type": "talk",
+            "text": [
+                { "value": "vsvillage:dialogue-mechadminjobs" }
+            ],
+            "jumpTo": "jobsmain"
+        },
+        {
+            "code": "jobsmain",
+            "owner": "player",
+            "type": "talk",
+            "text": [
+                { "value": "Tell me about Farmers and Shepherds.",   "jumpTo": "jobsfarmshep" },
+                { "value": "Tell me about Traders.",                 "jumpTo": "jobstrader" },
+                { "value": "Tell me about Herbalists.",              "jumpTo": "jobsherbalist" },
+                { "value": "Tell me about Blacksmiths.",             "jumpTo": "jobsmith" },
+                { "value": "Tell me about Bakers.",                  "jumpTo": "jobbaker" },
+                { "value": "Tell me about Soldiers and Archers.",    "jumpTo": "jobsoldier" },
+                { "value": "What were those...errors?",              "jumpTo": "jobsother" },
+                { "value": "Let's go back.",                         "jumpTo": "adminmain" }
+            ]
+        },
+        {
+            "code": "jobsfarmshep",
+            "owner": "mechhelper",
+            "type": "talk",
+            "text": [
+                { "value": "vsvillage:dialogue-mechadminjobsfarmershep" }
+            ],
+            "jumpTo": "jobsmain"
+        },
+        {
+            "code": "jobstrader",
+            "owner": "mechhelper",
+            "type": "talk",
+            "text": [
+                { "value": "vsvillage:dialogue-mechadminjobstrader" }
+            ],
+            "jumpTo": "jobsmain"
+        },
+        {
+            "code": "jobsherbalist",
+            "owner": "mechhelper",
+            "type": "talk",
+            "text": [
+                { "value": "vsvillage:dialogue-mechadminjobsherbalist" }
+            ],
+            "jumpTo": "jobsmain"
+        },
+        {
+            "code": "jobsmith",
+            "owner": "mechhelper",
+            "type": "talk",
+            "text": [
+                { "value": "vsvillage:dialogue-mechadminjobssmith" }
+            ],
+            "jumpTo": "jobsmain"
+        },
+        {
+            "code": "jobsoldier",
+            "owner": "mechhelper",
+            "type": "talk",
+            "text": [
+                { "value": "vsvillage:dialogue-mechadminjobssoldier" }
+            ],
+            "jumpTo": "jobsmain"
+        },
+        {
+            "code": "jobbaker",
+            "owner": "mechhelper",
+            "type": "talk",
+            "text": [
+                { "value": "vsvillage:dialogue-mechadminjobsbaker" }
+            ],
+            "jumpTo": "jobsmain"
+        },
+        {
+            "code": "jobsother",
+            "owner": "mechhelper",
+            "type": "talk",
+            "text": [
+                { "value": "vsvillage:dialogue-mechadminjobsother" }
+            ],
+            "jumpTo": "jobsmain"
+        },
+
+        {
+            "code": "beforetimes",
+            "owner": "mechhelper",
+            "type": "talk",
+            "text": [
+                { "value": "vsvillage:dialogue-mechbeforetimes" }
+            ],
+            "jumpTo": "main"
+        }
+    ]
+}
