@@ -13,7 +13,7 @@
 		]
 	},
 	"textures": {
-		"skin1": "entity/humanoid/villagerbody/skin/normal4"
+		"skin1": "game:entity/humanoid/villagerbody/skin/normal3"
 	},
 	"elements": [
 		{

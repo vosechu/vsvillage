@@ -26,282 +26,368 @@ namespace VsVillage;
 /// </summary>
 public class AiTaskVillagerFleeEntity : AiTaskBase
 {
-	// ── Config ────────────────────────────────────────────────────────────────
-	private readonly List<string> threatCodes       = new List<string>();
-	private readonly List<string> excludeSuffixes   = new List<string>();
-	private float seekingRange    = 20f;
-	private float fleeingDistance = 30f;
-	private float moveSpeed       = 0.015f;
-	private long  fleeDurationMs  = 12000L;
+    // ── Config ────────────────────────────────────────────────────────────────
+    private readonly List<string> threatCodes = new List<string>();
+    private readonly List<string> excludeSuffixes = new List<string>();
+    private float seekingRange = 20f;
+    private float fleeingDistance = 30f;
+    private float moveSpeed = 0.015f;
+    private long fleeDurationMs = 12000L;
 
-	// ── Runtime state ─────────────────────────────────────────────────────────
-	private Entity                threat;
-	private List<VillagerPathNode> currentPath;
-	private int                   pathIndex;
-	private VillagerAStarNew      pathfinder;
-	private long                  fleeStartMs;
-	private bool                  stuck;
-	private Vec3d                 lastPos;
-	private long                  stuckCheckMs;
-	private int                   timesStuck;
-	private long                  lastRepathMs;
+    // ── Runtime state ─────────────────────────────────────────────────────────
+    private Entity threat;
+    private List<VillagerPathNode> currentPath;
+    private int pathIndex;
+    private VillagerAStarNew pathfinder;
+    private long fleeStartMs;
+    private bool stuck;
+    private Vec3d lastPos;
+    private long stuckCheckMs;
+    private int timesStuck;
+    private long lastRepathMs;
 
-	private const long RepathIntervalMs = 1500L;
-	private const long StuckCheckMs     = 2000L;
+    // ── Door state ────────────────────────────────────────────────────────────
+    private BlockPos currentlyOpeningDoor;
+    private long doorOpenedTime;
 
-	// ── Constructor ───────────────────────────────────────────────────────────
+    private const long RepathIntervalMs = 1500L;
+    private const long StuckCheckMs = 2000L;
 
-	public AiTaskVillagerFleeEntity(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
-		: base(entity, taskConfig, aiConfig)
-	{
-		seekingRange    = taskConfig["seekingRange"].AsFloat(20f);
-		fleeingDistance = taskConfig["fleeingDistance"].AsFloat(30f);
-		moveSpeed       = taskConfig["movespeed"].AsFloat(0.015f);
-		fleeDurationMs  = taskConfig["fleeDurationMs"].AsInt(12000);
+    // ── Constructor ───────────────────────────────────────────────────────────
 
-		JsonObject[] codes = taskConfig["entityCodes"].AsArray();
-		if (codes != null)
-			foreach (JsonObject c in codes)
-			{
-				string s = c.AsString();
-				if (!string.IsNullOrEmpty(s)) threatCodes.Add(s);
-			}
+    public AiTaskVillagerFleeEntity(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
+        : base(entity, taskConfig, aiConfig)
+    {
+        seekingRange = taskConfig["seekingRange"].AsFloat(20f);
+        fleeingDistance = taskConfig["fleeingDistance"].AsFloat(30f);
+        moveSpeed = taskConfig["movespeed"].AsFloat(0.015f);
+        fleeDurationMs = taskConfig["fleeDurationMs"].AsInt(12000);
 
-		JsonObject exclNode = taskConfig["excludeEntitySuffixes"];
-		if (exclNode != null && exclNode.Exists)
-		{
-			string[] excl = exclNode.AsArray(System.Array.Empty<string>());
-			excludeSuffixes.AddRange(excl);
-		}
+        JsonObject[] codes = taskConfig["entityCodes"].AsArray();
+        if (codes != null)
+            foreach (JsonObject c in codes)
+            {
+                string s = c.AsString();
+                if (!string.IsNullOrEmpty(s)) threatCodes.Add(s);
+            }
 
-		pathfinder = new VillagerAStarNew(
-			entity.World.GetCachingBlockAccessor(synchronize: false, relight: false));
-	}
+        JsonObject exclNode = taskConfig["excludeEntitySuffixes"];
+        if (exclNode != null && exclNode.Exists)
+        {
+            string[] excl = exclNode.AsArray(System.Array.Empty<string>());
+            excludeSuffixes.AddRange(excl);
+        }
 
-	// ── ShouldExecute ─────────────────────────────────────────────────────────
+        pathfinder = new VillagerAStarNew(
+            entity.World.GetCachingBlockAccessor(synchronize: false, relight: false));
+    }
 
-	public override bool ShouldExecute()
-	{
-		if (threatCodes.Count == 0) return false;
-		if (cooldownUntilMs > entity.World.ElapsedMilliseconds) return false;
+    // ── ShouldExecute ─────────────────────────────────────────────────────────
 
-		// Skip for entity types that never flee (soldiers, archers).
-		string myPath = entity.Code?.Path ?? "";
-		foreach (string sfx in excludeSuffixes)
-			if (myPath.EndsWith(sfx)) return false;
+    public override bool ShouldExecute()
+    {
+        if (threatCodes.Count == 0) return false;
+        if (cooldownUntilMs > entity.World.ElapsedMilliseconds) return false;
 
-		threat = entity.World.GetNearestEntity(
-			entity.Pos.XYZ, seekingRange, seekingRange * 0.5f,
-			e => e != entity && e.Alive && e.IsInteractable && MatchesThreat(e));
+        // Skip for entity types that never flee (soldiers, archers).
+        string myPath = entity.Code?.Path ?? "";
+        foreach (string sfx in excludeSuffixes)
+            if (myPath.EndsWith(sfx)) return false;
 
-		return threat != null;
-	}
+        threat = entity.World.GetNearestEntity(
+            entity.Pos.XYZ, seekingRange, seekingRange * 0.5f,
+            e => e != entity && e.Alive && e.IsInteractable && MatchesThreat(e));
 
-	// ── StartExecute ──────────────────────────────────────────────────────────
+        return threat != null;
+    }
 
-	public override void StartExecute()
-	{
-		base.StartExecute();
-		fleeStartMs  = entity.World.ElapsedMilliseconds;
-		lastRepathMs = entity.World.ElapsedMilliseconds;
-		stuckCheckMs = entity.World.ElapsedMilliseconds;
-		stuck        = false;
-		pathIndex    = 0;
-		currentPath  = null;
-		timesStuck   = 0;
-		lastPos      = entity.Pos.XYZ.Clone();
+    // ── StartExecute ──────────────────────────────────────────────────────────
 
-		ComputeAndPath();
-	}
+    public override void StartExecute()
+    {
+        base.StartExecute();
+        fleeStartMs = entity.World.ElapsedMilliseconds;
+        lastRepathMs = entity.World.ElapsedMilliseconds;
+        stuckCheckMs = entity.World.ElapsedMilliseconds;
+        stuck = false;
+        pathIndex = 0;
+        currentPath = null;
+        timesStuck = 0;
+        lastPos = entity.Pos.XYZ.Clone();
+        currentlyOpeningDoor = null;
+        doorOpenedTime = 0L;
 
-	// ── ContinueExecute ───────────────────────────────────────────────────────
+        ComputeAndPath();
+    }
 
-	public override bool ContinueExecute(float dt)
-	{
-		if (currentPath == null || stuck) return false;
+    // ── ContinueExecute ───────────────────────────────────────────────────────
 
-		long now = entity.World.ElapsedMilliseconds;
+    public override bool ContinueExecute(float dt)
+    {
+        if (currentPath == null || stuck) return false;
 
-		if (now - fleeStartMs > fleeDurationMs) return false;
-		if (threat == null || !threat.Alive) return false;
-		if (entity.Pos.SquareDistanceTo(threat.Pos) > fleeingDistance * fleeingDistance)
-			return false;
+        long now = entity.World.ElapsedMilliseconds;
 
-		// Repath periodically so we keep running away as the threat moves.
-		if (now - lastRepathMs > RepathIntervalMs)
-		{
-			lastRepathMs = now;
-			ComputeAndPath();
-			if (stuck) return false;
-		}
+        if (now - fleeStartMs > fleeDurationMs) return false;
+        if (threat == null || !threat.Alive) return false;
+        if (entity.Pos.SquareDistanceTo(threat.Pos) > fleeingDistance * fleeingDistance)
+            return false;
 
-		CheckIfStuck();
-		if (stuck) return false;
+        // Repath periodically so we keep running away as the threat moves.
+        if (now - lastRepathMs > RepathIntervalMs)
+        {
+            lastRepathMs = now;
+            ComputeAndPath();
+            if (stuck) return false;
+        }
 
-		// Reached the end of the current path — immediately plan a new leg.
-		if (pathIndex >= currentPath.Count)
-		{
-			ComputeAndPath();
-			if (stuck) return false;
-		}
+        CheckIfStuck();
+        if (stuck) return false;
 
-		HandlePathTraversal();
-		return true;
-	}
+        // Reached the end of the current path — immediately plan a new leg.
+        if (pathIndex >= currentPath.Count)
+        {
+            ComputeAndPath();
+            if (stuck) return false;
+        }
 
-	// ── FinishExecute ─────────────────────────────────────────────────────────
+        HandlePathTraversal();
+        return true;
+    }
 
-	public override void FinishExecute(bool cancelled)
-	{
-		base.FinishExecute(cancelled);
-		entity.Controls.WalkVector.Set(0.0, 0.0, 0.0);
-		entity.Controls.StopAllMovement();
-		if (animMeta != null)
-			entity.AnimManager.StopAnimation(animMeta.Code);
-		entity.Pos.Motion.X = 0.0;
-		entity.Pos.Motion.Z = 0.0;
-		threat      = null;
-		currentPath = null;
-		pathIndex   = 0;
-		timesStuck  = 0;
-		lastPos     = null;
-	}
+    // ── FinishExecute ─────────────────────────────────────────────────────────
 
-	// ── Pathfinding ───────────────────────────────────────────────────────────
+    public override void FinishExecute(bool cancelled)
+    {
+        base.FinishExecute(cancelled);
+        entity.Controls.WalkVector.Set(0.0, 0.0, 0.0);
+        entity.Controls.StopAllMovement();
+        if (animMeta != null)
+            entity.AnimManager.StopAnimation(animMeta.Code);
+        entity.Pos.Motion.X = 0.0;
+        entity.Pos.Motion.Z = 0.0;
+        CloseAllOpenDoors();
+        threat = null;
+        currentPath = null;
+        pathIndex = 0;
+        timesStuck = 0;
+        lastPos = null;
+        currentlyOpeningDoor = null;
+    }
 
-	/// <summary>
-	/// Computes a flee destination in the direction away from the threat, then runs
-	/// A* to it.  Tries five angles (0°, ±45°, ±90°) so that a blocked primary
-	/// direction doesn't leave the villager frozen — they'll curve around fences
-	/// rather than slamming into them.
-	/// </summary>
-	private void ComputeAndPath()
-	{
-		if (threat == null) { stuck = true; return; }
+    // ── Pathfinding ───────────────────────────────────────────────────────────
 
-		Vec3d myPos     = entity.Pos.XYZ;
-		Vec3d threatPos = threat.Pos.XYZ;
+    /// <summary>
+    /// Computes a flee destination in the direction away from the threat, then runs
+    /// A* to it.  Tries five angles (0°, ±45°, ±90°) so that a blocked primary
+    /// direction doesn't leave the villager frozen — they'll curve around fences
+    /// rather than slamming into them.
+    /// </summary>
+    private void ComputeAndPath()
+    {
+        if (threat == null) { stuck = true; return; }
 
-		// Unit vector pointing away from the threat.
-		double dx   = myPos.X - threatPos.X;
-		double dz   = myPos.Z - threatPos.Z;
-		double dist = Math.Sqrt(dx * dx + dz * dz);
-		if (dist < 0.01) { dx = 1; dz = 0; } else { dx /= dist; dz /= dist; }
+        Vec3d myPos = entity.Pos.XYZ;
+        Vec3d threatPos = threat.Pos.XYZ;
 
-		// How far each A* leg should reach — run 75% of fleeingDistance per leg so
-		// the villager keeps making progress without needing enormous search depths.
-		float legDist = fleeingDistance * 0.75f;
+        // Unit vector pointing away from the threat.
+        double dx = myPos.X - threatPos.X;
+        double dz = myPos.Z - threatPos.Z;
+        double dist = Math.Sqrt(dx * dx + dz * dz);
+        if (dist < 0.01) { dx = 1; dz = 0; } else { dx /= dist; dz /= dist; }
 
-		// Try angles in order: straight back, then slight curves, then wide curves.
-		float[] angles = { 0f, -0.785f, 0.785f, -1.571f, 1.571f };
+        // How far each A* leg should reach — run 75% of fleeingDistance per leg so
+        // the villager keeps making progress without needing enormous search depths.
+        float legDist = fleeingDistance * 0.75f;
 
-		pathfinder.blockAccessor.Begin();
-		pathfinder.SetEntityCollisionBox(entity);
-		BlockPos startPos = pathfinder.GetStartPos(myPos);
+        // Try angles in order: straight back, then slight curves, then wide curves.
+        float[] angles = { 0f, -0.785f, 0.785f, -1.571f, 1.571f };
 
-		foreach (float angle in angles)
-		{
-			double cos = Math.Cos(angle);
-			double sin = Math.Sin(angle);
-			double fdx = dx * cos - dz * sin;
-			double fdz = dx * sin + dz * cos;
+        pathfinder.blockAccessor.Begin();
+        pathfinder.SetEntityCollisionBox(entity);
+        BlockPos startPos = pathfinder.GetStartPos(myPos);
 
-			BlockPos dest = new BlockPos(
-				(int)(myPos.X + fdx * legDist),
-				(int)myPos.Y,
-				(int)(myPos.Z + fdz * legDist));
+        foreach (float angle in angles)
+        {
+            double cos = Math.Cos(angle);
+            double sin = Math.Sin(angle);
+            double fdx = dx * cos - dz * sin;
+            double fdz = dx * sin + dz * cos;
 
-			// 1200 iterations per attempt — fast enough for real-time flee, handles
-			// typical pen/fence layouts without excessive CPU cost.
-			List<VillagerPathNode> path = pathfinder.FindPath(startPos, dest, 1200);
-			if (path != null && path.Count > 1)
-			{
-				pathfinder.blockAccessor.Commit();
-				currentPath = path;
-				pathIndex   = 0;
-				stuck       = false;
-				return;
-			}
-		}
+            BlockPos dest = new BlockPos(
+                (int)(myPos.X + fdx * legDist),
+                (int)myPos.Y,
+                (int)(myPos.Z + fdz * legDist));
 
-		pathfinder.blockAccessor.Commit();
-		// No walkable angle found — mark stuck so ContinueExecute exits gracefully.
-		stuck = true;
-	}
+            // 1200 iterations per attempt — fast enough for real-time flee, handles
+            // typical pen/fence layouts without excessive CPU cost.
+            List<VillagerPathNode> path = pathfinder.FindPath(startPos, dest, 1200);
+            if (path != null && path.Count > 1)
+            {
+                pathfinder.blockAccessor.Commit();
+                currentPath = path;
+                pathIndex = 0;
+                stuck = false;
+                currentlyOpeningDoor = null;
+                return;
+            }
+        }
 
-	// ── Movement (same pattern as AiTaskVillagerShepherdWander) ──────────────
+        pathfinder.blockAccessor.Commit();
+        // No walkable angle found — mark stuck so ContinueExecute exits gracefully.
+        stuck = true;
+    }
 
-	private void HandlePathTraversal()
-	{
-		if (currentPath == null || pathIndex >= currentPath.Count) { stuck = true; return; }
+    // ── Movement ──────────────────────────────────────────────────────────────
 
-		VillagerPathNode node    = currentPath[pathIndex];
-		Vec3d            nodePos = node.BlockPos.ToVec3d().Add(0.5, 0.0, 0.5);
-		Vec3d            myPos   = entity.Pos.XYZ;
+    private void HandlePathTraversal()
+    {
+        if (currentlyOpeningDoor != null)
+        {
+            if (entity.World.ElapsedMilliseconds - doorOpenedTime < 500)
+            {
+                entity.Controls.WalkVector.Set(0.0, 0.0, 0.0);
+                return;
+            }
+            currentlyOpeningDoor = null;
+        }
+        if (currentPath == null || pathIndex >= currentPath.Count)
+        {
+            stuck = true;
+            return;
+        }
+        VillagerPathNode villagerPathNode = currentPath[pathIndex];
+        Vec3d vec3d = villagerPathNode.BlockPos.ToVec3d().Add(0.5, 0.0, 0.5);
+        Vec3d xYZ = entity.Pos.XYZ;
+        double dx = xYZ.X - vec3d.X;
+        double dz = xYZ.Z - vec3d.Z;
+        if (Math.Sqrt(dx * dx + dz * dz) < 0.5)
+        {
+            pathIndex++;
+            if (pathIndex < currentPath.Count)
+            {
+                VillagerPathNode next = currentPath[pathIndex];
+                if (next.IsDoor)
+                {
+                    ToggleDoor(opened: true, next.BlockPos);
+                    currentlyOpeningDoor = next.BlockPos.Copy();
+                    doorOpenedTime = entity.World.ElapsedMilliseconds;
+                }
+            }
+            if (villagerPathNode.IsDoor)
+            {
+                BlockPos doorPos = villagerPathNode.BlockPos.Copy();
+                entity.World.RegisterCallback(delegate
+                {
+                    if (entity.Alive) ToggleDoor(opened: false, doorPos);
+                }, 3000);
+            }
+        }
+        if (pathIndex < currentPath.Count)
+        {
+            VillagerPathNode current = currentPath[pathIndex];
+            Vec3d nextPos = current.BlockPos.ToVec3d().Add(0.5, 0.0, 0.5);
+            Vec3d dir = nextPos.Clone().Sub(xYZ);
+            dir.Y = 0.0;
+            dir = dir.Normalize();
+            entity.Pos.Yaw = (float)Math.Atan2(dir.X, dir.Z);
+            entity.Controls.WalkVector.Set(dir.X * moveSpeed, 0.0, dir.Z * moveSpeed);
+            if (!entity.AnimManager.IsAnimationActive(animMeta.Code))
+            {
+                entity.AnimManager.StartAnimation(animMeta);
+            }
+        }
+    }
 
-		double dx = myPos.X - nodePos.X;
-		double dz = myPos.Z - nodePos.Z;
-		if (Math.Sqrt(dx * dx + dz * dz) < 0.5)
-			pathIndex++;
+    private void CheckIfStuck()
+    {
+        long now = entity.World.ElapsedMilliseconds;
+        if (now - stuckCheckMs < StuckCheckMs) return;
 
-		if (pathIndex < currentPath.Count)
-		{
-			VillagerPathNode next    = currentPath[pathIndex];
-			Vec3d            nextPos = next.BlockPos.ToVec3d().Add(0.5, 0.0, 0.5);
-			Vec3d            dir     = nextPos.Clone().Sub(myPos);
-			dir.Y = 0.0;
-			dir   = dir.Normalize();
+        Vec3d myPos = entity.Pos.XYZ;
+        if (lastPos != null && myPos.DistanceTo(lastPos) < 0.3f)
+        {
+            timesStuck++;
+            if (timesStuck >= 3)
+            {
+                timesStuck = 0;
+                // Try a fresh path at a different angle before giving up.
+                ComputeAndPath();
+            }
+        }
+        else
+        {
+            timesStuck = 0;
+        }
 
-			entity.Pos.Yaw = (float)Math.Atan2(dir.X, dir.Z);
-			entity.Controls.WalkVector.Set(dir.X * moveSpeed, 0.0, dir.Z * moveSpeed);
+        lastPos = myPos.Clone();
+        stuckCheckMs = now;
+    }
 
-			if (animMeta != null && !entity.AnimManager.IsAnimationActive(animMeta.Code))
-				entity.AnimManager.StartAnimation(animMeta);
-		}
-	}
+    // ── Door helpers ──────────────────────────────────────────────────────────
 
-	private void CheckIfStuck()
-	{
-		long now = entity.World.ElapsedMilliseconds;
-		if (now - stuckCheckMs < StuckCheckMs) return;
+    private void ToggleDoor(bool opened, BlockPos target)
+    {
+        Block block = entity.World.BlockAccessor.GetBlock(target);
+        if (block != null && block.Code != null && (block.Code.Path.Contains("door") || block.Code.Path.Contains("gate")))
+        {
+            BlockSelection blockSel = new BlockSelection
+            {
+                Block = block,
+                Position = target,
+                HitPosition = new Vec3d(0.5, 0.5, 0.5),
+                Face = BlockFacing.NORTH
+            };
+            TreeAttribute treeAttribute = new TreeAttribute();
+            treeAttribute.SetBool("opened", opened);
+            try
+            {
+                block.Activate(entity.World, new Caller
+                {
+                    Entity = entity,
+                    Type = EnumCallerType.Entity,
+                    Pos = entity.Pos.XYZ
+                }, blockSel, treeAttribute);
+            }
+            catch (Exception ex)
+            {
+                entity.World.Logger.Error("[VsVillage] Failed to toggle door at " + target + ": " + ex.Message);
+            }
+        }
+    }
 
-		Vec3d myPos = entity.Pos.XYZ;
-		if (lastPos != null && myPos.DistanceTo(lastPos) < 0.3f)
-		{
-			timesStuck++;
-			if (timesStuck >= 3)
-			{
-				timesStuck = 0;
-				// Try a fresh path at a different angle before giving up.
-				ComputeAndPath();
-			}
-		}
-		else
-		{
-			timesStuck = 0;
-		}
+    private void CloseAllOpenDoors()
+    {
+        if (currentPath == null) return;
 
-		lastPos      = myPos.Clone();
-		stuckCheckMs = now;
-	}
+        foreach (VillagerPathNode node in currentPath)
+        {
+            if (node.IsDoor)
+            {
+                Block block = entity.World.BlockAccessor.GetBlock(node.BlockPos);
+                if (block != null && block.Code != null && (block.Code.Path.Contains("opened") || block.Code.Path.Contains("-open")))
+                    ToggleDoor(opened: false, node.BlockPos);
+            }
+        }
+    }
 
-	// ── Helpers ───────────────────────────────────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
-	private bool MatchesThreat(Entity e)
-	{
-		string path = e.Code?.Path ?? "";
-		foreach (string pattern in threatCodes)
-		{
-			if (pattern.EndsWith("*"))
-			{
-				if (path.StartsWith(pattern.Substring(0, pattern.Length - 1),
-				    StringComparison.OrdinalIgnoreCase)) return true;
-			}
-			else if (string.Equals(path, pattern, StringComparison.OrdinalIgnoreCase))
-			{
-				return true;
-			}
-		}
-		return false;
-	}
+    private bool MatchesThreat(Entity e)
+    {
+        string path = e.Code?.Path ?? "";
+        foreach (string pattern in threatCodes)
+        {
+            if (pattern.EndsWith("*"))
+            {
+                if (path.StartsWith(pattern.Substring(0, pattern.Length - 1),
+                    StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            else if (string.Equals(path, pattern, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 }

@@ -18,6 +18,13 @@ public class AiTaskVillagerTameAnimal : AiTaskBase
 {
     private float searchRadius = 30f;
 
+    // Resolved lazily on first use because Api may not be ready at task construction.
+    // The "inanimate" tag is set on every vanilla nonliving entity (boats, armor stands,
+    // straw dummies, mannequins, bobbers, echochambers, elevators, library resonators,
+    // skeleton-arm, etc.) so a single overlap check excludes the whole class.
+    private TagSetFast inanimateTagSet;
+    private bool inanimateTagsResolved;
+
     public AiTaskVillagerTameAnimal(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
         : base(entity, taskConfig, aiConfig)
     {
@@ -49,6 +56,17 @@ public class AiTaskVillagerTameAnimal : AiTaskBase
     };
     private static readonly string[] LoreExact = { "mechhelper" };
 
+    private TagSetFast ResolveInanimateTags()
+    {
+        if (inanimateTagsResolved) return inanimateTagSet;
+        // TryCreate logs registry issues itself. If "inanimate" is unregistered for
+        // any reason the set comes back empty and the overlap check is skipped, so
+        // we degrade to the pre-fix behaviour rather than blocking the task.
+        entity.Api.EntityTagRegistry.TryCreateTagSetAndLogIssues(out inanimateTagSet, "inanimate");
+        inanimateTagsResolved = true;
+        return inanimateTagSet;
+    }
+
     private static bool IsLoreEntity(string path)
     {
         if (path == null) return false;
@@ -62,6 +80,7 @@ public class AiTaskVillagerTameAnimal : AiTaskBase
     private void TryTameOne()
     {
         IBlockAccessor ba = entity.World.BlockAccessor;
+        TagSetFast inanimateSet = ResolveInanimateTags();
         Entity[] nearby = entity.World.GetEntitiesAround(entity.Pos.XYZ, searchRadius, 6f, e =>
         {
             if (e == entity || !e.Alive) return false;
@@ -69,6 +88,11 @@ public class AiTaskVillagerTameAnimal : AiTaskBase
             string path = e.Code?.Path;
             if (string.IsNullOrEmpty(path)) return false;
             if (e.Code.Domain == "vsvillage") return false;
+            // Skip everything tagged "inanimate" by its entity JSON. Covers vanilla
+            // nonliving entities (boats, armor stands, straw dummies, mannequins,
+            // bobbers, echochambers, elevators, library resonators, skeleton-arm)
+            // and any modded entity that follows the convention.
+            if (!inanimateSet.IsEmpty && e.Tags.Overlaps(inanimateSet)) return false;
             // Never tame lore/hostile mobs.
             if (IsLoreEntity(path)) return false;
             // Must be generation 0 (wild / not yet tamed)

@@ -155,7 +155,7 @@ public class AiTaskTravellingTraderStand : AiTaskBase
         if (beh != null && !beh.IsAtStall)
         {
             beh.IsAtStall = true;
-            entity.World.Logger.Notification($"[TT:{entity.EntityId}] TraderStand: arrived at market stall.");
+            entity.World.Logger.Debug($"[TT:{entity.EntityId}] TraderStand: arrived at market stall.");
         }
     }
 

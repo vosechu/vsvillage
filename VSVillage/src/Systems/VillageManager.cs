@@ -303,14 +303,21 @@ public class VillageManager : ModSystem
 	{
 		foreach (Village value in Villages.Values)
 		{
-			sapi.WorldManager.SaveGame.StoreData(value.Id, SerializerUtil.Serialize(value));
+			try
+			{
+				sapi.WorldManager.SaveGame.StoreData(value.Id, SerializerUtil.Serialize(value));
+			}
+			catch (Exception ex)
+			{
+				sapi.Logger.Error("[VsVillage] Failed to save village '" + value.Id + "': " + ex.Message + ". Continuing with remaining villages.");
+			}
 		}
 	}
 
 	public void RemoveVillage(string id)
 	{
 		if (!Villages.TryRemove(id, out Village village)) return;
-		(Api as ICoreServerAPI).WorldManager.SaveGame.StoreData(id, null);
+		(Api as ICoreServerAPI)?.WorldManager.SaveGame.StoreData(id, null);
 		village.Workstations.Values.Foreach(delegate(VillagerWorkstation workstation)
 		{
 			Api.World.BlockAccessor.GetBlockEntity<BlockEntityVillagerWorkstation>(workstation.Pos)?.RemoveVillage();
@@ -591,7 +598,7 @@ public class VillageManager : ModSystem
 			BlockEntityVillagerWorkstation wsEntity = api.World.BlockAccessor.GetBlockEntity<BlockEntityVillagerWorkstation>(wsPos);
 			if (wsEntity != null) { wsEntity.OwnerName = newOwnerName; wsEntity.MarkDirty(); }
 
-			Api.Logger.Notification("[VsVillage] Workstation at " + wsPos + " in '" + v.Name + "' assigned to entity " + newOwnerId + ".");
+			Api.Logger.Debug("[VsVillage] Workstation at " + wsPos + " in '" + v.Name + "' assigned to entity " + newOwnerId + ".");
 			break;
 		}
 		case EnumVillageManagementOperation.assignBed:
@@ -644,7 +651,7 @@ public class VillageManager : ModSystem
 			BlockEntityVillagerBed bedEntity = api.World.BlockAccessor.GetBlockEntity<BlockEntityVillagerBed>(bedPos);
 			if (bedEntity != null) { bedEntity.OwnerName = newOwnerName2; bedEntity.MarkDirty(); }
 
-			Api.Logger.Notification("[VsVillage] Bed at " + bedPos + " in '" + v.Name + "' assigned to entity " + newOwnerId + ".");
+			Api.Logger.Debug("[VsVillage] Bed at " + bedPos + " in '" + v.Name + "' assigned to entity " + newOwnerId + ".");
 			break;
 		}
 		}

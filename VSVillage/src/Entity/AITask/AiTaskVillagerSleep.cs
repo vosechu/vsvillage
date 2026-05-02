@@ -91,15 +91,23 @@ public class AiTaskVillagerSleep : AiTaskBase
 		}
 		if (blockPos != null)
 		{
-			Block bedBlock = entity.World.BlockAccessor.GetBlock(blockPos);
-			if (bedBlock == null || bedBlock.Id == 0 || !bedBlock.Code.Path.Contains("villagebed"))
+			// Only validate destruction if the chunk is actually loaded - GetBlock
+			// returns air (id 0) for unloaded chunks, which we'd otherwise misread as
+			// "bed destroyed" and falsely free the bed in village.Beds. That mis-free
+			// caused TryHireVillager to hand newly-hired villagers beds still in use
+			// by villagers whose home chunks were unloaded (large villages).
+			if (entity.World.BlockAccessor.GetChunkAtBlockPos(blockPos) != null)
 			{
-				// Assigned bed was destroyed — release it and search again.
-				villagerBehavior.Bed = null;
-				village.ClearBedOwner(entity.EntityId);
-				blockPos = village.FindFreeBed(entity.EntityId);
-				if (blockPos != null)
-					villagerBehavior.Bed = blockPos; // persist the replacement
+				Block bedBlock = entity.World.BlockAccessor.GetBlock(blockPos);
+				if (bedBlock == null || bedBlock.Id == 0 || !bedBlock.Code.Path.Contains("villagebed"))
+				{
+					// Assigned bed was destroyed. release it and search again.
+					villagerBehavior.Bed = null;
+					village.ClearBedOwner(entity.EntityId);
+					blockPos = village.FindFreeBed(entity.EntityId);
+					if (blockPos != null)
+						villagerBehavior.Bed = blockPos; // persist the replacement
+				}
 			}
 		}
 		if (blockPos == null) return false;
@@ -417,7 +425,7 @@ public class AiTaskVillagerSleep : AiTaskBase
 
 	/// <summary>
 	/// Returns true when this soldier's village has an active alarm.
-	/// Only soldiers respond to alarms — archers and civilians sleep through them.
+	/// Only soldiers respond to alarms. archers and civilians sleep through them.
 	/// </summary>
 	private bool IsVillageUnderAlarm()
 	{

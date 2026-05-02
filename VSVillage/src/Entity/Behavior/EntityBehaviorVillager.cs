@@ -21,7 +21,6 @@ public class EntityBehaviorVillager : EntityBehavior
 
     // Stored callback IDs so we can cancel them on early despawn.
     private long _initCallbackId = -1;
-    private long _orphanCheckCallbackId = -1;
     private long _deathCleanupCallbackId = -1;
 
     public string VillageId => entity.WatchedAttributes.GetString("villageId");
@@ -132,9 +131,9 @@ public class EntityBehaviorVillager : EntityBehavior
         if (string.IsNullOrEmpty(savedVillageId))
         {
             // No VillageId — world-gen entity or unassigned founding villager. Leave it alone.
-            entity.Api?.Logger.Notification(
+            entity.Api?.Logger.Debug(
                 "[VsVillage] Villager " + entity.EntityId + " (" + entity.Code?.Path +
-                ") has no VillageId — skipping auto-assignment.");
+                ") has no VillageId - skipping auto-assignment.");
             return;
         }
 
@@ -149,6 +148,49 @@ public class EntityBehaviorVillager : EntityBehavior
                 Profession = Profession,
                 Name = (entity.GetBehavior<EntityBehaviorNameTag>()?.DisplayName ?? "")
             };
+
+            // Self-heal: if the villager remembers a workstation/bed and the village
+            // entry is unowned (pre-fix save file, or some other path nulled the
+            // OwnerId), re-claim it. We only re-claim free slots — if the player has
+            // since reassigned that structure to someone else, leave it alone.
+            BlockPos savedWs = Workstation;
+            if (savedWs != null && village.Workstations.TryGetValue(savedWs, out VillagerWorkstation ws))
+            {
+                if (ws.OwnerId == -1L && ws.Profession == Profession)
+                {
+                    ws.OwnerId = entity.EntityId;
+                    BlockEntityVillagerWorkstation wsBe = entity.World.BlockAccessor.GetBlockEntity<BlockEntityVillagerWorkstation>(savedWs);
+                    if (wsBe != null)
+                    {
+                        wsBe.OwnerName = entity.GetBehavior<EntityBehaviorNameTag>()?.DisplayName;
+                        wsBe.MarkDirty();
+                    }
+                }
+                else if (ws.OwnerId != entity.EntityId)
+                {
+                    // Someone else owns it now — drop the stale reference.
+                    Workstation = null;
+                }
+            }
+
+            BlockPos savedBed = Bed;
+            if (savedBed != null && village.Beds.TryGetValue(savedBed, out VillagerBed bedEntry))
+            {
+                if (bedEntry.OwnerId == -1L)
+                {
+                    bedEntry.OwnerId = entity.EntityId;
+                    BlockEntityVillagerBed bedBe = entity.World.BlockAccessor.GetBlockEntity<BlockEntityVillagerBed>(savedBed);
+                    if (bedBe != null)
+                    {
+                        bedBe.OwnerName = entity.GetBehavior<EntityBehaviorNameTag>()?.DisplayName;
+                        bedBe.MarkDirty();
+                    }
+                }
+                else if (bedEntry.OwnerId != entity.EntityId)
+                {
+                    Bed = null;
+                }
+            }
         }
         else
         {
@@ -186,8 +228,24 @@ public class EntityBehaviorVillager : EntityBehavior
     {
         // Cancel any pending callbacks so they don't fire against a dead entity reference.
         if (_initCallbackId != -1)        { entity.World.UnregisterCallback(_initCallbackId);        _initCallbackId = -1; }
-        if (_orphanCheckCallbackId != -1) { entity.World.UnregisterCallback(_orphanCheckCallbackId); _orphanCheckCallbackId = -1; }
         if (_deathCleanupCallbackId != -1){ entity.World.UnregisterCallback(_deathCleanupCallbackId);_deathCleanupCallbackId = -1; }
+
+        // Only clear village ownership for genuine removal. Transient despawn reasons
+        // (OutOfRange = player walked away, Unload = region unloaded, Disconnect =
+        // last player left) persist the entity to disk and respawn it intact, so
+        // wiping OwnerId on workstations/beds would unassign every villager any time
+        // the player took a long trip. Death is handled in OnEntityDeath above; its
+        // cleanup callback redundantly fires us with Death later, which we let
+        // through (harmless second call once entries are already gone).
+        if (despawn != null
+            && despawn.Reason != EnumDespawnReason.Death
+            && despawn.Reason != EnumDespawnReason.Removed
+            && despawn.Reason != EnumDespawnReason.Combusted
+            && despawn.Reason != EnumDespawnReason.Expire
+            && despawn.Reason != EnumDespawnReason.PickedUp)
+        {
+            return;
+        }
 
         Village?.RemoveVillager(entity.EntityId);
     }

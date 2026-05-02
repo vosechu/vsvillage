@@ -496,7 +496,7 @@ public static class VillagerHireRequirementChecker
             return "Smith room requires a light source (oil lamp or wall torch).";
 
         int smithsInRoom = CountWorkstationsOfProfessionInRoom(room, EnumVillagerProfession.smith, village);
-        if (smithsInRoom > 2)
+        if (smithsInRoom > MaxSmithsPerRoom)
             return $"This room already has the maximum number of smiths ({MaxSmithsPerRoom}). Build a separate smithy.";
 
         return null;
