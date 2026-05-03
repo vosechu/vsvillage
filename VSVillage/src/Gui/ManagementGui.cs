@@ -132,7 +132,9 @@ public class ManagementGui : GuiDialog
 			break;
 		}
 		case 1:
-			base.SingleComposer.AddButton(Lang.Get("vsvillage:management-hire-farmer"), () => hireVillager(capi, "farmer"), ElementBounds.Fixed(0.0, 20.0, 200.0, 30.0)).AddButton(Lang.Get("vsvillage:management-hire-shepherd"), () => hireVillager(capi, "shepherd"), ElementBounds.Fixed(220.0, 20.0, 200.0, 30.0)).AddButton(Lang.Get("vsvillage:management-hire-trader"), () => hireVillager(capi, "trader"), ElementBounds.Fixed(0.0, 60.0, 200.0, 30.0))
+			base.SingleComposer
+				.AddStaticText(Lang.Get("vsvillage:management-hire-bednote"), CairoFont.WhiteDetailText(), ElementBounds.Fixed(0.0, 0.0, 700.0, 18.0))
+				.AddButton(Lang.Get("vsvillage:management-hire-farmer"), () => hireVillager(capi, "farmer"), ElementBounds.Fixed(0.0, 20.0, 200.0, 30.0)).AddButton(Lang.Get("vsvillage:management-hire-shepherd"), () => hireVillager(capi, "shepherd"), ElementBounds.Fixed(220.0, 20.0, 200.0, 30.0)).AddButton(Lang.Get("vsvillage:management-hire-trader"), () => hireVillager(capi, "trader"), ElementBounds.Fixed(0.0, 60.0, 200.0, 30.0))
 				.AddButton(Lang.Get("vsvillage:management-hire-smith"), () => hireVillager(capi, "smith"), ElementBounds.Fixed(220.0, 60.0, 200.0, 30.0))
 				.AddButton(Lang.Get("vsvillage:management-hire-soldier"), () => hireVillager(capi, "soldier"), ElementBounds.Fixed(0.0, 100.0, 200.0, 30.0))
 				.AddButton(Lang.Get("vsvillage:management-hire-herbalist"), () => hireVillager(capi, "herbalist"), ElementBounds.Fixed(220.0, 100.0, 200.0, 30.0))

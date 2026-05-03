@@ -20,9 +20,16 @@ public class AiTaskVillagerFarmerHelp : AiTaskGotoAndInteract
     {
         if (!IsFarmer()) return null;
 
-        // If any farmland nearby has a crop, farming tasks should fire instead.
+        // Anchor the "any crops to tend?" check on the WORKSTATION so the farmer
+        // doesn't think she's done just because she wandered far from her fields.
+        BlockPos wsPos = entity.GetBehavior<EntityBehaviorVillager>()?.Workstation;
+        Vec3d searchAnchor = wsPos != null
+            ? wsPos.ToVec3d().Add(0.5, 0.0, 0.5)
+            : entity.Pos.XYZ;
+
+        // If any farmland near the workstation has a crop, farming tasks should fire instead.
         bool hasCrops = false;
-        entity.Api.ModLoader.GetModSystem<POIRegistry>().GetNearestPoi(entity.Pos.XYZ, maxDistance, poi =>
+        entity.Api.ModLoader.GetModSystem<POIRegistry>().GetNearestPoi(searchAnchor, maxDistance, poi =>
         {
             if (!hasCrops && poi is BlockEntityFarmland bef && bef.GetCrop() != null)
                 hasCrops = true;

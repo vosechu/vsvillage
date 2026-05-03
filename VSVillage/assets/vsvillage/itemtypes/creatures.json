@@ -1,7 +1,7 @@
 {
     "code": "creature",
     "class": "ItemCreature",
-    "maxstacksize": 64,
+    "maxstacksize": 1,
     "variantgroups": [
         {
             "code": "type",
@@ -26,13 +26,14 @@
                 "herbalist",
                 "mayor",
                 "trader",
-                "archer"
+              "archer",
+              "baker"
             ]
         }
     ],
     "shapeByType": {
         "*-villager-*": {
-            "base": "game:entity/humanoid/trader"
+            "base": "vsvillage:entity/humanoid/villager-{sex}"
         }
     },
     "texturesByType": {

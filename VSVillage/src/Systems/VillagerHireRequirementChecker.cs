@@ -101,7 +101,15 @@ public static class VillagerHireRequirementChecker
     private static string CheckFarmer(BlockPos wsPos, Village village, ICoreAPI api)
     {
         if (!HasBlockNearby(wsPos, ProximityRadius, "farmland", api.World))
-            return $"Farmer workstation must be within {ProximityRadius} blocks of a farmland block. Till some soil nearby.";
+        {
+            // Surface the village-wide farmland count so players who have plenty of fields
+            // elsewhere don't think the mod is broken - the workstation just isn't close
+            // enough to any of them. The farmer is meant to live next to her fields.
+            int villageFarmland = CountBlocksInVillage(village, "farmland", api.World);
+            return $"Farmer workstation must be within {ProximityRadius} blocks of a farmland block. " +
+                   $"Till some soil nearby, or move the workstation closer to your fields. " +
+                   $"(Your village contains {villageFarmland} farmland tile(s) total - you may have plenty, just none near this workstation.)";
+        }
 
         int existingFarmers = village.Workstations.Values
             .Count(ws => ws.Profession == EnumVillagerProfession.farmer && ws.OwnerId != -1);
@@ -681,7 +689,14 @@ public static class VillagerHireRequirementChecker
             b.Code?.Path?.Contains("oillamp") == true ||
             b.Code?.Path?.Contains("torchholder") == true ||
             b.Code?.Path?.Contains("torch") == true ||
-            b.Code?.Path?.Contains("lantern") == true);
+            b.Code?.Path?.Contains("lantern") == true ||
+            // Vanilla-compliant fallback: any block with intrinsic light emission.
+            // LightHsv is byte[3]; index [2] is brightness (0..32). Any positive value
+            // means the block emits light - catches mod blocks (Better Ruins / NDL torch
+            // holders / etc.) whose code paths don't match our hardcoded patterns. Also
+            // correctly excludes empty torchholders that would have matched "torch" but
+            // emit no light.
+            (b != null && b.LightHsv[2] > 0));
     }
 
     private static int CountBlocksInVillage(Village village, string codeFragment, IWorldAccessor world)

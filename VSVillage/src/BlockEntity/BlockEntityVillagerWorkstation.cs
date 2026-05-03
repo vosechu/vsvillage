@@ -16,6 +16,11 @@ public class BlockEntityVillagerWorkstation : BlockEntityVillagerPOI
 		};
 	}
 
+	protected override long GetCurrentOwnerId(Village village)
+	{
+		return (village != null && village.Workstations.TryGetValue(Pos, out VillagerWorkstation ws)) ? ws.OwnerId : -1L;
+	}
+
 	public override void RemoveFromVillage(Village village)
 	{
 		village?.Workstations.Remove(Pos);

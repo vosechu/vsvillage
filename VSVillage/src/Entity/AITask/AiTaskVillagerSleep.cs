@@ -101,7 +101,7 @@ public class AiTaskVillagerSleep : AiTaskBase
 				Block bedBlock = entity.World.BlockAccessor.GetBlock(blockPos);
 				if (bedBlock == null || bedBlock.Id == 0 || !bedBlock.Code.Path.Contains("villagebed"))
 				{
-					// Assigned bed was destroyed. release it and search again.
+					// Assigned bed was destroyed — release it and search again.
 					villagerBehavior.Bed = null;
 					village.ClearBedOwner(entity.EntityId);
 					blockPos = village.FindFreeBed(entity.EntityId);
@@ -425,7 +425,7 @@ public class AiTaskVillagerSleep : AiTaskBase
 
 	/// <summary>
 	/// Returns true when this soldier's village has an active alarm.
-	/// Only soldiers respond to alarms. archers and civilians sleep through them.
+	/// Only soldiers respond to alarms — archers and civilians sleep through them.
 	/// </summary>
 	private bool IsVillageUnderAlarm()
 	{

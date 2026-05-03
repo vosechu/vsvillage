@@ -1296,19 +1296,37 @@
 			]
 		},
 		{
-			"code": "villagerbakeroven",
+			"code": "villagerbakertendoven",
 			"priority": 5.3,
 			"movespeed": 0.008,
 			"animation": "walk",
 			"animationSpeed": 1,
 			"minduration": 20000,
 			"maxduration": 30000,
+			"mincooldown": 5000,
+			"maxcooldown": 15000,
+			"maxdistance": 40,
+			"checkIntervalSeconds": 5,
+			"minBakeTemp": 180,
+			"doughCode": "game:dough-spelt",
+			"duringDayTimeFrames": [
+				{
+					"fromHour": 8,
+					"toHour": 17
+				}
+			]
+		},
+		{
+			"code": "villagerbakercollectbread",
+			"priority": 6.0,
+			"movespeed": 0.008,
+			"animation": "walk",
+			"animationSpeed": 1,
+			"minduration": 2000,
+			"maxduration": 3000,
 			"mincooldown": 4000,
 			"maxcooldown": 8000,
 			"maxdistance": 40,
-			"checkIntervalSeconds": 15,
-			"minBakeTemp": 180,
-			"doughCode": "game:dough-spelt",
 			"duringDayTimeFrames": [
 				{
 					"fromHour": 8,
@@ -1332,8 +1350,27 @@
 			]
 		},
 		{
-			"code": "villagerplanthorsetail",
+			"code": "villagercheckflowers",
 			"priority": 5.1,
+			"movespeed": 0.009,
+			"animation": "walk",
+			"animationSpeed": 1,
+			"minduration": 3000,
+			"maxduration": 6000,
+			"mincooldown": 5000,
+			"maxcooldown": 10000,
+			"maxdistance": 40,
+			"minDistance": 15,
+			"duringDayTimeFrames": [
+				{
+					"fromHour": 8,
+					"toHour": 11
+				}
+			]
+		},
+		{
+			"code": "villagerfillflowerpot",
+			"priority": 5.5,
 			"movespeed": 0.009,
 			"animation": "walk",
 			"animationSpeed": 1,
@@ -1342,11 +1379,10 @@
 			"mincooldown": 600000,
 			"maxcooldown": 1200000,
 			"maxdistance": 30,
-			"plantRadius": 14,
 			"duringDayTimeFrames": [
 				{
-					"fromHour": 8,
-					"toHour": 12
+					"fromHour": 7.5,
+					"toHour": 11
 				}
 			]
 		},

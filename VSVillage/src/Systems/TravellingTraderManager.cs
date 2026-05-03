@@ -270,14 +270,25 @@ public class TravellingTraderManager : ModSystem
             Block space = ba.GetBlock(check.UpCopy());
             Block head = ba.GetBlock(check.UpCopy().UpCopy());
             bool hasFloor = floor.CollisionBoxes != null && floor.CollisionBoxes.Length != 0;
-            bool spaceClear = space.CollisionBoxes == null || space.CollisionBoxes.Length == 0;
-            bool headClear = head.CollisionBoxes == null || head.CollisionBoxes.Length == 0;
+            // Visually-solid blocks with no collision (leaves, vines, cobwebs) would let
+            // the spawn pass the original CollisionBoxes test and the trader would appear
+            // with their head poking through tree foliage. Reject those as well. Tall grass
+            // and snow layers are intentionally still allowed.
+            bool spaceClear = (space.CollisionBoxes == null || space.CollisionBoxes.Length == 0) && !IsHeadObstruction(space);
+            bool headClear  = (head.CollisionBoxes  == null || head.CollisionBoxes.Length  == 0) && !IsHeadObstruction(head);
             if (hasFloor && spaceClear && headClear)
             {
                 return check.UpCopy();
             }
         }
         return null;
+    }
+
+    private static bool IsHeadObstruction(Block block)
+    {
+        string p = block?.Code?.Path;
+        if (string.IsNullOrEmpty(p)) return false;
+        return p.Contains("leaves") || p.Contains("vine") || p.Contains("cobweb");
     }
 
     private static bool IsOutdoors(IBlockAccessor ba, BlockPos pos)

@@ -754,7 +754,20 @@ public class VillageManager : ModSystem
 					}
 					else
 					{
-						VillagerBed villagerBed = village.Beds.Values.Where((VillagerBed bed) => bed.OwnerId == -1).First();
+						// Pick the free bed CLOSEST to the workstation - villagers should sleep
+						// near where they work. Avoids the old "first inserted bed wins" bug
+						// where a new farmer would take the mayor's edge-of-village bed.
+						BlockPos wsPosForDist = targetWorkstation.Pos;
+						VillagerBed villagerBed = village.Beds.Values
+							.Where(bed => bed.OwnerId == -1)
+							.OrderBy(bed =>
+							{
+								int dx = bed.Pos.X - wsPosForDist.X;
+								int dy = bed.Pos.Y - wsPosForDist.Y;
+								int dz = bed.Pos.Z - wsPosForDist.Z;
+								return dx * dx + dy * dy + dz * dz;
+							})
+							.First();
 						entity.Pos.X = villagerBed.Pos.X + 0.5;
 						entity.Pos.Y = villagerBed.Pos.Y + 1;
 						entity.Pos.Z = villagerBed.Pos.Z + 0.5;

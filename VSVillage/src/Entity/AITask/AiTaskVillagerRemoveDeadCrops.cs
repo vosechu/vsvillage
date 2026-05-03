@@ -46,13 +46,18 @@ public class AiTaskVillagerRemoveDeadCrops : AiTaskGotoAndInteract
     {
         if (!IsFarmer()) return null;
 
-        // Walk all farmland POIs in range; track the nearest one that has a
-        // dead crop directly above it and is not on cooldown.
+        // Anchor on the WORKSTATION so we clear dead crops near the farmer's fields,
+        // not whichever stray dead crop happens to be closest to where she's standing.
+        BlockPos wsPos = entity.GetBehavior<EntityBehaviorVillager>()?.Workstation;
+        if (wsPos == null) return null;
+        Vec3d searchAnchor = wsPos.ToVec3d().Add(0.5, 0.0, 0.5);
+
+        // Walk all farmland POIs in range; track the nearest dead crop to the workstation.
         BlockPos best = null;
         double bestDistSq = double.MaxValue;
 
         entity.Api.ModLoader.GetModSystem<POIRegistry>().WalkPois(
-            entity.Pos.XYZ,
+            searchAnchor,
             maxDistance,
             poi =>
             {
@@ -63,7 +68,7 @@ public class AiTaskVillagerRemoveDeadCrops : AiTaskGotoAndInteract
                 if (!IsDeadCrop(block)) return false;
                 if (IsPosOnCooldown(above)) return false;
 
-                double distSq = entity.Pos.XYZ.SquareDistanceTo(above.ToVec3d());
+                double distSq = searchAnchor.SquareDistanceTo(above.ToVec3d());
                 if (distSq < bestDistSq)
                 {
                     bestDistSq = distSq;

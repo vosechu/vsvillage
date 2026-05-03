@@ -37,7 +37,13 @@ public class AiTaskVillagerCultivateCrops : AiTaskGotoAndInteract
         {
             return null;
         }
-        nearestFarmland = entity.Api.ModLoader.GetModSystem<POIRegistry>().GetNearestPoi(entity.Pos.XYZ, base.maxDistance, isValidFarmland) as BlockEntityFarmland;
+        // Anchor on the WORKSTATION, not the farmer's current position - she should
+        // tend the fields beside her workstation, not whichever crops happen to be
+        // near where she's idling.
+        BlockPos wsPos = entity.GetBehavior<EntityBehaviorVillager>()?.Workstation;
+        if (wsPos == null) return null;
+        Vec3d searchAnchor = wsPos.ToVec3d().Add(0.5, 0.0, 0.5);
+        nearestFarmland = entity.Api.ModLoader.GetModSystem<POIRegistry>().GetNearestPoi(searchAnchor, base.maxDistance, isValidFarmland) as BlockEntityFarmland;
         if (nearestFarmland == null)
         {
             return null;

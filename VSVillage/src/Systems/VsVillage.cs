@@ -52,8 +52,11 @@ public class VsVillage : ModSystem
 		AiTaskRegistry.Register<AiTaskVillagerStormShelter>("villagerstormshelter");
 		AiTaskRegistry.Register<AiTaskVillagerGather>("villagergather");
 		AiTaskRegistry.Register<AiTaskVillagerTameAnimal>("villagertameanimal");
-		AiTaskRegistry.Register<AiTaskVillagerPlantHorsetail>("villagerplanthorsetail");
+		AiTaskRegistry.Register<AiTaskVillagerCheckFlowers>("villagercheckflowers");
+		AiTaskRegistry.Register<AiTaskVillagerFillFlowerpot>("villagerfillflowerpot");
 		AiTaskRegistry.Register<AiTaskVillagerBakerOven>("villagerbakeroven");
+		AiTaskRegistry.Register<AiTaskVillagerBakerCollectBread>("villagerbakercollectbread");
+		AiTaskRegistry.Register<AiTaskVillagerBakerTendOven>("villagerbakertendoven");
 		AiTaskRegistry.Register<AiTaskVillagerFarmerHelp>("villagerfarmerhelp");
 		AiTaskRegistry.Register<AiTaskTravellingTraderStand>("travellingtraderstand");
 		AiTaskRegistry.Register<AiTaskTravellingTraderLeave>("travellingtraderleave");

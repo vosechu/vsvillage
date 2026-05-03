@@ -27,11 +27,16 @@ public class AiTaskVillagerWaterFarmland : AiTaskGotoAndInteract
 		{
 			return null;
 		}
+		// Anchor the farmland search on the WORKSTATION, not the farmer's current
+		// position. The farmer is meant to focus on the fields next to her workstation
+		// rather than whatever happens to be near where she's standing right now.
+		BlockPos wsPos = entity.GetBehavior<EntityBehaviorVillager>()?.Workstation;
+		if (wsPos == null) return null;
 		POIRegistry poiReg = entity.Api.ModLoader.GetModSystem<POIRegistry>();
-		Vec3d myPos = entity.Pos.XYZ;
+		Vec3d searchAnchor = wsPos.ToVec3d().Add(0.5, 0.0, 0.5);
 		BlockEntityFarmland driestFarmland = null;
 		float lowestMoisture = float.MaxValue;
-		poiReg.GetNearestPoi(myPos, base.maxDistance, delegate(IPointOfInterest poi)
+		poiReg.GetNearestPoi(searchAnchor, base.maxDistance, delegate(IPointOfInterest poi)
 		{
 			if (!(poi is BlockEntityFarmland blockEntityFarmland))
 			{
@@ -125,15 +130,6 @@ public class AiTaskVillagerWaterFarmland : AiTaskGotoAndInteract
 			1.2f, 0.4f, 0.08f);
 		particles.MinPos = nearestFarmland.Position.AddCopy(0.5, 1.0, 0.5);
 		entity.World.SpawnParticles(particles);
-	}
-
-	private bool isValidFarmland(IPointOfInterest poi)
-	{
-		if (!(poi is BlockEntityFarmland bef))
-		{
-			return false;
-		}
-		return !bef.HasRipeCrop() && bef.MoistureLevel < 0.9f && !IsFarmlandOnCooldown(bef.Pos);
 	}
 
 	private bool IsFarmlandOnCooldown(BlockPos pos)

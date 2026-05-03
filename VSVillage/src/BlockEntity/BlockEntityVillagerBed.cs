@@ -13,6 +13,11 @@ public class BlockEntityVillagerBed : BlockEntityVillagerPOI
 		};
 	}
 
+	protected override long GetCurrentOwnerId(Village village)
+	{
+		return (village != null && village.Beds.TryGetValue(Pos, out VillagerBed bed)) ? bed.OwnerId : -1L;
+	}
+
 	public override void RemoveFromVillage(Village village)
 	{
 		village?.Beds.Remove(Pos);

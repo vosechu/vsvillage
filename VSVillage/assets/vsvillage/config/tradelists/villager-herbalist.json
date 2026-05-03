@@ -104,8 +104,8 @@
         "maxItems": 8,
         "list": [
             {
-                "code": "game:flower-dandelion",
-                "type": "item",
+                "code": "game:flower-cornflower-free",
+                "type": "block",
                 "stacksize": 8,
                 "stock": {
                     "avg": 12,
@@ -117,8 +117,8 @@
                 }
             },
             {
-                "code": "game:flower-bellflower",
-                "type": "item",
+                "code": "game:flower-bluebell-free",
+                "type": "block",
                 "stacksize": 8,
                 "stock": {
                     "avg": 12,
@@ -143,7 +143,7 @@
                 }
             },
             {
-                "code": "game:sulfur",
+                "code": "game:ore-sulfur",
                 "type": "item",
                 "stacksize": 4,
                 "stock": {
@@ -183,7 +183,7 @@
             },
             {
                 "code": "game:mushroom-chanterelle-normal",
-                "type": "item",
+                "type": "block",
                 "stacksize": 4,
                 "stock": {
                     "avg": 8,
