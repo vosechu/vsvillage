@@ -53,6 +53,11 @@ public class BlockEntityVillagerBrazier : BlockEntityVillagerPOI
 		if (base.Block.Variant["burnstate"] != "extinct")
 		{
 			Block block = Api.World.GetBlock(base.Block.CodeWithVariant("burnstate", "extinct"));
+			if (block == null)
+			{
+				Api.World.Logger.Warning("[VsVillage] Brazier at {0}: missing 'extinct' variant for {1}", Pos, base.Block.Code);
+				return;
+			}
 			Api.World.BlockAccessor.ExchangeBlock(block.Id, Pos);
 			base.Block = block;
 		}
@@ -63,6 +68,11 @@ public class BlockEntityVillagerBrazier : BlockEntityVillagerPOI
 		if (base.Block.Variant["burnstate"] != "lit")
 		{
 			Block block = Api.World.GetBlock(base.Block.CodeWithVariant("burnstate", "lit"));
+			if (block == null)
+			{
+				Api.World.Logger.Warning("[VsVillage] Brazier at {0}: missing 'lit' variant for {1}", Pos, base.Block.Code);
+				return;
+			}
 			Api.World.BlockAccessor.ExchangeBlock(block.Id, Pos);
 			base.Block = block;
 		}

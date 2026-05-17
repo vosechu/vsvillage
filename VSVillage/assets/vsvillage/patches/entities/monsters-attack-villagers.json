@@ -1,0 +1,92 @@
+[
+    // =========================================================================
+    // DRIFTER, attack and seek villagers (all variants: normal/deep/tainted/...)
+    // server.behaviors[8] = taskai
+    // aitasks[2] = meleeattack, aitasks[4] = seekentity
+    // =========================================================================
+    {
+        "file": "game:entities/lore/drifter.json",
+        "op": "add",
+        "path": "/server/behaviors/8/aitasks/2/entityCodes/-",
+        "value": "villager-*",
+        "side": "server"
+    },
+    {
+        "file": "game:entities/lore/drifter.json",
+        "op": "add",
+        "path": "/server/behaviors/8/aitasks/4/entityCodes/-",
+        "value": "villager-*",
+        "side": "server"
+    },
+
+    // =========================================================================
+    // SHIVER, attack and seek villagers
+    // server.behaviors[8] = taskai
+    // aitasks[2] = meleeattack, aitasks[3] = seekentity
+    // =========================================================================
+    {
+        "file": "game:entities/lore/shiver.json",
+        "op": "add",
+        "path": "/server/behaviors/8/aitasks/2/entityCodes/-",
+        "value": "villager-*",
+        "side": "server"
+    },
+    {
+        "file": "game:entities/lore/shiver.json",
+        "op": "add",
+        "path": "/server/behaviors/8/aitasks/3/entityCodes/-",
+        "value": "villager-*",
+        "side": "server"
+    },
+
+    // =========================================================================
+    // BOWTORN, melee on contact, track via stayinrange, fire arrows via
+    // turretmode. Verified against vanilla AiTaskTurretMode.cs: turretmode
+    // calls IsTargetableEntity which reads entityCodes from JSON (defaults
+    // to ["player"] if absent). Vanilla bowtorn turretmode has no
+    // entityCodes field, so we add one with both player and villager.
+    // server.behaviors[8] = taskai
+    // aitasks[0] = meleeattack, aitasks[4] = stayinrange, aitasks[5] = turretmode
+    // =========================================================================
+    {
+        "file": "game:entities/lore/bowtorn.json",
+        "op": "add",
+        "path": "/server/behaviors/8/aitasks/0/entityCodes/-",
+        "value": "villager-*",
+        "side": "server"
+    },
+    {
+        "file": "game:entities/lore/bowtorn.json",
+        "op": "add",
+        "path": "/server/behaviors/8/aitasks/4/entityCodes/-",
+        "value": "villager-*",
+        "side": "server"
+    },
+    {
+        "file": "game:entities/lore/bowtorn.json",
+        "op": "add",
+        "path": "/server/behaviors/8/aitasks/5/entityCodes",
+        "value": [ "player", "villager-*" ],
+        "side": "server"
+    },
+
+    // =========================================================================
+    // LOCUST, attack and seek villagers
+    // server.behaviors[7] = taskai (one fewer than the others; only one despawn)
+    // aitasks[0] = meleeattack, aitasks[2] = seekentity
+    // =========================================================================
+    {
+        "file": "game:entities/lore/locust.json",
+        "op": "add",
+        "path": "/server/behaviors/7/aitasks/0/entityCodes/-",
+        "value": "villager-*",
+        "side": "server"
+    },
+    {
+        "file": "game:entities/lore/locust.json",
+        "op": "add",
+        "path": "/server/behaviors/7/aitasks/2/entityCodes/-",
+        "value": "villager-*",
+        "side": "server"
+    }
+]

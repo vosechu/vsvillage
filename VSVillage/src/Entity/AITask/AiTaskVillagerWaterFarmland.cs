@@ -27,16 +27,13 @@ public class AiTaskVillagerWaterFarmland : AiTaskGotoAndInteract
 		{
 			return null;
 		}
-		// Anchor the farmland search on the WORKSTATION, not the farmer's current
-		// position. The farmer is meant to focus on the fields next to her workstation
-		// rather than whatever happens to be near where she's standing right now.
-		BlockPos wsPos = entity.GetBehavior<EntityBehaviorVillager>()?.Workstation;
-		if (wsPos == null) return null;
+		// Search around the farmer's current position so she can wander between
+		// her workstation and fields without the task constantly anchoring her
+		// back home. The villagergotowork task brings her back periodically.
 		POIRegistry poiReg = entity.Api.ModLoader.GetModSystem<POIRegistry>();
-		Vec3d searchAnchor = wsPos.ToVec3d().Add(0.5, 0.0, 0.5);
 		BlockEntityFarmland driestFarmland = null;
 		float lowestMoisture = float.MaxValue;
-		poiReg.GetNearestPoi(searchAnchor, base.maxDistance, delegate(IPointOfInterest poi)
+		poiReg.GetNearestPoi(entity.Pos.XYZ, base.maxDistance, delegate(IPointOfInterest poi)
 		{
 			if (!(poi is BlockEntityFarmland blockEntityFarmland))
 			{

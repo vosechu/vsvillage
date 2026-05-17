@@ -87,6 +87,7 @@
     "management-structure-note": "Structure type: {0}\nCurrently owned by {1}\nLocated at: {2}",
     "management-select-villager": "Select a villager.",
     "management-remove-villager": "Remove villager",
+    "management-villager-removed": "Sent {0} back to stasis. The Settlement Keeper has been notified.",
     "management-villager-note": "Name: {0}\nProfession: {1}\nLast seen at: {2}\nWorks at: {3}\nSleeps at: {4}",
     "management-emtpy": "The village seems to be empty.",
     "management-hire-farmer": "Hire farmer",
@@ -135,6 +136,7 @@
     "nobody": "nobody",
     "everybody": "everybody",
     "missing-in-action": "Missing in action",
+    "village-data-unavailable": "Village data unavailable. Try reloading the chunk.",
 
     "quest-gatherMeatForSeed-title": "Meat for seed",
     "quest-gatherMeatForSeed-desc": "My diet could use a little bit more variation. If you provide 25 meat of any kind, I could offer you some seeds in return.",
@@ -268,7 +270,8 @@
    "dialogue-mechadminremove": "If you need to... you may send a Villager back into stasis within the Regenesis Archive where they will safely await hiring by yourself or another Village's Administrator.",
    "dialogue-mechadmindestroy": "It is your right as a bzzt-erorrrrrreda-Ser-bzzt to declare an area unfit for the Village and Destroy its entry within the Archive. This will not remove any Village Structures... but has the risk of Disconnecting any Villagers who have not been sent back to stasis first. Your judgement on this matter will always be respected. You may need to call upon another Settlement Keeper if you require further fabrication. My energies are limited as they are.",
     "dialogue-mechbeforetimes": "This unit was not established to interface with other Archives which would hold the information you seek. I am set by virtue of the clockwork which runs me to look ahead... not behind. If I do have such information it is limited.",
-    "vsvillage:soldier-spotted-enemy": "A soldier of {0} reports contact with {1}!",
-    "vsvillage:archer-spotted-enemy": "An archer of {0} reports contact with {1}!",
-    "vsvillage:management-recover-villagers": "Recover Villagers"
+    "soldier-spotted-enemy": "A soldier of {0} reports contact with {1}!",
+    "archer-spotted-enemy": "An archer of {0} reports contact with {1}!",
+    "management-recover-villagers": "Recover Villagers",
+    "management-dismiss-mechhelper": "Dismiss Settlement Keeper"
 }

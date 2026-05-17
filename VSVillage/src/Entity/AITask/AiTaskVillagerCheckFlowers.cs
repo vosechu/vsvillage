@@ -5,20 +5,8 @@ using Vintagestory.API.MathTools;
 
 namespace VsVillage;
 
-/// <summary>
-/// Herbalist morning task: walks around her workstation area "checking on" flower
-/// blocks (matches "flower-*-free" or "flower-*-snow" - the vanilla flower variant
-/// pattern, which excludes flowerpot-* / planter-* / etc.), playing a hoe-till
-/// animation on arrival. Pure cosmetic / immersion - no block mutation, no inventory
-/// changes.
-///
-/// Anchored on workstation so she stays in her plot. The minDistance config skips
-/// flowers too close to the workstation - she's meant to actually go for a walk
-/// out to check distant flowers, not just hoe-till the one next to her station.
-///
-/// Replaces the old AiTaskVillagerPlantHorsetail which depended on a hard-coded
-/// horsetail block lookup that wasn't resolving in 1.22.
-/// </summary>
+// Herbalist morning hoe-till on flower-*-free/snow blocks near her workstation. Cosmetic, no mutation.
+// minDistance skips flowers too close so she actually walks out to range.
 public class AiTaskVillagerCheckFlowers : AiTaskGotoAndInteract
 {
     private float minDistance;
@@ -26,17 +14,17 @@ public class AiTaskVillagerCheckFlowers : AiTaskGotoAndInteract
     public AiTaskVillagerCheckFlowers(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
         : base(entity, taskConfig, aiConfig)
     {
-        // Hoe-till is the herbalist's "tending" animation - same one PlantHorsetail used.
         interactAnim = new AnimationMetaData
         {
             Code = "hoe-till",
             Animation = "hoe-till",
             AnimationSpeed = 1f,
-            BlendMode = EnumAnimationBlendMode.Average
+            BlendMode = EnumAnimationBlendMode.Average,
+            SupressDefaultAnimation = true,
+            Weight = 5f
         }.Init();
 
-        // Skip flowers closer than this to her workstation. Forces her to actually
-        // walk out to range rather than hoe-tilling whatever's nearest. 0 = no floor.
+        // No-go floor around the workstation. 0 = no floor.
         minDistance = taskConfig["minDistance"].AsFloat(0f);
     }
 
@@ -49,9 +37,7 @@ public class AiTaskVillagerCheckFlowers : AiTaskGotoAndInteract
         BlockPos ws = beh?.Workstation;
         if (ws == null) return null;
 
-        // Search radius = min(task maxDistance, village radius). The village.Radius
-        // clamp keeps small villages from making the herbalist roam past their
-        // boundary just because the task config says 80.
+        // Search radius clamped by village.Radius so small villages don't let the herbalist roam past their boundary.
         IBlockAccessor ba = entity.World.BlockAccessor;
         int r = (int)maxDistance;
         Village village = beh?.Village;
@@ -72,10 +58,7 @@ public class AiTaskVillagerCheckFlowers : AiTaskGotoAndInteract
                     Block b = ba.GetBlock(tmp);
                     string path = b?.Code?.Path;
                     if (path == null) continue;
-                    // Match only true flower variants. The vanilla flower blocktype
-                    // generates codes like "flower-horsetail-free" / "flower-bluebell-snow",
-                    // and the StartsWith("flower-") + EndsWith filter naturally excludes
-                    // flowerpot-* / planter-* / wildflower-* / crop-sunflower-* etc.
+                    // Match only the real flower-*-{free,snow} vanilla blocktype, not flowerpot/planter/wildflower/crop.
                     if (!path.StartsWith("flower-")) continue;
                     if (!path.EndsWith("-free") && !path.EndsWith("-snow")) continue;
 
@@ -98,8 +81,7 @@ public class AiTaskVillagerCheckFlowers : AiTaskGotoAndInteract
 
     protected override void ApplyInteractionEffect()
     {
-        // Pure cosmetic - the hoe-till animation runs via interactAnim on arrival,
-        // nothing to mutate.
+        // Cosmetic only; the interactAnim runs on arrival.
     }
 
     public override void FinishExecute(bool cancelled)

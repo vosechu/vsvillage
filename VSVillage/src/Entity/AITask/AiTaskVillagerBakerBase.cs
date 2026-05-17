@@ -6,18 +6,16 @@ using Vintagestory.GameContent;
 
 namespace VsVillage;
 
-/// <summary>
-/// Shared base for baker AI tasks. Provides oven lookup, bread collection,
-/// dough loading, and shared config (doughCode + minBakeTemp).
-/// </summary>
+// Shared base for baker AI tasks. Provides oven lookup, bread collection,
+// dough loading, and shared config (doughCode + minBakeTemp).
 public abstract class AiTaskVillagerBakerBase : AiTaskGotoAndInteract
 {
-    /// <summary>Item code for the dough to bake (default: game:dough-spelt). Read from
-    /// task JSON config and shared by all baker subtasks via this base class.</summary>
+    // Item code for the dough to bake (default: game:dough-spelt). Read from
+    // task JSON config and shared by all baker subtasks via this base class.
     protected string doughCode;
 
-    /// <summary>Minimum oven temperature (degC) before dough is loaded. Read from
-    /// task JSON config and shared.</summary>
+    // Minimum oven temperature (degC) before dough is loaded. Read from
+    // task JSON config and shared.
     protected float minBakeTemp;
 
     protected AiTaskVillagerBakerBase(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
@@ -32,9 +30,7 @@ public abstract class AiTaskVillagerBakerBase : AiTaskGotoAndInteract
     protected bool IsBaker()
         => entity?.Code?.Path?.EndsWith("-baker") == true;
 
-    /// <summary>
-    /// Finds a BlockEntityOven at or within +/-4 blocks of the given position.
-    /// </summary>
+    // Finds a BlockEntityOven at or within +/-4 blocks of the given position.
     protected BlockEntityOven FindOven(BlockPos ws)
     {
         BlockEntityOven oven = entity.World.BlockAccessor.GetBlockEntity<BlockEntityOven>(ws);
@@ -53,10 +49,8 @@ public abstract class AiTaskVillagerBakerBase : AiTaskGotoAndInteract
         return null;
     }
 
-    /// <summary>
-    /// Returns true if any oven slot contains finished bread
-    /// (bread-* that is not -partbaked).
-    /// </summary>
+    // Returns true if any oven slot contains finished bread
+    // (bread-* that is not -partbaked).
     protected static bool HasFinishedBread(BlockEntityOven oven)
     {
         for (int i = 0; i < oven.bakeableCapacity; i++)
@@ -70,7 +64,7 @@ public abstract class AiTaskVillagerBakerBase : AiTaskGotoAndInteract
         return false;
     }
 
-    /// <summary>Returns true if the oven has at least one empty bakeable slot.</summary>
+    // Returns true if the oven has at least one empty bakeable slot.
     protected static bool HasEmptyBakeableSlot(BlockEntityOven oven)
     {
         for (int i = 0; i < oven.bakeableCapacity; i++)
@@ -78,9 +72,7 @@ public abstract class AiTaskVillagerBakerBase : AiTaskGotoAndInteract
         return false;
     }
 
-    /// <summary>
-    /// Removes all finished bread from the oven (anything bread-* except -partbaked).
-    /// </summary>
+    // Removes all finished bread from the oven (anything bread-* except -partbaked).
     protected static void CollectFinishedBread(BlockEntityOven oven)
     {
         bool changed = false;
@@ -99,11 +91,9 @@ public abstract class AiTaskVillagerBakerBase : AiTaskGotoAndInteract
         if (changed) oven.MarkDirty(true);
     }
 
-    /// <summary>
-    /// Fills any empty bakeable slots with raw dough (one stack per slot). Vanilla
-    /// requires the oven to actually be hot (>= minBakeTemp) before dough is accepted -
-    /// callers should temperature-gate this themselves.
-    /// </summary>
+    // Fills any empty bakeable slots with raw dough (one stack per slot). Vanilla
+    // requires the oven to actually be hot (>= minBakeTemp) before dough is accepted -
+    // callers should temperature-gate this themselves.
     protected void TryLoadDough(BlockEntityOven oven)
     {
         Item doughItem = entity.World.GetItem(new AssetLocation(doughCode));

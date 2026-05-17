@@ -5,15 +5,12 @@ using Vintagestory.API.MathTools;
 
 namespace VsVillage;
 
-/// <summary>
-/// Herbalist cosmetic task: walks to her workstation and plays a hoe-till animation
-/// to simulate her tending her work area.
-///
-/// Originally this filled a flowerpot in her room, but the flowerpot mechanic was
-/// scrapped (1.22-era horsetail block resolution proved unreliable). The class name
-/// and registration code (villagerfillflowerpot) are kept intact to avoid breaking
-/// task wiring; the implementation is purely workstation-tending now.
-/// </summary>
+// Herbalist cosmetic task: walks to her workstation and plays a hoe-till animation
+// to simulate her tending her work area.
+// Originally this filled a flowerpot in her room, but the flowerpot mechanic was
+// scrapped (1.22-era horsetail block resolution proved unreliable). The class name
+// and registration code (villagerfillflowerpot) are kept intact to avoid breaking
+// task wiring; the implementation is purely workstation-tending now.
 public class AiTaskVillagerFillFlowerpot : AiTaskGotoAndInteract
 {
     public AiTaskVillagerFillFlowerpot(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)

@@ -19,7 +19,14 @@ public class EntityBehaviorReplaceWithEntity : EntityBehavior
 	public override void Initialize(EntityProperties properties, JsonObject attributes)
 	{
 		base.Initialize(properties, attributes);
-		AssetLocation assetLocation = new AssetLocation(attributes["entitycode"].AsString());
+		if (base.entity.World.Side != EnumAppSide.Server) return;
+		string code = attributes?["entitycode"]?.AsString();
+		if (string.IsNullOrEmpty(code))
+		{
+			base.entity.World.Logger.Warning("EntityBehaviorReplaceWithEntity: missing 'entitycode' attribute on {0}", base.entity.Code);
+			return;
+		}
+		AssetLocation assetLocation = new AssetLocation(code);
 		EntityProperties entityType = base.entity.World.GetEntityType(assetLocation);
 		if (entityType == null)
 		{

@@ -4,7 +4,16 @@ namespace VsVillage;
 
 public class BlockEntityVillagerWorkstation : BlockEntityVillagerPOI
 {
-	public EnumVillagerProfession Profession => Enum.Parse<EnumVillagerProfession>(base.Block.Variant["profession"]);
+	// Defensive: missing/unparseable variant falls back to farmer so misconfigured workstation blocks don't crash chunk load.
+	public EnumVillagerProfession Profession
+	{
+		get
+		{
+			string variant = base.Block?.Variant?["profession"];
+			if (string.IsNullOrEmpty(variant)) return EnumVillagerProfession.farmer;
+			return Enum.TryParse<EnumVillagerProfession>(variant, out var p) ? p : EnumVillagerProfession.farmer;
+		}
+	}
 
 	public override void AddToVillage(Village village)
 	{

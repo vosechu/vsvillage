@@ -55,6 +55,8 @@ public class ManagementGui : GuiDialog
 		}
 	}
 
+	// === Compose / tab layout ===
+
 	private void recompose(ICoreClientAPI capi, Village village, ElementBounds dialogBounds, ElementBounds bgBounds, int curTab = 0)
 	{
 		GuiTab[] tabs = new GuiTab[5]
@@ -129,6 +131,17 @@ public class ManagementGui : GuiDialog
 			.AddButton(Lang.Get("vsvillage:management-clear-gather"), () => clearGather(capi), ElementBounds.Fixed(470.0, 180.0, 200.0, 30.0))
 			.AddButton(Lang.Get("vsvillage:management-validate-structures"), () => validateStructures(capi), ElementBounds.Fixed(470.0, 220.0, 200.0, 30.0))
 			.AddButton(Lang.Get("vsvillage:management-recover-villagers"), () => recoverOrphanedVillagers(capi), ElementBounds.Fixed(470.0, 260.0, 200.0, 30.0));
+
+			// Dismiss-Settlement-Keeper button only shows when one is actually present
+			// within the village. If there's no mechhelper to dismiss, the button is
+			// hidden so the panel stays clean.
+			if (HasMechhelper(village, capi))
+			{
+				base.SingleComposer.AddButton(
+					Lang.Get("vsvillage:management-dismiss-mechhelper"),
+					() => dismissMechhelper(capi, village, dialogBounds, bgBounds),
+					ElementBounds.Fixed(470.0, 300.0, 200.0, 30.0));
+			}
 			break;
 		}
 		case 1:
@@ -150,7 +163,7 @@ public class ManagementGui : GuiDialog
 				base.SingleComposer.AddStaticText(Lang.Get("vsvillage:management-select-villager"), CairoFont.WhiteSmallishText(), ElementBounds.Fixed(0.0, 20.0, 200.0, 30.0)).AddDropDown(array, names, 0, delegate(string code, bool sel)
 				{
 					base.SingleComposer.GetDynamicText("villager-note")?.SetNewText(villagerNote(code, capi));
-				}, ElementBounds.Fixed(200.0, 20.0, 300.0, 30.0), "villagers").AddButton(Lang.Get("vsvillage:management-remove-villager"), () => removeVillager(capi), ElementBounds.Fixed(520.0, 20.0, 200.0, 30.0))
+				}, ElementBounds.Fixed(200.0, 20.0, 300.0, 30.0), "villagers").AddButton(Lang.Get("vsvillage:management-remove-villager"), () => removeVillager(capi, village, dialogBounds, bgBounds), ElementBounds.Fixed(520.0, 20.0, 200.0, 30.0))
 					.AddDynamicText(villagerNote(array[0], capi), CairoFont.WhiteSmallishText(), ElementBounds.Fixed(0.0, 60.0, 500.0, 150.0), "villager-note");
 			}
 			else
@@ -193,6 +206,8 @@ public class ManagementGui : GuiDialog
 		base.SingleComposer.GetTextInput("villageradius")?.SetValue(village.Radius);
 	}
 
+	// === Hire ===
+
 	private bool hireVillager(ICoreClientAPI capi, string type, EnumVillagerProfession? profession = null)
 	{
 		managementMessage.Operation = EnumVillageManagementOperation.hireVillager;
@@ -202,13 +217,16 @@ public class ManagementGui : GuiDialog
 		return true;
 	}
 
+	// === Dropdown note helpers (dynamic text) ===
+
 	private string villagerNote(string code, ICoreClientAPI capi)
 	{
 		Entity entityById = capi.World.GetEntityById(long.Parse(code));
 		EntityBehaviorVillager entityBehaviorVillager = entityById?.GetBehavior<EntityBehaviorVillager>();
 		if (entityBehaviorVillager != null)
 		{
-			return Lang.Get("vsvillage:management-villager-note", entityById.GetBehavior<EntityBehaviorNameTag>().DisplayName, Lang.Get("vsvillage:management-profession-" + entityBehaviorVillager.Profession), BlockPosToString(entityById.Pos.AsBlockPos, capi), BlockPosToString(entityBehaviorVillager.Workstation, capi), BlockPosToString(entityBehaviorVillager.Bed, capi));
+			string displayName = entityById.GetBehavior<EntityBehaviorNameTag>()?.DisplayName ?? Lang.Get("vsvillage:nobody");
+			return Lang.Get("vsvillage:management-villager-note", displayName, Lang.Get("vsvillage:management-profession-" + entityBehaviorVillager.Profession), BlockPosToString(entityById.Pos.AsBlockPos, capi), BlockPosToString(entityBehaviorVillager.Workstation, capi), BlockPosToString(entityBehaviorVillager.Bed, capi));
 		}
 		return Lang.Get("vsvillage:missing-in-action");
 	}
@@ -218,12 +236,12 @@ public class ManagementGui : GuiDialog
 		VillagerWorkstation villagerWorkstation = village.Workstations.Values.ToList().Find((VillagerWorkstation candidate) => candidate.Pos.ToString().Equals(code));
 		if (villagerWorkstation != null)
 		{
-			return Lang.Get("vsvillage:management-structure-note", Lang.Get("vsvillage:" + villagerWorkstation.Profession), capi.World.GetEntityById(villagerWorkstation.OwnerId)?.GetBehavior<EntityBehaviorNameTag>().DisplayName ?? Lang.Get("vsvillage:nobody"), BlockPosToString(villagerWorkstation.Pos, capi));
+			return Lang.Get("vsvillage:management-structure-note", Lang.Get("vsvillage:" + villagerWorkstation.Profession), capi.World.GetEntityById(villagerWorkstation.OwnerId)?.GetBehavior<EntityBehaviorNameTag>()?.DisplayName ?? Lang.Get("vsvillage:nobody"), BlockPosToString(villagerWorkstation.Pos, capi));
 		}
 		VillagerBed villagerBed = village.Beds.Values.ToList().Find((VillagerBed candidate) => candidate.Pos.ToString().Equals(code));
 		if (villagerBed != null)
 		{
-			return Lang.Get("vsvillage:management-structure-note", Lang.Get("vsvillage:bed"), capi.World.GetEntityById(villagerBed.OwnerId)?.GetBehavior<EntityBehaviorNameTag>().DisplayName ?? Lang.Get("vsvillage:nobody"), BlockPosToString(villagerBed.Pos, capi));
+			return Lang.Get("vsvillage:management-structure-note", Lang.Get("vsvillage:bed"), capi.World.GetEntityById(villagerBed.OwnerId)?.GetBehavior<EntityBehaviorNameTag>()?.DisplayName ?? Lang.Get("vsvillage:nobody"), BlockPosToString(villagerBed.Pos, capi));
 		}
 		BlockPos blockPos = village.Gatherplaces.ToList().Find((BlockPos candidate) => candidate.ToString().Equals(code));
 		if (blockPos != null)
@@ -232,6 +250,8 @@ public class ManagementGui : GuiDialog
 		}
 		return null;
 	}
+
+	// === Village admin (create / destroy / stats) ===
 
 	private bool createVillage(ICoreClientAPI capi)
 	{
@@ -257,6 +277,8 @@ public class ManagementGui : GuiDialog
 		return true;
 	}
 
+	// === Structure actions ===
+
 	private bool removeStructure(ICoreClientAPI capi)
 	{
 		managementMessage.Operation = EnumVillageManagementOperation.removeStructure;
@@ -275,6 +297,8 @@ public class ManagementGui : GuiDialog
 		return true;
 	}
 
+	// === Gather ===
+
 	private bool gatherVillagers(ICoreClientAPI capi)
 	{
 		managementMessage.Operation = EnumVillageManagementOperation.gatherVillagers;
@@ -288,6 +312,8 @@ public class ManagementGui : GuiDialog
 		capi.Network.GetChannel("villagemanagementnetwork").SendPacket(managementMessage);
 		return true;
 	}
+
+	// === Validation / recovery ===
 
 	private bool validateStructures(ICoreClientAPI capi)
 	{
@@ -303,12 +329,47 @@ public class ManagementGui : GuiDialog
 		return true;
 	}
 
-	private bool removeVillager(ICoreClientAPI capi)
+	// === Removal (mechhelper / villager) ===
+
+	private bool dismissMechhelper(ICoreClientAPI capi, Village village, ElementBounds dialogBounds, ElementBounds bgBounds)
 	{
-		managementMessage.Operation = EnumVillageManagementOperation.removeVillager;
-		managementMessage.VillagerToRemove = long.Parse(base.SingleComposer.GetDropDown("villagers").SelectedValue);
+		managementMessage.Operation = EnumVillageManagementOperation.dismissMechhelper;
 		capi.Network.GetChannel("villagemanagementnetwork").SendPacket(managementMessage);
-		TryClose();
+
+		// Recompose the Stats tab so the (now-absent) button disappears immediately.
+		// The server despawn fires async, so we can't perfectly verify, but the
+		// HasMechhelper check on recompose will return false a moment after the
+		// despawn lands. Worst case: button stays one render tick longer.
+		recompose(capi, village, dialogBounds, bgBounds, 0);
+		return true;
+	}
+
+	private bool removeVillager(ICoreClientAPI capi, Village village, ElementBounds dialogBounds, ElementBounds bgBounds)
+	{
+		// Pull the selected id BEFORE we touch state - the dropdown is about to be rebuilt.
+		long id = long.Parse(base.SingleComposer.GetDropDown("villagers").SelectedValue);
+
+		// Capture the villager's display name for the confirmation toast (lookup is cheap and
+		// we want it before the optimistic local removal below clears the entry).
+		string removedName = village.VillagerSaveData.TryGetValue(id, out VillagerData vd) ? vd.Name : "villager";
+
+		// Fire the server-side removal.
+		managementMessage.Operation = EnumVillageManagementOperation.removeVillager;
+		managementMessage.VillagerToRemove = id;
+		capi.Network.GetChannel("villagemanagementnetwork").SendPacket(managementMessage);
+
+		// Optimistic local removal so the dropdown reflects the change immediately when we recompose.
+		// If the server rejects (rare - only admin-driven path), the next sync will restore them.
+		village.VillagerSaveData.Remove(id);
+
+		// Rebuild the residents tab in place - UI stays open, dropdown is fresh, removed villager
+		// is gone. Previously this called TryClose() and slammed the whole management window shut.
+		recompose(capi, village, dialogBounds, bgBounds, 2);
+
+		// Confirmation message on the (newly composed) dynamic note element.
+		base.SingleComposer.GetDynamicText("villager-note")?.SetNewText(
+			Lang.Get("vsvillage:management-villager-removed", removedName));
+
 		return true;
 	}
 
@@ -325,6 +386,18 @@ public class ManagementGui : GuiDialog
 	{
 		List<int> list = new List<Match>(Regex.Matches(pos, "\\d+")).ConvertAll((Match match) => int.Parse(match.Value));
 		return new BlockPos(list[0], list[1], list[2], (list.Count > 3) ? list[3] : 0);
+	}
+
+	// True when there's a live Settlement Keeper (mechhelper) within 60 blocks of the
+	// mayor workstation - same radius the Villager Horn uses for its dedup check.
+	// Drives the conditional "Dismiss Settlement Keeper" button on the Stats tab.
+	private static bool HasMechhelper(Village village, ICoreClientAPI capi)
+	{
+		if (village?.Pos == null) return false;
+		Vec3d centre = village.Pos.ToVec3d().Add(0.5, 0.5, 0.5);
+		Entity[] keepers = capi.World.GetEntitiesAround(centre, 60f, 20f,
+			e => e.Code?.Domain == "vsvillage" && e.Code?.Path == "village-mechhelper" && e.Alive);
+		return keepers != null && keepers.Length > 0;
 	}
 
 	private static bool HasMarketStall(Village village, ICoreClientAPI capi)
@@ -347,7 +420,7 @@ public class ManagementGui : GuiDialog
 				{
 					tmp.Set(wx, cy + dy, wz);
 					Block b = ba.GetBlock(tmp);
-					if (b != null && b.Code?.Path?.StartsWith("marketstall") == true)
+					if (b != null && b.Code?.Domain == "vsvillage" && b.Code?.Path?.StartsWith("marketstall") == true)
 					{
 						return true;
 					}

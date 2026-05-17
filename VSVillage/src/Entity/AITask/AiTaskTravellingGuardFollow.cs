@@ -4,6 +4,7 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
+using Vintagestory.GameContent;
 
 namespace VsVillage;
 
@@ -103,7 +104,8 @@ public class AiTaskTravellingGuardFollow : AiTaskBase
 			return true;
 		}
 		long now = entity.World.ElapsedMilliseconds;
-		if (now - _lastRepathTime > 3000)
+		// Repath every 3s only when the trader has actually moved more than a block from the path target. Idle traders no longer trigger fresh A* calls.
+		if (now - _lastRepathTime > 3000 && (_target == null || traderPos.SquareDistanceTo(_target) > 1.0))
 		{
 			_lastRepathTime = now;
 			BuildPath();
@@ -136,7 +138,7 @@ public class AiTaskTravellingGuardFollow : AiTaskBase
 		{
 			entity.AnimManager.StopAnimation(animMeta.Code);
 		}
-		CloseOpenDoors();
+		DoorPathHelper.CloseOpenDoorsAlongPath(entity, _path);
 		_path = null;
 		_target = null;
 		_timesStuck = 0;
@@ -159,7 +161,12 @@ public class AiTaskTravellingGuardFollow : AiTaskBase
 		_pathfinder.blockAccessor.Begin();
 		_pathfinder.SetEntityCollisionBox(entity);
 		BlockPos start = _pathfinder.GetStartPos(myPos);
-		_path = _pathfinder.FindPath(start, behindPos.AsBlockPos, 1500);
+		// 5000 (was 1500): the lower budget couldn't reach a bridge route past
+		// the wading "easy" path, so the pathfinder gave up on the dry detour
+		// and committed to wading across streams even when a bridge existed.
+		// Matches VillagerPathfind.FindPath's default and other long-haul
+		// villager tasks.
+		_path = _pathfinder.FindPath(start, behindPos.AsBlockPos, 5000);
 		_pathfinder.blockAccessor.Commit();
 		if (_path == null || _path.Count == 0)
 		{
@@ -193,15 +200,12 @@ public class AiTaskTravellingGuardFollow : AiTaskBase
 			_pathIdx++;
 			if (_pathIdx < _path.Count && _path[_pathIdx].IsDoor)
 			{
-				ToggleDoor(open: true, _path[_pathIdx].BlockPos);
+				DoorPathHelper.ToggleDoor(entity, _path[_pathIdx].BlockPos, opened: true);
 			}
 			if (node.IsDoor)
 			{
 				BlockPos dp = node.BlockPos.Copy();
-				entity.World.RegisterCallback(delegate
-				{
-					ToggleDoor(open: false, dp);
-				}, 5000);
+				DoorPathHelper.ScheduleDoorClose(entity, dp, 5000);
 			}
 		}
 		if (_pathIdx < _path.Count)
@@ -243,53 +247,4 @@ public class AiTaskTravellingGuardFollow : AiTaskBase
 		_stuckCheckTime = now;
 	}
 
-	private void ToggleDoor(bool open, BlockPos pos)
-	{
-		Block b = entity.World.BlockAccessor.GetBlock(pos);
-		if (b?.Code == null || (!b.Code.Path.Contains("door") && !b.Code.Path.Contains("gate")))
-		{
-			return;
-		}
-		BlockSelection sel = new BlockSelection
-		{
-			Block = b,
-			Position = pos,
-			HitPosition = new Vec3d(0.5, 0.5, 0.5),
-			Face = BlockFacing.NORTH
-		};
-		TreeAttribute attrs = new TreeAttribute();
-		attrs.SetBool("opened", open);
-		try
-		{
-			b.Activate(entity.World, new Caller
-			{
-				Entity = entity,
-				Type = EnumCallerType.Entity,
-				Pos = entity.Pos.XYZ
-			}, sel, attrs);
-		}
-		catch (Exception ex)
-		{
-			entity.World.Logger.Warning("[VsVillage] Failed to toggle door at " + sel.Position + ": " + ex.Message);
-		}
-	}
-
-	private void CloseOpenDoors()
-	{
-		if (_path == null)
-		{
-			return;
-		}
-		foreach (VillagerPathNode node in _path)
-		{
-			if (node.IsDoor)
-			{
-				Block b = entity.World.BlockAccessor.GetBlock(node.BlockPos);
-				if (b?.Code != null && (b.Code.Path.Contains("opened") || b.Code.Path.Contains("open")))
-				{
-					ToggleDoor(open: false, node.BlockPos);
-				}
-			}
-		}
-	}
 }

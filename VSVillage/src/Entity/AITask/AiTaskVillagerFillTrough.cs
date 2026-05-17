@@ -17,15 +17,9 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 
 	private long troughCooldownMs = 60000L;
 
-	// ── Trough claiming ──────────────────────────────────────────────────────
-	// Prevents multiple shepherds from all converging on the same nearest
-	// trough simultaneously while the others stay empty.
-	// Key: trough BlockPos; Value: entity ID of the shepherd heading there.
+	// Trough claiming so multiple shepherds don't converge on the same one. Owner dict + separate timestamp dict for stale-claim expiry.
 	private static readonly ConcurrentDictionary<BlockPos, long> TroughClaimOwner =
 		new ConcurrentDictionary<BlockPos, long>();
-
-	// Separate timestamp dict so we can expire stale claims (e.g. shepherd died
-	// or task cancelled before FinishExecute released the claim).
 	private static readonly ConcurrentDictionary<BlockPos, long> TroughClaimTime =
 		new ConcurrentDictionary<BlockPos, long>();
 
@@ -52,7 +46,7 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		// Release our previous claim and evict globally-stale entries so they
 		// don't permanently prevent other shepherds from accessing those troughs.
 		ReleaseClaim(lastTroughPos);
-		PurgeExpiredClaims();
+		PurgeExpiredClaims(entity.World.ElapsedMilliseconds);
 
 		POIRegistry poiReg = entity.Api.ModLoader.GetModSystem<POIRegistry>();
 		Vec3d myPos = entity.Pos.XYZ;
@@ -60,7 +54,7 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		nearestTrough = null;
 
 		// Match BOTH BlockEntityTrough (large trough) and BlockEntityTroughMiniBowl
-		// (small trough) — they share no common base class beyond IPointOfInterest, so
+		// (small trough) - they share no common base class beyond IPointOfInterest, so
 		// we fall back to a block-code check for anything that isn't BlockEntityTrough.
 		if (skipPos != null)
 		{
@@ -98,11 +92,9 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		return GetTroughApproachPos(nearestTrough);
 	}
 
-	/// <summary>
-	/// Returns true for any block entity that represents a creature trough,
-	/// regardless of whether it is the large (BlockEntityTrough) or small
-	/// (BlockEntityTroughMiniBowl / any other VS variant) trough type.
-	/// </summary>
+	// Returns true for any block entity that represents a creature trough,
+	// regardless of whether it is the large (BlockEntityTrough) or small
+	// (BlockEntityTroughMiniBowl / any other VS variant) trough type.
 	private static bool IsTroughPoi(IPointOfInterest poi)
 	{
 		if (poi is BlockEntityTrough) return true;
@@ -130,11 +122,7 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 			if (neighborBlock.Code == null) continue;
 			string blockPath = neighborBlock.Code.Path;
 
-			// Hard-skip solid fence panels — can't walk through them.
-			// Gate and door blocks are kept: closed gates/doors have collision boxes but are
-			// passable (the villager pushes through), so we must not reject them here.
-			// Previously closed gates were incorrectly rejected via the neighborClear check,
-			// leaving troughs inside gated pens with zero valid approach positions.
+			// Skip solid fence panels but keep gates/doors (closed gates have collision but villagers push through).
 			if (blockPath.Contains("fence") && !blockPath.Contains("gate")) continue;
 
 			Block below = ba.GetBlock(neighborPos.DownCopy());
@@ -216,7 +204,7 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		}
 		else
 		{
-			// No valid content config — release the claim immediately so another
+			// No valid content config - release the claim immediately so another
 			// shepherd can try a different item or the trough isn't locked forever.
 			ReleaseClaim(nearestTrough.Pos);
 		}
@@ -227,7 +215,7 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		entity.AnimManager.StopAnimation("hoe-till");
 		// Release the claim if ApplyInteractionEffect was never called (e.g. task
 		// was cancelled before reaching the trough, or no contentConfig found).
-		// ReleaseClaim is safe to call redundantly — it's a no-op if already released.
+		// ReleaseClaim is safe to call redundantly - it's a no-op if already released.
 		ReleaseClaim(lastTroughPos);
 		base.FinishExecute(cancelled);
 	}
@@ -240,7 +228,7 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 	private bool IsTroughOnCooldown(BlockPos pos)
 	{
 		long elapsedMilliseconds = entity.World.ElapsedMilliseconds;
-		// Fast path: nothing has been filled recently — no allocation needed.
+		// Fast path: nothing has been filled recently - no allocation needed.
 		if (recentlyFilledTroughs.Count == 0) return false;
 		// Purge expired entries; only allocate the removal list when there are entries.
 		List<BlockPos> list = null;
@@ -297,7 +285,7 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		return stackSize < maxStackSize;
 	}
 
-	// ── Claim helpers ────────────────────────────────────────────────────────
+	// === Claim helpers ===
 
 	private bool IsClaimedByOther(BlockPos pos)
 	{
@@ -329,14 +317,11 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		TroughClaimTime.TryRemove(pos, out _);
 	}
 
-	private static void PurgeExpiredClaims()
+	// Caller passes world tick time (entity.World.ElapsedMilliseconds) so the clock matches the other claim methods.
+	private static void PurgeExpiredClaims(long now)
 	{
-		// Called once per GetTargetPos invocation — cheap because claim counts
-		// are tiny (one entry per shepherd currently seeking a trough).
-		long now = 0; // lazy-initialised below only if there are entries
 		foreach (BlockPos pos in TroughClaimTime.Keys)
 		{
-			if (now == 0) now = System.Environment.TickCount64; // avoids world access in static context
 			if (TroughClaimTime.TryGetValue(pos, out long t) && now - t > TroughClaimExpiryMs)
 			{
 				TroughClaimOwner.TryRemove(pos, out _);

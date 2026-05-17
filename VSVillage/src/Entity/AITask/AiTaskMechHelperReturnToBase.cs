@@ -4,19 +4,16 @@ using Vintagestory.API.MathTools;
 
 namespace VsVillage;
 
-/// <summary>
-/// The mechhelper's only movement task.  It finds the nearest village's mayor
-/// workstation and walks to stand next to it.  Once there it stays put.
-/// If the workstation is relocated it walks to the new position.
-///
-/// Before any village is founded (no mayor workstation within range) the
-/// mechhelper stands wherever it was spawned and does not move.
-/// </summary>
+// The mechhelper's only movement task.  It finds the nearest village's mayor
+// workstation and walks to stand next to it.  Once there it stays put.
+// If the workstation is relocated it walks to the new position.
+// Before any village is founded (no mayor workstation within range) the
+// mechhelper stands wherever it was spawned and does not move.
 public class AiTaskMechHelperReturnToBase : AiTaskGotoAndInteract
 {
     // Acceptable distance from the mayor workstation (blocks).
     private const float DefaultStandoff = 3f;
-    // Village search radius — matches horn spawn-check.
+    // Village search radius - matches horn spawn-check.
     private const float SearchRadius    = 80f;
 
     private float standoff2;
@@ -28,16 +25,16 @@ public class AiTaskMechHelperReturnToBase : AiTaskGotoAndInteract
         standoff2 = standoff * standoff;
     }
 
-    // ── AiTaskGotoAndInteract overrides ───────────────────────────────────────
+    // === AiTaskGotoAndInteract overrides ===
 
     protected override Vec3d GetTargetPos()
     {
         BlockPos mayor = FindNearestMayorWorkstation();
-        if (mayor == null) return null;   // no village yet — stand still
+        if (mayor == null) return null;   // no village yet - stand still
 
         Vec3d mayorVec = mayor.ToVec3d().Add(0.5, 0.5, 0.5);
 
-        // Already close enough — stay put.
+        // Already close enough - stay put.
         if (entity.Pos.XYZ.SquareDistanceTo(mayorVec) <= standoff2) return null;
 
         return PickSpotNear(mayorVec);
@@ -45,10 +42,10 @@ public class AiTaskMechHelperReturnToBase : AiTaskGotoAndInteract
 
     protected override void ApplyInteractionEffect()
     {
-        // Nothing on arrival — entity stops and idles here.
+        // Nothing on arrival - entity stops and idles here.
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // === Helpers ===
 
     private BlockPos FindNearestMayorWorkstation()
     {

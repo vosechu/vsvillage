@@ -115,7 +115,7 @@ public class EntityBehaviorVillager : EntityBehavior
     {
         entity.AnimManager?.StopAnimation("Lie");
 
-        // Dead villagers should not persist — despawn the corpse immediately.
+        // Dead villagers should not persist - despawn the corpse immediately.
         if (!entity.Alive)
         {
             (entity.Api as ICoreServerAPI)?.World.DespawnEntity(entity, new EntityDespawnData
@@ -130,7 +130,7 @@ public class EntityBehaviorVillager : EntityBehavior
 
         if (string.IsNullOrEmpty(savedVillageId))
         {
-            // No VillageId — world-gen entity or unassigned founding villager. Leave it alone.
+            // No VillageId - world-gen entity or unassigned founding villager. Leave it alone.
             entity.Api?.Logger.Debug(
                 "[VsVillage] Villager " + entity.EntityId + " (" + entity.Code?.Path +
                 ") has no VillageId - skipping auto-assignment.");
@@ -151,7 +151,7 @@ public class EntityBehaviorVillager : EntityBehavior
 
             // Self-heal: if the villager remembers a workstation/bed and the village
             // entry is unowned (pre-fix save file, or some other path nulled the
-            // OwnerId), re-claim it. We only re-claim free slots — if the player has
+            // OwnerId), re-claim it. We only re-claim free slots - if the player has
             // since reassigned that structure to someone else, leave it alone.
             BlockPos savedWs = Workstation;
             if (savedWs != null && village.Workstations.TryGetValue(savedWs, out VillagerWorkstation ws))
@@ -168,7 +168,7 @@ public class EntityBehaviorVillager : EntityBehavior
                 }
                 else if (ws.OwnerId != entity.EntityId)
                 {
-                    // Someone else owns it now — drop the stale reference.
+                    // Someone else owns it now - drop the stale reference.
                     Workstation = null;
                 }
             }
@@ -194,18 +194,18 @@ public class EntityBehaviorVillager : EntityBehavior
         }
         else
         {
-            // Stale VillageId — village was deleted or renamed. No auto-despawn.
+            // Stale VillageId - village was deleted or renamed. No auto-despawn.
             // Player can recover this villager via Management GUI "Recover Villagers".
             entity.Api?.Logger.Warning(
                 "[VsVillage] Villager " + entity.EntityId + " (" + entity.Code?.Path +
-                ") has stale VillageId '" + savedVillageId + "' — village not found. Use Recover Villagers in the Management GUI.");
+                ") has stale VillageId '" + savedVillageId + "' - village not found. Use Recover Villagers in the Management GUI.");
         }
     }
 
     public override void OnEntityDeath(DamageSource damageSourceForDeath)
     {
         Village?.RemoveVillager(entity.EntityId);
-        // Schedule corpse despawn — 60 s gives the player time to see what happened.
+        // Schedule corpse despawn - 60 s gives the player time to see what happened.
         if (entity.Api is ICoreServerAPI sapi)
         {
             long eid = entity.EntityId;

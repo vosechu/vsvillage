@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -11,21 +12,17 @@ namespace VsVillage;
 
 public class AiTaskVillagerMeleeAttack : AiTaskMeleeAttack
 {
-	// ── Village alarm registry ────────────────────────────────────────────────
-	// Keyed by Village.Id (string), value = ElapsedMilliseconds when alarm was raised.
-	// Static so AiTaskVillagerSleep can read it without any registration ceremony.
-	// Bounded by the number of distinct villages that have ever seen combat.
-	internal static readonly Dictionary<string, long> VillageAlarms = new Dictionary<string, long>();
-	internal const long AlarmDurationMs = 90_000L; // how long sleeping soldiers stay awake after an alarm
+	// Soldiers write from AI thread concurrently, sleep task reads. ConcurrentDictionary required.
+	internal static readonly ConcurrentDictionary<string, long> VillageAlarms = new ConcurrentDictionary<string, long>();
+	// Engaging soldier's entity id, keyed by village. ChaseEntity reads this so far-away allies can rally to the fight.
+	internal static readonly ConcurrentDictionary<string, long> VillageAlarmEngagers = new ConcurrentDictionary<string, long>();
+	internal const long AlarmDurationMs = 90_000L;
 
-	// Initialise to -ReportCooldownMs so the very first engagement always fires.
-	// Using long.MinValue caused unsigned-overflow in (now - long.MinValue) which
-	// evaluated to a large negative number, making the cooldown check always skip.
+	// -ReportCooldownMs so the first engagement always fires (long.MinValue would underflow the cooldown subtraction).
 	private long _lastReportedAtMs = -ReportCooldownMs;
 	private const long ReportCooldownMs  = 60_000L;  // only report once per minute per soldier
 	private const double ReportRadiusSq  = 200.0 * 200.0; // broadcast radius (blocks²)
 
-	// ─────────────────────────────────────────────────────────────────────────
 
 	public AnimationMetaData baseAnimMeta { get; set; }
 
@@ -49,7 +46,12 @@ public class AiTaskVillagerMeleeAttack : AiTaskMeleeAttack
 			{
 				Code = taskConfig["stabanimation"].AsString()?.ToLowerInvariant(),
 				Animation = taskConfig["stabanimation"].AsString()?.ToLowerInvariant(),
-				AnimationSpeed = taskConfig["stabanimationSpeed"].AsFloat(1f)
+				// Read both lower-case and camelCase JSON keys (both ship in different configs).
+				AnimationSpeed = taskConfig["stabanimationspeed"].AsFloat(
+					taskConfig["stabanimationSpeed"].AsFloat(1f)),
+				// Suppress concurrent idle/yawn anims so the strike plays cleanly (otherwise the soldier looks like she's shrugging at the target).
+				SupressDefaultAnimation = true,
+				Weight = 5f
 			}.Init();
 		}
 		if (taskConfig["slashanimation"].Exists)
@@ -58,10 +60,20 @@ public class AiTaskVillagerMeleeAttack : AiTaskMeleeAttack
 			{
 				Code = taskConfig["slashanimation"].AsString()?.ToLowerInvariant(),
 				Animation = taskConfig["slashanimation"].AsString()?.ToLowerInvariant(),
-				AnimationSpeed = taskConfig["slashanimationSpeed"].AsFloat(1f)
+				AnimationSpeed = taskConfig["slashanimationspeed"].AsFloat(
+					taskConfig["slashanimationSpeed"].AsFloat(1f)),
+				SupressDefaultAnimation = true,
+				Weight = 5f
 			}.Init();
 		}
 	}
+
+	// Idle/gesture anims that can blend over the strike if not stopped first.
+	private static readonly string[] BlockingIdleAnims = new[]
+	{
+		"idle", "idleyawn", "nod", "greet", "welcome", "laugh",
+		"refuse", "clap", "jugglingballs-juggle"
+	};
 
 	public override bool IsTargetableEntity(Entity e, float range)
 	{
@@ -74,8 +86,29 @@ public class AiTaskVillagerMeleeAttack : AiTaskMeleeAttack
 
 	public override void StartExecute()
 	{
+		// Stop any idle/gesture that would blend over the strike anim.
+		foreach (string code in BlockingIdleAnims)
+		{
+			if (entity.AnimManager.IsAnimationActive(code))
+			{
+				entity.AnimManager.StopAnimation(code);
+			}
+		}
+
 		string path = entity.Code?.Path ?? "";
 		bool isCombatant = path.EndsWith("-soldier") || path.EndsWith("-archer");
+
+		// Auto-equip a spear if bare-handed on engage. Activity equipspear is window-gated so noon engagements would otherwise fight unarmed.
+		if (isCombatant && entity.RightHandItemSlot != null && entity.RightHandItemSlot.Empty)
+		{
+			Item spear = entity.World.GetItem(new AssetLocation("game:spear-generic-blackbronze"));
+			if (spear != null)
+			{
+				entity.RightHandItemSlot.Itemstack = new ItemStack(spear);
+				entity.RightHandItemSlot.MarkDirty();
+			}
+		}
+
 		if (entity.RightHandItemSlot != null && !entity.RightHandItemSlot.Empty)
 		{
 			damage = Math.Max(entity.RightHandItemSlot.Itemstack.Item.AttackPower * armedDamageMultiplier, unarmedDamage);
@@ -92,6 +125,14 @@ public class AiTaskVillagerMeleeAttack : AiTaskMeleeAttack
 			animMeta = baseAnimMeta;
 		}
 		base.StartExecute();
+
+		// Snap yaw to target so ContinueExecute sees correctYaw=true on first tick (otherwise damped turn rate from chase makes the strike lag 1-3s).
+		if (targetEntity != null)
+		{
+			double dx = targetEntity.Pos.X - entity.Pos.X;
+			double dz = targetEntity.Pos.Z - entity.Pos.Z;
+			entity.Pos.Yaw = (float)Math.Atan2(dx, dz);
+		}
 
 		// Soldiers report the engagement to nearby players and wake sleeping allies.
 		TryReportHostile();
@@ -118,12 +159,7 @@ public class AiTaskVillagerMeleeAttack : AiTaskMeleeAttack
 		}
 	}
 
-	/// <summary>
-	/// Called at the start of each melee engagement.  Only soldiers send reports —
-	/// archers are day guards and are asleep when most hostiles appear.
-	/// Raises a village-wide alarm (wakes sleeping soldiers) and sends a chat
-	/// notification to nearby players.  Throttled to once per minute per soldier.
-	/// </summary>
+	// Soldiers raise a village alarm (wakes other soldiers) and chat-notify nearby players. Throttled to once per minute per soldier.
 	private void TryReportHostile()
 	{
 		if (entity.Code?.Path?.EndsWith("-soldier") != true) return;
@@ -137,7 +173,8 @@ public class AiTaskVillagerMeleeAttack : AiTaskMeleeAttack
 		if (village == null) return;
 
 		_lastReportedAtMs = now;
-		VillageAlarms[village.Id] = now; // wake any sleeping soldiers in this village
+		VillageAlarms[village.Id] = now;
+		VillageAlarmEngagers[village.Id] = entity.EntityId;
 
 		// Compose the message.
 		string soldierName = entity.WatchedAttributes.GetString("nametag");
@@ -163,10 +200,8 @@ public class AiTaskVillagerMeleeAttack : AiTaskMeleeAttack
 		}
 	}
 
-	/// <summary>
-	/// Turns a raw entity code path ("drifter-normal", "wolf-male", "hellboar-female")
-	/// into a readable display name ("Drifter", "Wolf", "Hellboar").
-	/// </summary>
+	// Turns a raw entity code path ("drifter-normal", "wolf-male", "hellboar-female")
+	// into a readable display name ("Drifter", "Wolf", "Hellboar").
 	private static string FormatEnemyType(string codePath)
 	{
 		int dash = codePath.IndexOf('-');

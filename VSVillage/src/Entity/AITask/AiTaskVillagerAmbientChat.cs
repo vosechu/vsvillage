@@ -9,18 +9,18 @@ using Vintagestory.GameContent;
 
 namespace VsVillage;
 
-/// <summary>
-/// Slot-1 ambient gesture task.  When another villager is already within
-/// <c>maxdistance</c> blocks the villager turns to face them, plays a brief
-/// gesture animation, and broadcasts the voice packet — no movement involved.
-/// Safe to run concurrently with slot-0 work tasks without pulling the
-/// villager away from their workstation.
-/// </summary>
+// Slot-1 ambient gesture task.  When another villager is already within
+// maxdistance blocks the villager turns to face them, plays a brief
+// gesture animation, and broadcasts the voice packet - no movement involved.
+// Safe to run concurrently with slot-0 work tasks without pulling the
+// villager away from their workstation.
 public class AiTaskVillagerAmbientChat : AiTaskBase
 {
 	private readonly string gestureAnim;
 	private readonly int gestureDurationMs;
 	private readonly float searchRadius;
+	private readonly bool applicable;
+	private readonly string[] excludeSuffixes;
 
 	private Entity chatPartner;
 	private long taskStartedAt;
@@ -32,15 +32,38 @@ public class AiTaskVillagerAmbientChat : AiTaskBase
 		gestureAnim       = taskConfig["gesture"].AsString("nod");
 		gestureDurationMs = taskConfig["gestureDurationMs"].AsInt(2000);
 		searchRadius      = taskConfig["maxdistance"].AsFloat(3.5f);
+
+		// "onlyForEntitySuffix": if set, only entities whose code ends with this suffix run this task.
+		string onlyFor = taskConfig["onlyForEntitySuffix"].AsString(null);
+		applicable = onlyFor == null || (entity.Code?.Path?.EndsWith(onlyFor) ?? false);
+
+		// "excludeEntitySuffixes": array of suffixes - entities matching ANY of these skip this task.
+		JsonObject exclNode = taskConfig["excludeEntitySuffixes"];
+		if (exclNode != null && exclNode.Exists)
+			excludeSuffixes = exclNode.AsArray(System.Array.Empty<string>());
+		else
+			excludeSuffixes = System.Array.Empty<string>();
 	}
 
 	public override bool ShouldExecute()
 	{
+		// Profession / entity-suffix gating. Constructor parses these from JSON but
+		// the original ShouldExecute didn't enforce them - so an "excludeEntitySuffixes"
+		// entry like ["-soldier", "-archer"] on the evening seiza variant of this task
+		// was silently ignored, and soldiers/archers were sitting down at sunset
+		// alongside civilians.
+		if (!applicable) return false;
+		string myPath = entity.Code?.Path ?? "";
+		for (int i = 0; i < excludeSuffixes.Length; i++)
+		{
+			if (myPath.EndsWith(excludeSuffixes[i])) return false;
+		}
+
 		if (entity.AnimManager.IsAnimationActive("Lie")) return false;
 		if (!IntervalUtil.matchesCurrentTime(duringDayTimeFrames, entity.World, 0f)) return false;
 		if (cooldownUntilMs > entity.World.ElapsedMilliseconds) return false;
 
-		// Only fire when another villager is already nearby — no walking needed.
+		// Only fire when another villager is already nearby - no walking needed.
 		Entity[] nearby = entity.World.GetEntitiesAround(entity.Pos.XYZ, searchRadius, 2f,
 			e => e is EntityVillager v && v != entity && v.Alive
 			     && !v.AnimManager.IsAnimationActive("Lie"));

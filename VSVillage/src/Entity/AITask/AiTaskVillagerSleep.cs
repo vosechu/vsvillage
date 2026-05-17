@@ -38,11 +38,9 @@ public class AiTaskVillagerSleep : AiTaskBase
 
 	private bool isExecuting;
 
-	/// <summary>
-	/// Pre-computed in the constructor: false when this task entry doesn't apply to this
-	/// entity type (based on onlyForEntitySuffix / excludeEntitySuffix in the task config).
-	/// Avoids repeated string allocations and EndsWith calls on every AI tick.
-	/// </summary>
+	// Pre-computed in the constructor: false when this task entry doesn't apply to this
+	// entity type (based on onlyForEntitySuffix / excludeEntitySuffix in the task config).
+	// Avoids repeated string allocations and EndsWith calls on every AI tick.
 	private readonly bool _isApplicableToThisEntity;
 
 	public AiTaskVillagerSleep(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
@@ -101,7 +99,7 @@ public class AiTaskVillagerSleep : AiTaskBase
 				Block bedBlock = entity.World.BlockAccessor.GetBlock(blockPos);
 				if (bedBlock == null || bedBlock.Id == 0 || !bedBlock.Code.Path.Contains("villagebed"))
 				{
-					// Assigned bed was destroyed — release it and search again.
+					// Assigned bed was destroyed - release it and search again.
 					villagerBehavior.Bed = null;
 					village.ClearBedOwner(entity.EntityId);
 					blockPos = village.FindFreeBed(entity.EntityId);
@@ -201,7 +199,7 @@ public class AiTaskVillagerSleep : AiTaskBase
 		entity.Controls.WalkVector.Set(0.0, 0.0, 0.0);
 		entity.Controls.StopAllMovement();
 		entity.Pos.Motion.Set(0.0, 0.0, 0.0);
-		CloseAllOpenDoors();
+		DoorPathHelper.CloseOpenDoorsAlongPath(entity, currentPath);
 		if (animMeta != null)
 			entity.AnimManager.StopAnimation(animMeta.Code);
 		entity.AnimManager.StopAnimation("Lie");
@@ -220,36 +218,6 @@ public class AiTaskVillagerSleep : AiTaskBase
 		timesStuck = 0;
 	}
 
-	private void ToggleDoor(bool opened, BlockPos target)
-	{
-		Block block = entity.World.BlockAccessor.GetBlock(target);
-		if (block != null && block.Code != null && (block.Code.Path.Contains("door") || block.Code.Path.Contains("gate")))
-		{
-			BlockSelection blockSel = new BlockSelection
-			{
-				Block = block,
-				Position = target,
-				HitPosition = new Vec3d(0.5, 0.5, 0.5),
-				Face = BlockFacing.NORTH
-			};
-			TreeAttribute treeAttribute = new TreeAttribute();
-			treeAttribute.SetBool("opened", opened);
-			try
-			{
-				block.Activate(entity.World, new Caller
-				{
-					Entity = entity,
-					Type = EnumCallerType.Entity,
-					Pos = entity.Pos.XYZ
-				}, blockSel, treeAttribute);
-			}
-			catch (Exception ex)
-			{
-				entity.World.Logger.Error("[VsVillage] Sleep: failed to toggle door: " + ex.Message);
-			}
-		}
-	}
-
 	private void HandlePathTraversal()
 	{
 		if (currentPath == null || currentPathIndex >= currentPath.Count) return;
@@ -263,12 +231,12 @@ public class AiTaskVillagerSleep : AiTaskBase
 		{
 			currentPathIndex++;
 			if (currentPathIndex < currentPath.Count && currentPath[currentPathIndex].IsDoor)
-				ToggleDoor(opened: true, currentPath[currentPathIndex].BlockPos);
+				DoorPathHelper.ToggleDoor(entity, currentPath[currentPathIndex].BlockPos, opened: true);
 
 			if (node.IsDoor)
 			{
 				BlockPos doorPos = node.BlockPos.Copy();
-				entity.World.RegisterCallback(delegate { ToggleDoor(opened: false, doorPos); }, 5000);
+				DoorPathHelper.ScheduleDoorClose(entity, doorPos, 5000);
 			}
 		}
 		if (currentPathIndex < currentPath.Count)
@@ -284,19 +252,6 @@ public class AiTaskVillagerSleep : AiTaskBase
 		}
 	}
 
-	private void CloseAllOpenDoors()
-	{
-		if (currentPath == null) return;
-		foreach (VillagerPathNode node in currentPath)
-		{
-			if (node.IsDoor)
-			{
-				Block block = entity.World.BlockAccessor.GetBlock(node.BlockPos);
-				if (block != null && block.Code != null && (block.Code.Path.Contains("opened") || block.Code.Path.Contains("open")))
-					ToggleDoor(opened: false, node.BlockPos);
-			}
-		}
-	}
 
 	private bool IsAtBed()
 	{
@@ -311,7 +266,6 @@ public class AiTaskVillagerSleep : AiTaskBase
 		if (animMeta != null) entity.AnimManager.StopAnimation(animMeta.Code);
 		entity.AnimManager.StopAnimation("walk");
 		entity.AnimManager.StopAnimation("Walk");
-		entity.AnimManager.StopAnimation("balanced-walk");
 		entity.AnimManager.StopAnimation("interact");
 		if (targetBedPos != null)
 		{
@@ -363,7 +317,7 @@ public class AiTaskVillagerSleep : AiTaskBase
 		}
 		if (bestPos != null) return bestPos;
 
-		entity.World.Logger.Warning("[VsVillage] Sleep: no clear neighbour around bed " + bedBlockPos + " — using bed centre");
+		entity.World.Logger.Warning("[VsVillage] Sleep: no clear neighbour around bed " + bedBlockPos + " - using bed centre");
 		return bedCenter;
 	}
 
@@ -423,10 +377,8 @@ public class AiTaskVillagerSleep : AiTaskBase
 		}
 	}
 
-	/// <summary>
-	/// Returns true when this soldier's village has an active alarm.
-	/// Only soldiers respond to alarms — archers and civilians sleep through them.
-	/// </summary>
+	// Returns true when this soldier's village has an active alarm.
+	// Only soldiers respond to alarms - archers and civilians sleep through them.
 	private bool IsVillageUnderAlarm()
 	{
 		string codePath = entity.Code?.Path ?? "";
@@ -488,7 +440,7 @@ public class AiTaskVillagerSleep : AiTaskBase
 		}
 		else
 		{
-			entity.World.Logger.Warning("[VsVillage] Sleep: entity " + entity.EntityId + " has no safe teleport destination — giving up");
+			entity.World.Logger.Warning("[VsVillage] Sleep: entity " + entity.EntityId + " has no safe teleport destination - giving up");
 			stuck = true;
 		}
 	}

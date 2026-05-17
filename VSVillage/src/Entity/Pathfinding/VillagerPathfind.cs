@@ -13,7 +13,8 @@ public class VillagerPathfind
 
 	public VillagerPathfind(ICoreServerAPI sapi)
 	{
-		ICachingBlockAccessor cachingBlockAccessor = sapi.World.GetCachingBlockAccessor(synchronize: true, relight: true);
+		// relight:false because pathfinding only reads blocks; the lighting machinery was dead overhead per villager.
+		ICachingBlockAccessor cachingBlockAccessor = sapi.World.GetCachingBlockAccessor(synchronize: true, relight: false);
 		villagerAStar = new VillagerAStarNew(cachingBlockAccessor);
 		waypointAStar = new WaypointAStar(cachingBlockAccessor);
 	}
@@ -25,7 +26,8 @@ public class VillagerPathfind
 
 	public List<VillagerPathNode> FindPath(BlockPos start, BlockPos end, Village village)
 	{
-		return villagerAStar.FindPath(start, end, 5000);
+		// Defers to VillagerAStarNew.FindPath default (12000). The previous 5000 cap silently failed long routes.
+		return villagerAStar.FindPath(start, end);
 	}
 
 	public List<Vec3d> FindPathAsWaypoints(BlockPos start, BlockPos end, Village village)
@@ -40,7 +42,9 @@ public class VillagerPathfind
 
 	public List<Vec3d> ToWaypoints(List<VillagerPathNode> path)
 	{
-		List<Vec3d> list = new List<Vec3d>(path.Count + 1);
+		// path.Count == 1 means start equals end: nothing to walk to. Return null so callers branch on "already there".
+		if (path == null || path.Count <= 1) return null;
+		List<Vec3d> list = new List<Vec3d>(path.Count);
 		for (int i = 1; i < path.Count; i++)
 		{
 			list.Add(path[i].ToWaypoint());

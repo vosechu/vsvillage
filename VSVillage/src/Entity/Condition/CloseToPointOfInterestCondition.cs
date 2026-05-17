@@ -10,7 +10,7 @@ using Vintagestory.GameContent;
 
 namespace VsVillage;
 
-[JsonObject(/*Could not decode attribute arguments.*/)]
+[JsonObject]
 public class CloseToPointOfInterestCondition : IActionCondition, IStorableTypedComponent
 {
 	public const string ConditionType = "CloseToPointOfInterest";

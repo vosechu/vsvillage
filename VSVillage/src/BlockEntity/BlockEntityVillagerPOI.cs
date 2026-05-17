@@ -25,13 +25,8 @@ public abstract class BlockEntityVillagerPOI : BlockEntity
 
 	public abstract bool BelongsToVillage(Village village);
 
-	/// <summary>
-	/// Returns the in-memory village registry's OwnerId for this POI (or -1 if not owned
-	/// or this POI type doesn't track ownership). Used by Initialize to reconcile the
-	/// persisted OwnerName with the in-memory state on chunk load - if a villager was
-	/// fired while this chunk was unloaded, village.{Beds,Workstations}[Pos].OwnerId got
-	/// cleared but our serialized OwnerName never did.
-	/// </summary>
+
+	// OwnerId from the in-memory village registry, or -1 if untracked. Used to reconcile serialized OwnerName on chunk load.
 	protected virtual long GetCurrentOwnerId(Village village) => -1L;
 
 	public override void Initialize(ICoreAPI api)
@@ -45,13 +40,10 @@ public abstract class BlockEntityVillagerPOI : BlockEntity
 			if (!string.IsNullOrEmpty(VillageId))
 			{
 				village = vm?.GetVillage(VillageId);
-				// Stale VillageId from a copy-paste / different save: the village we
-				// found (if any) may be in a completely different location. If this
-				// block is outside that village's radius, discard the stale reference
-				// and fall back to a position search so we don't ghost-register.
+				// Stale VillageId (copy-paste or different save). If we're outside the resolved village's radius, drop the stale ref.
 				if (village != null && !IsWithinVillageRadius(village))
 				{
-					api.Logger.Warning("[VsVillage] Block at " + Pos + " has stale VillageId '" + VillageId + "' pointing to a village at " + village.Pos + " (radius " + village.Radius + ") — clearing stale data.");
+					api.Logger.Warning("[VsVillage] Block at " + Pos + " has stale VillageId '" + VillageId + "' pointing to a village at " + village.Pos + " (radius " + village.Radius + ") - clearing stale data.");
 					VillageId = null;
 					VillageName = null;
 					village = null;
@@ -70,23 +62,21 @@ public abstract class BlockEntityVillagerPOI : BlockEntity
 				VillageName = village.Name;
 				AddToVillage(village);
 			}
-			else if (village == null)
+			else if (village == null && vm != null)
 			{
-				// Not inside any known village radius — clear any leftover data so
+				// Not inside any known village radius - clear any leftover data so
 				// this block doesn't silently claim a village it was pasted from.
+				// Gated on vm != null so a load-order race (POI initializes before
+				// VillageManager finishes loading) doesn't wipe persistent state.
 				if (!string.IsNullOrEmpty(VillageId))
 				{
-					api.Logger.Warning("[VsVillage] Block at " + Pos + " references village '" + VillageId + "' but no matching village found — clearing.");
+					api.Logger.Warning("[VsVillage] Block at " + Pos + " references village '" + VillageId + "' but no matching village found - clearing.");
 					VillageId = null;
 					VillageName = null;
 				}
 			}
 
-			// Reconcile OwnerName with the in-memory village state. If the POI was freed
-			// (e.g. owner fired) while this chunk was unloaded, village.{Beds,Workstations}
-			// [Pos].OwnerId is -1 but our serialized OwnerName persists - clear it. Symmetric
-			// case: in-memory shows ownership but our cached OwnerName is empty (e.g. the
-			// owner reloaded with a fresh entity ID that already self-healed) - refill.
+			// Reconcile OwnerName with the in-memory OwnerId: clear if owner was fired offline, refill if owner self-healed with a fresh entity id.
 			if (village != null)
 			{
 				long currentOwnerId = GetCurrentOwnerId(village);
@@ -130,6 +120,7 @@ public abstract class BlockEntityVillagerPOI : BlockEntity
 	public override void OnBlockBroken(IPlayer byPlayer = null)
 	{
 		base.OnBlockBroken(byPlayer);
+		// RemoveFromVillage must tolerate a null village; subclasses guard internally.
 		RemoveFromVillage(Api.ModLoader.GetModSystem<VillageManager>()?.GetVillage(VillageId));
 	}
 

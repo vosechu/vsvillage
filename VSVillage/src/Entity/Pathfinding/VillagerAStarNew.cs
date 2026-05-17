@@ -19,6 +19,12 @@ public class VillagerAStarNew
 
 	public const int maxFallHeight = 5;
 
+	// Extra A* cost per node at foot-level liquid. Picks dry detours over wading when one exists.
+	public const float LiquidPathPenalty = 150f;
+
+	// Extra A* cost per node at head-level liquid. Stacks with foot-level so fully-submerged swimming costs ~2x wading.
+	public const float SubmergedPathPenalty = 100f;
+
 	protected CollisionTester collTester;
 
 	protected Cuboidf entityCollBox = new Cuboidf(-0.4f, 0f, -0.4f, 0.4f, 1.8f, 0.4f);
@@ -33,7 +39,7 @@ public class VillagerAStarNew
 
 	public List<string> traversableCodes;
 
-	// Single shared Random per pathfinder instance — avoids two new Random() calls per
+	// Single shared Random per pathfinder instance - avoids two new Random() calls per
 	// FindPath invocation which could produce correlated seeds when called in the same ms.
 	private readonly Random _rng = new Random();
 
@@ -53,15 +59,11 @@ public class VillagerAStarNew
 	{
 		if (start == null || end == null) return null;
 
-		// Keep the test point near the block centre so narrow collision boxes
-		// (fences, fence posts, signs) are reliably detected.  The previous
-		// range (0.3–0.7) could drop the probe into the gaps on either side
-		// of a fence post, causing diagonal fence-corner cuts.
+		// Probe near block centre so narrow collision (fences, posts) is reliably detected, no diagonal slip-through.
 		centerOffsetX = 0.45 + _rng.NextDouble() * 0.10;
 		centerOffsetZ = 0.45 + _rng.NextDouble() * 0.10;
 
-		// Open set: SortedSet gives O(log n) min-extraction; parallel Dictionary gives
-		// O(1) lookup by position (replaces the old O(n) linear scan per neighbour).
+		// SortedSet (O log n min) + Dictionary (O 1 lookup) for the open set.
 		SortedSet<VillagerPathNode> openSet    = new SortedSet<VillagerPathNode>();
 		Dictionary<BlockPos, VillagerPathNode> openLookup = new Dictionary<BlockPos, VillagerPathNode>();
 		HashSet<VillagerPathNode> closedSet    = new HashSet<VillagerPathNode>();
@@ -167,49 +169,25 @@ public class VillagerAStarNew
 		return result;
 	}
 
-	/// <summary>
-	/// Returns true if the block at the given position is a narrow barrier
-	/// (fence, fence post, handrail, glass pane, etc.) that villagers must never
-	/// traverse.  These blocks have narrow collision boxes that can slip through
-	/// the AABB probe in CollisionTester.IsColliding depending on centerOffset,
-	/// so an explicit string-based check is required.
-	/// Gates and doors are explicitly allowed (they're traversable).
-	/// </summary>
+	// True if the block is a narrow barrier (fence/post/handrail/glasspane) that slips past the AABB probe. Gates and doors are allowed.
 	protected bool IsNarrowBarrier(BlockPos pos)
 	{
 		Block b = blockAccessor.GetBlock(pos);
 		string path = b?.Code?.Path;
 		if (path == null) return false;
 
-		// Allow-list: gates, doors, and trapdoors are traversable even if they
-		// share a substring with "fence" or other barrier terms.
+		// Allow gates/doors/trapdoors through the substring filter below.
 		if (path.Contains("gate") || path.Contains("door")) return false;
 
-		// Barrier patterns — any of these substrings means "do not traverse".
-		// Verified against vanilla 1.22 blocktypes:
-		//   - "fence"      : fence-bamboo, fence-coral-*, fence-free, fence-snow (fencegate/fence-bamboogate are excluded above by the "gate" check).
-		//   - "glasspane"  : glasspane-{glass}-{wood}-{ns|ew} — narrow 0.15-block-thick collision.
-		//   - "handrail"   : not in vanilla 1.22, kept defensively for modded content.
-		// NOT included (handled correctly by normal collision/step-up logic):
-		//   - "glass-slab" / "slab-*"      : 0.5-tall steppable half-blocks.
-		//   - "full-colored" / full glass  : full-block collision, caught by IsColliding.
+		// Barrier substrings, verified vs vanilla 1.22 blocktypes. handrail kept defensively for modded content.
 		return path.Contains("fence")
 			|| path.Contains("glasspane")
 			|| path.Contains("handrail");
 	}
 
-	/// <summary>
-	/// For diagonal moves from `fromPos` to `toPos`, returns true if either of
-	/// the two corner blocks the path cuts across is a narrow barrier.  A
-	/// diagonal NE move from (x,z) to (x+1,z+1) passes between (x+1,z) and
-	/// (x,z+1); both must be clear of fences/railings/etc.
-	/// </summary>
+	// Diagonal NE move (x,z) -> (x+1,z+1) cuts between (x+1,z) and (x,z+1). True if either corner is a narrow barrier.
 	private bool DiagonalCornerBlocked(BlockPos toPos, Cardinal fromDir)
 	{
-		// fromDir points from source -> target.  The two corners that share
-		// one axis with the target are at (toPos - dx) and (toPos - dz).
-		// A diagonal NE move to (x+1, z+1) cuts the corner between (x, z+1)
-		// and (x+1, z) — a fence post at either of those is the slip-through.
 		BlockPos cornerA = new BlockPos(toPos.X - fromDir.Normali.X, toPos.Y, toPos.Z);
 		BlockPos cornerB = new BlockPos(toPos.X, toPos.Y, toPos.Z - fromDir.Normali.Z);
 		return IsNarrowBarrier(cornerA) || IsNarrowBarrier(cornerB);
@@ -229,7 +207,7 @@ public class VillagerAStarNew
 			Block nodeBlock = blockAccessor.GetBlock(tmpPos);
 
 			// HARD BLOCK 1: the target block itself is a narrow barrier.
-			// Covers fences, fence posts, handrails, glass panes — regardless of
+			// Covers fences, fence posts, handrails, glass panes - regardless of
 			// centerOffset or which branch below would have run.  (The block
 			// above is already covered by the entity's 1.8-tall AABB in
 			// CollisionTester.IsColliding, so no need to check it explicitly.)
@@ -281,6 +259,20 @@ public class VillagerAStarNew
 							return false;
 						}
 						extraCost += traversalCost2;
+
+						// Foot-level liquid surcharge. Not impassable; still crossable if no alternative exists in the search depth.
+						if (block2.IsLiquid())
+						{
+							extraCost += LiquidPathPenalty;
+						}
+
+						// Head-level liquid surcharge stacks with foot, so submerged swimming costs ~2x wading (prevents preferring "swim across" over a bridge).
+						tmpPos.Set(node.BlockPos.X, node.BlockPos.Y + 1, node.BlockPos.Z);
+						Block headFluid = blockAccessor.GetBlock(tmpPos, 2);
+						if (headFluid != null && headFluid.IsLiquid())
+						{
+							extraCost += SubmergedPathPenalty;
+						}
 						if (forceTraversable && fromDir.IsDiagonal)
 						{
 							extraCost += 8f;
@@ -307,7 +299,7 @@ public class VillagerAStarNew
 				}
 				else if (IsNarrowBarrier(tmpPos))
 				{
-					// Narrow barrier (fence, handrail, glass pane) — never step up onto.
+					// Never step up onto a narrow barrier.
 					result = false;
 				}
 				else

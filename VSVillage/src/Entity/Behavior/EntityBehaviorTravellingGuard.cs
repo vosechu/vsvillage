@@ -59,6 +59,7 @@ public class EntityBehaviorTravellingGuard : EntityBehavior
 
 	public override void Initialize(EntityProperties properties, JsonObject attributes)
 	{
+		base.Initialize(properties, attributes);
 		if (entity.Api.Side == EnumAppSide.Server)
 		{
 			_tickListenerId = entity.World.RegisterGameTickListener(CheckDespawn, 10000);
@@ -87,7 +88,7 @@ public class EntityBehaviorTravellingGuard : EntityBehavior
 		Entity trader = TraderEntity;
 		if (trader == null || !trader.Alive)
 		{
-			Log("Trader gone — despawning guard.");
+			Log("Trader gone - despawning guard.");
 			DespawnSelf();
 			return;
 		}
@@ -101,7 +102,7 @@ public class EntityBehaviorTravellingGuard : EntityBehavior
 				double dist = entity.Pos.XYZ.DistanceTo(village.Pos.ToVec3d());
 				if (dist > village.Radius + 10.0)
 				{
-					Log($"Outside village area ({dist:F0}) — despawning guard.");
+					Log($"Outside village area ({dist:F0}) - despawning guard.");
 					DespawnSelf();
 				}
 			}

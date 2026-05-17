@@ -30,6 +30,11 @@ public class CultivateCropsAction : EntityActionBase
 			return;
 		}
 		POIRegistry modSystem = vas.Entity.Api.ModLoader.GetModSystem<POIRegistry>();
+		if (modSystem == null)
+		{
+			isFinished = true;
+			return;
+		}
 		targetFarmland = modSystem.GetNearestPoi(vas.Entity.Pos.XYZ, 40f, IsValidFarmland) as BlockEntityFarmland;
 		if (targetFarmland == null)
 		{

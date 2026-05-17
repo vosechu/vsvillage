@@ -4,11 +4,11 @@ using Vintagestory.API.Server;
 
 namespace VsVillage;
 
-/// <summary>
-/// Block class for non-mayor villager workstations.  Right-clicking sends an
-/// <see cref="VillageAssignmentContext"/> to the client so the player can open the
-/// assignment GUI and manually assign a compatible villager to this station.
-/// </summary>
+
+// Block class for non-mayor villager workstations.  Right-clicking sends an
+// VillageAssignmentContext to the client so the player can open the
+// assignment GUI and manually assign a compatible villager to this station.
+
 public class BlockVsWorkstation : Block
 {
 	public override bool OnBlockInteractStart(IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel)
@@ -17,7 +17,7 @@ public class BlockVsWorkstation : Block
 		{
 			BlockEntityVillagerWorkstation be = sapi.World.BlockAccessor.GetBlockEntity<BlockEntityVillagerWorkstation>(blockSel.Position);
 			if (be == null || string.IsNullOrEmpty(be.VillageId))
-				return false; // not assigned to a village — no interaction
+				return false; // not assigned to a village - no interaction
 
 			Village village = sapi.ModLoader.GetModSystem<VillageManager>()?.GetVillage(be.VillageId);
 			if (village == null)

@@ -94,7 +94,7 @@ public class AiTaskTravellingTraderLeave : AiTaskBase
         double currentDist = entity.Pos.XYZ.DistanceTo(village.Pos.ToVec3d());
         if (currentDist > ExitDist)
         {
-            entity.World.Logger.Debug($"[TravellingTraderLeave:{entity.EntityId}] Already outside village — notifying behavior.");
+            entity.World.Logger.Debug($"[TravellingTraderLeave:{entity.EntityId}] Already outside village - notifying behavior.");
             _behavior?.NotifyPathComplete();
             _stuck = true;
             return;
@@ -103,7 +103,7 @@ public class AiTaskTravellingTraderLeave : AiTaskBase
         BlockPos exitTarget = FindExitTarget(village);
         if (exitTarget == null)
         {
-            entity.World.Logger.Debug($"[TravellingTraderLeave:{entity.EntityId}] No valid exit surface found — will retry.");
+            entity.World.Logger.Debug($"[TravellingTraderLeave:{entity.EntityId}] No valid exit surface found - will retry.");
             return;
         }
 
@@ -117,7 +117,7 @@ public class AiTaskTravellingTraderLeave : AiTaskBase
 
         if (_path == null || _path.Count == 0)
         {
-            entity.World.Logger.Debug($"[TravellingTraderLeave:{entity.EntityId}] No path to exit target {exitTarget} — will retry.");
+            entity.World.Logger.Debug($"[TravellingTraderLeave:{entity.EntityId}] No path to exit target {exitTarget} - will retry.");
         }
         else
         {
@@ -136,10 +136,10 @@ public class AiTaskTravellingTraderLeave : AiTaskBase
         if (_path == null)
             return false;
 
-        // Proximity check — close enough to the exit target, just despawn.
+        // Proximity check - close enough to the exit target, just despawn.
         if (_exitTargetVec != null && entity.Pos.XYZ.DistanceTo(_exitTargetVec) <= ProximityDespawnDist)
         {
-            entity.World.Logger.Debug($"[TravellingTraderLeave:{entity.EntityId}] Within {ProximityDespawnDist} blocks of exit target — despawning.");
+            entity.World.Logger.Debug($"[TravellingTraderLeave:{entity.EntityId}] Within {ProximityDespawnDist} blocks of exit target - despawning.");
             entity.Controls.StopAllMovement();
             _behavior?.DespawnSelf();
             return false;
@@ -148,7 +148,7 @@ public class AiTaskTravellingTraderLeave : AiTaskBase
         // Per-execution timeout.
         if (entity.World.ElapsedMilliseconds - _taskStartedMs > TaskTimeoutMs)
         {
-            entity.World.Logger.Debug($"[TravellingTraderLeave:{entity.EntityId}] Task timeout — restarting.");
+            entity.World.Logger.Debug($"[TravellingTraderLeave:{entity.EntityId}] Task timeout - restarting.");
             return false;
         }
 
@@ -266,10 +266,10 @@ public class AiTaskTravellingTraderLeave : AiTaskBase
 
         Vec3d myPos = entity.Pos.XYZ;
 
-        // If stuck near the exit target, just despawn — no point retrying.
+        // If stuck near the exit target, just despawn - no point retrying.
         if (_exitTargetVec != null && myPos.DistanceTo(_exitTargetVec) <= StuckNearExitDist)
         {
-            entity.World.Logger.Debug($"[TravellingTraderLeave:{entity.EntityId}] Stuck within {StuckNearExitDist} blocks of exit — despawning.");
+            entity.World.Logger.Debug($"[TravellingTraderLeave:{entity.EntityId}] Stuck within {StuckNearExitDist} blocks of exit - despawning.");
             _behavior?.DespawnSelf();
             _stuck = true;
             return;
@@ -281,7 +281,7 @@ public class AiTaskTravellingTraderLeave : AiTaskBase
             {
                 _stuck = true;
                 _timesStuck = 0;
-                entity.World.Logger.Debug($"[TravellingTraderLeave:{entity.EntityId}] Stuck while departing — will retry with new direction.");
+                entity.World.Logger.Debug($"[TravellingTraderLeave:{entity.EntityId}] Stuck while departing - will retry with new direction.");
             }
         }
         else

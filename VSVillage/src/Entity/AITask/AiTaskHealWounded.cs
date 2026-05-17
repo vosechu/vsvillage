@@ -18,8 +18,11 @@ public class AiTaskHealWounded : AiTaskGotoAndInteract
 	protected override Vec3d GetTargetPos()
 	{
 		if (!IsHerbalist()) return null;
+		// Herbalist is asleep during these hours; skipping the scan also prevents her
+		// from sleep-walking sideways toward a wounded ally with the sleep anim still on.
+		if (IsSleepHours()) return null;
 
-		// Phase 1 — scan nearby entities (no allocation beyond the entity array VS returns).
+		// Phase 1 - scan nearby entities (no allocation beyond the entity array VS returns).
 		Entity[] nearby = entity.World.GetEntitiesAround(entity.Pos.XYZ, base.maxDistance, 5f,
 			e => e is EntityVillager || e is EntityTrader || e is EntityPlayer);
 
@@ -28,7 +31,7 @@ public class AiTaskHealWounded : AiTaskGotoAndInteract
 		foreach (Entity candidate in nearby)
 			ScoreCandidate(candidate, ref best, ref bestDeficit);
 
-		// Phase 2 — only scan village-wide if nobody nearby needs healing.
+		// Phase 2 - only scan village-wide if nobody nearby needs healing.
 		// Iterates VillagerSaveData directly to avoid the Village.Villagers property
 		// which allocates a fresh list + GetBehavior on every call.
 		if (best == null)
@@ -49,8 +52,8 @@ public class AiTaskHealWounded : AiTaskGotoAndInteract
 		return woundedEntity?.Pos?.XYZ;
 	}
 
-	/// <summary>Updates <paramref name="best"/> if <paramref name="candidate"/> has a
-	/// larger health deficit or is dead (needs reviving).</summary>
+	// Updates  if  has a
+	// larger health deficit or is dead (needs reviving).
 	private static void ScoreCandidate(Entity candidate, ref Entity best, ref float bestDeficit)
 	{
 		EntityBehaviorHealth health = candidate.GetBehavior<EntityBehaviorHealth>();
@@ -93,6 +96,12 @@ public class AiTaskHealWounded : AiTaskGotoAndInteract
 	}
 
 	private bool IsHerbalist() => entity?.Code?.Path?.EndsWith("-herbalist") == true;
+
+	private bool IsSleepHours()
+	{
+		float hour = entity.World.Calendar.HourOfDay / entity.World.Calendar.HoursPerDay * 24f;
+		return hour >= 21f || hour < 6f;
+	}
 
 	private void PerformHealing()
 	{

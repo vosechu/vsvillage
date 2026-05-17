@@ -28,6 +28,14 @@ public static class VillagerHireRequirementChecker
     private const int MaxPenRadius = 15;
     private const int PenYScan = 3;
 
+    // Cylinder scans are O(r^3) and hire/tooltip calls hit them repeatedly. 5s TTL keeps
+    // the result fresh enough that players tilling soil see updates within a click or two.
+    private const long ScanCacheTtlMs = 5000;
+    private struct CountEntry { public long Stamp; public int Count; }
+    private struct FarmlandEntry { public long Stamp; public int Total; public List<string> Keys; public List<int> Values; }
+    private static readonly Dictionary<(string villageId, string fragment), CountEntry> _countCache = new Dictionary<(string, string), CountEntry>();
+    private static readonly Dictionary<string, FarmlandEntry> _farmlandCache = new Dictionary<string, FarmlandEntry>();
+
     public static string CheckRequirements(EnumVillagerProfession profession, BlockPos workstationPos, Village village, ICoreAPI api)
     {
         VillagerBed freeBed = village.Beds.Values.FirstOrDefault((VillagerBed b) => b.OwnerId == -1);
@@ -73,12 +81,16 @@ public static class VillagerHireRequirementChecker
         return null;
     }
 
+    // === Farmer ===
+
     private static string CheckFarmerBase(BlockPos wsPos, ICoreAPI api)
     {
         if (!HasBlockNearby(wsPos, ProximityRadius, "farmland", api.World))
             return $"Farmer workstation must be within {ProximityRadius} blocks of a farmland block. Till some soil nearby.";
         return null;
     }
+
+    // === Shepherd ===
 
     private static string CheckShepherdBase(BlockPos wsPos, ICoreAPI api)
     {
@@ -125,7 +137,7 @@ public static class VillagerHireRequirementChecker
 
     private static string CheckShepherd(BlockPos wsPos, Village village, ICoreAPI api)
     {
-        // ── Local check: this pen must be valid, have a trough, and at least one animal ──
+        // === Local check: this pen must be valid, have a trough, and at least one animal ===
         PenScanResult localPen = ScanPen(wsPos, api);
 
         if (!localPen.IsEnclosed)
@@ -139,7 +151,7 @@ public static class VillagerHireRequirementChecker
         if (localPen.AnimalCount == 0)
             return "The pen must contain at least one livestock animal.";
 
-        // ── Village-wide aggregate ──
+        // === Village-wide aggregate ===
         // Collect all shepherd workstation positions including this one.
         var shepherdPositions = village.Workstations.Values
             .Where(ws => ws.Profession == EnumVillagerProfession.shepherd)
@@ -159,7 +171,7 @@ public static class VillagerHireRequirementChecker
         foreach (BlockPos pos in shepherdPositions)
         {
             HashSet<(int x, int z)> cells = GetPenCells(pos, ba);
-            if (cells.Count == 0) continue; // unenclosed — skip
+            if (cells.Count == 0) continue; // unenclosed - skip
 
             if (PenHasTrough(cells, pos, ba)) totalTroughs++;
 
@@ -184,9 +196,7 @@ public static class VillagerHireRequirementChecker
         return null;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
     // Pen scanning
-    // ─────────────────────────────────────────────────────────────────────────
 
     private readonly struct PenScanResult
     {
@@ -202,10 +212,17 @@ public static class VillagerHireRequirementChecker
         }
     }
 
-    /// <summary>
-    /// BFS from wsPos, stops at fence/gate barriers or MaxPenRadius.
-    /// Returns pen state including trough presence and animal count within the reached cells.
-    /// </summary>
+    // True if animalPos is inside the pen footprint reachable from wsPos via the same BFS the hire check validated.
+    public static bool IsAnimalInShepherdPen(BlockPos wsPos, BlockPos animalPos, IBlockAccessor ba)
+    {
+        if (wsPos == null || animalPos == null) return false;
+        HashSet<(int x, int z)> cells = GetPenCells(wsPos, ba);
+        if (cells.Count == 0) return false;
+        return cells.Contains((animalPos.X, animalPos.Z));
+    }
+
+    // BFS from wsPos, stops at fence/gate barriers or MaxPenRadius.
+    // Returns pen state including trough presence and animal count within the reached cells.
     private static PenScanResult ScanPen(BlockPos wsPos, ICoreAPI api)
     {
         IBlockAccessor ba = api.World.BlockAccessor;
@@ -220,11 +237,9 @@ public static class VillagerHireRequirementChecker
         return new PenScanResult(true, hasTrough, animalCount);
     }
 
-    /// <summary>
-    /// Returns the XZ cell footprint of the pen reachable from wsPos by BFS,
-    /// bounded by fence/gate blocks and MaxPenRadius.
-    /// Returns an empty set if the pen is unenclosed (BFS escapes the radius).
-    /// </summary>
+    // Returns the XZ cell footprint of the pen reachable from wsPos by BFS,
+    // bounded by fence/gate blocks and MaxPenRadius.
+    // Returns an empty set if the pen is unenclosed (BFS escapes the radius).
     private static HashSet<(int x, int z)> GetPenCells(BlockPos wsPos, IBlockAccessor ba)
     {
         var visited = new HashSet<(int x, int z)>();
@@ -270,10 +285,8 @@ public static class VillagerHireRequirementChecker
         return visited;
     }
 
-    /// <summary>
-    /// Checks whether any block in the Y column (wsPos.Y +/- PenYScan) at any
-    /// cell in the set contains a trough.
-    /// </summary>
+    // Checks whether any block in the Y column (wsPos.Y +/- PenYScan) at any
+    // cell in the set contains a trough.
     private static bool PenHasTrough(HashSet<(int x, int z)> cells, BlockPos wsPos, IBlockAccessor ba)
     {
         foreach (var (cx, cz) in cells)
@@ -288,10 +301,8 @@ public static class VillagerHireRequirementChecker
         return false;
     }
 
-    /// <summary>
-    /// Counts livestock animals whose XZ position falls within the cell set.
-    /// Uses the village centre for the broad entity query when available, wsPos otherwise.
-    /// </summary>
+    // Counts livestock animals whose XZ position falls within the cell set.
+    // Uses the village centre for the broad entity query when available, wsPos otherwise.
     private static int CountAnimalsInCells(HashSet<(int x, int z)> cells, BlockPos wsPos, Village village, ICoreAPI api)
     {
         if (cells.Count == 0) return 0;
@@ -315,9 +326,7 @@ public static class VillagerHireRequirementChecker
         return count;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
     // Livestock entity identification
-    // ─────────────────────────────────────────────────────────────────────────
 
     private static readonly string[] LorePrefixes =
     {
@@ -357,13 +366,15 @@ public static class VillagerHireRequirementChecker
         return KnownLivestockSpecies.Contains(firstSegment);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
     // Public stat methods
-    // ─────────────────────────────────────────────────────────────────────────
 
     public static (int total, List<string> keys, List<int> values) GetFarmlandStats(Village village, ICoreAPI api)
     {
         if (village?.Pos == null) return (0, new List<string>(), new List<int>());
+
+        long now = api.World.ElapsedMilliseconds;
+        if (_farmlandCache.TryGetValue(village.Id, out FarmlandEntry hit) && now - hit.Stamp < ScanCacheTtlMs)
+            return (hit.Total, hit.Keys, hit.Values);
 
         BlockPos center = village.Pos;
         int r = village.Radius;
@@ -394,7 +405,7 @@ public static class VillagerHireRequirementChecker
                     if (cropPath != null && cropPath.StartsWith("crop-"))
                     {
                         string[] parts = cropPath.Split('-');
-                        if (parts.Length >= 2)
+                        if (parts.Length >= 2 && parts[1].Length > 0)
                         {
                             string name = parts[1];
                             name = char.ToUpper(name[0]) + name.Substring(1);
@@ -409,20 +420,19 @@ public static class VillagerHireRequirementChecker
         var keys = new List<string>(cropCounts.Keys);
         var values = new List<int>();
         foreach (string k in keys) values.Add(cropCounts[k]);
+        _farmlandCache[village.Id] = new FarmlandEntry { Stamp = now, Total = total, Keys = keys, Values = values };
         return (total, keys, values);
     }
 
-    /// <summary>
-    /// Returns total enclosed-animal count across all shepherd workstation pens,
-    /// deduplicated via cell union so overlapping or shared pens don't double-count.
-    /// </summary>
+    // Returns total enclosed-animal count across all shepherd workstation pens,
+    // deduplicated via cell union so overlapping or shared pens don't double-count.
     public static (int total, List<string> keys, List<int> values) GetLivestockStats(Village village, ICoreAPI api)
     {
         if (village?.Pos == null) return (0, new List<string>(), new List<int>());
 
         IBlockAccessor ba = api.World.BlockAccessor;
 
-        // Union all pen cell footprints first — overlapping pens share cells, not animals.
+        // Union all pen cell footprints first - overlapping pens share cells, not animals.
         var mergedCells = new HashSet<(int x, int z)>();
         BlockPos anyWsPos = null;
 
@@ -458,6 +468,7 @@ public static class VillagerHireRequirementChecker
             total++;
             string epath = e.Code?.Path ?? "unknown";
             string first = epath.Split('-')[0];
+            if (first.Length == 0) first = "unknown";
             string name = char.ToUpper(first[0]) + first.Substring(1);
             animalCounts.TryGetValue(name, out int cnt);
             animalCounts[name] = cnt + 1;
@@ -469,9 +480,7 @@ public static class VillagerHireRequirementChecker
         return (total, keys, values);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
     // Pen barrier check
-    // ─────────────────────────────────────────────────────────────────────────
 
     private static bool IsPenBarrier(Block block)
     {
@@ -480,9 +489,9 @@ public static class VillagerHireRequirementChecker
         return path.Contains("fence") || path.Contains("gate");
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
     // Other profession checks
-    // ─────────────────────────────────────────────────────────────────────────
+
+    // === Smith ===
 
     private static string CheckSmith(BlockPos wsPos, Village village, ICoreAPI api)
     {
@@ -509,6 +518,8 @@ public static class VillagerHireRequirementChecker
 
         return null;
     }
+
+    // === Herbalist ===
 
     private static string CheckHerbalist(BlockPos wsPos, Village village, ICoreAPI api)
     {
@@ -541,6 +552,8 @@ public static class VillagerHireRequirementChecker
         return null;
     }
 
+    // === Trader ===
+
     private static string CheckTrader(BlockPos wsPos, Village village, ICoreAPI api)
     {
         Room room = GetRoom(wsPos, api);
@@ -567,6 +580,8 @@ public static class VillagerHireRequirementChecker
         return null;
     }
 
+    // === Soldier / Archer ===
+
     private static string CheckSoldier(BlockPos wsPos, Village village, ICoreAPI api)
     {
         Room room = GetRoom(wsPos, api);
@@ -591,6 +606,8 @@ public static class VillagerHireRequirementChecker
         return null;
     }
 
+    // === Baker ===
+
     private static string CheckBaker(BlockPos wsPos, Village village, ICoreAPI api)
     {
         Room room = GetRoom(wsPos, api);
@@ -603,9 +620,7 @@ public static class VillagerHireRequirementChecker
             if (IsVsWorkstation(b) && !IsWorkstationOfProfession(b, "baker"))
                 return "Baker room can only contain baker workstations. Move other workstations out first.";
         }
-        if (!roomBlocks.Any(b =>
-                b.Code?.Path?.Contains("clayoven") == true ||
-                b.Code?.Path?.Contains("oven") == true))
+        if (!roomBlocks.Any(b => b.Code?.Path?.Contains("clayoven") == true))
             return "Baker room requires a clay oven.";
         if (!roomBlocks.Any(b => b.Code?.Path?.Contains("firepit") == true))
             return "Baker room requires a firepit.";
@@ -619,9 +634,7 @@ public static class VillagerHireRequirementChecker
         return null;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
     // Shared block/room helpers
-    // ─────────────────────────────────────────────────────────────────────────
 
     private static Room GetRoom(BlockPos pos, ICoreAPI api)
     {
@@ -701,6 +714,11 @@ public static class VillagerHireRequirementChecker
 
     private static int CountBlocksInVillage(Village village, string codeFragment, IWorldAccessor world)
     {
+        long now = world.ElapsedMilliseconds;
+        var key = (village.Id, codeFragment);
+        if (_countCache.TryGetValue(key, out CountEntry hit) && now - hit.Stamp < ScanCacheTtlMs)
+            return hit.Count;
+
         BlockPos center = village.Pos;
         int r = village.Radius;
         int yPad = VillageScanYPad;
@@ -725,6 +743,7 @@ public static class VillagerHireRequirementChecker
             }
         }
 
+        _countCache[key] = new CountEntry { Stamp = now, Count = count };
         return count;
     }
 

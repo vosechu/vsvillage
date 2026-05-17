@@ -11,6 +11,8 @@ public class AiTaskVillagerCultivateCrops : AiTaskGotoAndInteract
     private BlockEntityFarmland nearestFarmland;
 
     private Dictionary<BlockPos, long> recentlyCultivatedFarmland;
+    // Reused per-call so the expired-key sweep doesn't allocate every tick.
+    private readonly List<BlockPos> _expiredFarmlandKeys = new List<BlockPos>();
 
     private long farmlandCooldownMs;
 
@@ -37,13 +39,10 @@ public class AiTaskVillagerCultivateCrops : AiTaskGotoAndInteract
         {
             return null;
         }
-        // Anchor on the WORKSTATION, not the farmer's current position - she should
-        // tend the fields beside her workstation, not whichever crops happen to be
-        // near where she's idling.
-        BlockPos wsPos = entity.GetBehavior<EntityBehaviorVillager>()?.Workstation;
-        if (wsPos == null) return null;
-        Vec3d searchAnchor = wsPos.ToVec3d().Add(0.5, 0.0, 0.5);
-        nearestFarmland = entity.Api.ModLoader.GetModSystem<POIRegistry>().GetNearestPoi(searchAnchor, base.maxDistance, isValidFarmland) as BlockEntityFarmland;
+        // Search around the farmer's current position so she can wander between
+        // her workstation and fields without the task constantly anchoring her
+        // back home.
+        nearestFarmland = entity.Api.ModLoader.GetModSystem<POIRegistry>().GetNearestPoi(entity.Pos.XYZ, base.maxDistance, isValidFarmland) as BlockEntityFarmland;
         if (nearestFarmland == null)
         {
             return null;
@@ -56,7 +55,7 @@ public class AiTaskVillagerCultivateCrops : AiTaskGotoAndInteract
     {
         if (!IsFarmer() || nearestFarmland == null || nearestFarmland.HasRipeCrop()) return;
 
-        // Animation is already running via interactAnim — just schedule the crop advance.
+        // Animation is already running via interactAnim - just schedule the crop advance.
         entity.World.RegisterCallback(delegate
         {
             PerformCultivation();
@@ -82,17 +81,17 @@ public class AiTaskVillagerCultivateCrops : AiTaskGotoAndInteract
     private bool IsFarmlandOnCooldown(BlockPos pos)
     {
         long elapsedMilliseconds = entity.World.ElapsedMilliseconds;
-        List<BlockPos> list = new List<BlockPos>();
+        _expiredFarmlandKeys.Clear();
         foreach (KeyValuePair<BlockPos, long> item in recentlyCultivatedFarmland)
         {
             if (elapsedMilliseconds - item.Value > farmlandCooldownMs)
             {
-                list.Add(item.Key);
+                _expiredFarmlandKeys.Add(item.Key);
             }
         }
-        for (int i = 0; i < list.Count; i++)
+        for (int i = 0; i < _expiredFarmlandKeys.Count; i++)
         {
-            recentlyCultivatedFarmland.Remove(list[i]);
+            recentlyCultivatedFarmland.Remove(_expiredFarmlandKeys[i]);
         }
         long value;
         return recentlyCultivatedFarmland.TryGetValue(pos, out value) && elapsedMilliseconds - value < farmlandCooldownMs;

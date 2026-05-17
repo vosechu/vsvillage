@@ -8,22 +8,7 @@ using Vintagestory.GameContent;
 
 namespace VsVillage;
 
-/// <summary>
-/// Self-defence seek task for all villagers (combatant and non-combatant alike).
-/// Previously extended vanilla AiTaskSeekEntity, which used the stock pathfinder
-/// and therefore couldn't open gates, navigate fences, or recover from stuck
-/// states. This version extends AiTaskGotoAndInteract so it runs on the same
-/// VillagerAStarNew pathfinder as the rest of our custom tasks (chase, goto-work,
-/// guard-follow, etc.).
-///
-/// JSON config keys:
-///   entityCodes            — flat list of entity code patterns (supports trailing *).
-///   seekingRange           — aggro radius (blocks).
-///   minRange               — optional minimum distance; targets closer than this
-///                            are ignored (lets melee attack take over cleanly).
-///   maxFollowTime          — abort chase after this many seconds.
-///   requiredEntitySuffixes — optional allow-list of entity-code suffixes.
-/// </summary>
+// Self-defence seek for all villagers on AiTaskGotoAndInteract (so it shares the VillagerAStarNew pathfinder with chase/goto-work).
 public class AiTaskVillagerSeekEntity : AiTaskGotoAndInteract
 {
     // The entity we are currently pursuing.
@@ -32,7 +17,7 @@ public class AiTaskVillagerSeekEntity : AiTaskGotoAndInteract
     // Entity code patterns read from JSON "entityCodes".
     private readonly List<string> entityCodes = new List<string>();
 
-    // Optional entity-suffix allow-list (usually empty — applies to all villagers).
+    // Optional entity-suffix allow-list (usually empty - applies to all villagers).
     private readonly List<string> requiredSuffixes = new List<string>();
 
     // Pursuit configuration.
@@ -44,6 +29,9 @@ public class AiTaskVillagerSeekEntity : AiTaskGotoAndInteract
     // Repath as target moves.
     private long lastTargetUpdateMs;
     private const long TargetUpdateIntervalMs = 800;
+
+    // Vertical detection cap. Ignores threats beyond this Y delta so civilians don't pursue cave hostiles with no surface path.
+    private const float MaxVertDetection = 5f;
 
     // Ally call-for-help throttle.
     private long lastCallForHelp;
@@ -72,9 +60,7 @@ public class AiTaskVillagerSeekEntity : AiTaskGotoAndInteract
             }
     }
 
-    // -----------------------------------------------------------------------
     // Target acquisition
-    // -----------------------------------------------------------------------
 
     protected override Vec3d GetTargetPos()
     {
@@ -86,9 +72,10 @@ public class AiTaskVillagerSeekEntity : AiTaskGotoAndInteract
 
         targetEntity = null;
 
-        // Scan for the nearest matching hostile.
+        // Scan for the nearest matching hostile. Vertical detection capped so we don't
+        // acquire hostiles deep underground or up in the canopy with no surface path.
         targetEntity = entity.World.GetNearestEntity(
-            entity.Pos.XYZ, seekingRange, seekingRange * 0.5f,
+            entity.Pos.XYZ, seekingRange, MaxVertDetection,
             e => e != entity && e.Alive && e.IsInteractable && MatchesCode(e) && IsBeyondMinRange(e));
 
         if (targetEntity != null)
@@ -99,9 +86,7 @@ public class AiTaskVillagerSeekEntity : AiTaskGotoAndInteract
         return null;
     }
 
-    // -----------------------------------------------------------------------
     // Execution
-    // -----------------------------------------------------------------------
 
     public override void StartExecute()
     {
@@ -110,7 +95,8 @@ public class AiTaskVillagerSeekEntity : AiTaskGotoAndInteract
         base.StartExecute();
     }
 
-    private const double MeleeHandoffDistSq = 6.25; // 2.5 blocks
+    // 2.0 blocks - align with vanilla AiTaskMeleeAttack minDist=2.
+    private const double MeleeHandoffDistSq = 4.0; // 2.0 blocks
 
     public override bool ContinueExecute(float dt)
     {
@@ -120,7 +106,7 @@ public class AiTaskVillagerSeekEntity : AiTaskGotoAndInteract
         if (entity.World.ElapsedMilliseconds - pursuitStartedAtMs > maxFollowTimeSec * 1000f)
             return false;
 
-        // Within melee/ranged strike range — stop and let the attack task take over.
+        // Within melee/ranged strike range - stop and let the attack task take over.
         if (entity.Pos.SquareDistanceTo(targetEntity.Pos) <= MeleeHandoffDistSq)
             return false;
 
@@ -154,18 +140,15 @@ public class AiTaskVillagerSeekEntity : AiTaskGotoAndInteract
     public override void FinishExecute(bool cancelled)
     {
         base.FinishExecute(cancelled);
-        // Always apply cooldown — targetReached is never flagged on pursuit tasks.
+        // Always apply cooldown - targetReached is never flagged on pursuit tasks.
         lastExecution = entity.World.ElapsedMilliseconds;
         targetEntity  = null;
     }
 
-    // Seek just navigates — the melee/ranged attack task handles the strike.
+    // Seek just navigates, melee/ranged attack handles the strike. No arrival interaction.
     protected override bool InteractionPossible() => false;
-    protected override void ApplyInteractionEffect() { }
 
-    // -----------------------------------------------------------------------
     // Ally coordination (preserved from previous implementation)
-    // -----------------------------------------------------------------------
 
     public override void OnEntityHurt(DamageSource source, float damage)
     {
@@ -214,9 +197,7 @@ public class AiTaskVillagerSeekEntity : AiTaskGotoAndInteract
             targetEntity = byEntity;
     }
 
-    // -----------------------------------------------------------------------
     // Helpers
-    // -----------------------------------------------------------------------
 
     private bool IsAllowedEntityType()
     {
@@ -229,7 +210,11 @@ public class AiTaskVillagerSeekEntity : AiTaskGotoAndInteract
 
     private bool InRange(Entity e)
     {
-        double distSq = entity.Pos.SquareDistanceTo(e.Pos);
+        // Horizontal squared + vertical clamp split, prevents tracking hostiles 20+ blocks underground via diagonal 3D distance.
+        double dx = entity.Pos.X - e.Pos.X;
+        double dz = entity.Pos.Z - e.Pos.Z;
+        if (Math.Abs(entity.Pos.Y - e.Pos.Y) > MaxVertDetection) return false;
+        double distSq = dx * dx + dz * dz;
         return distSq <= seekingRange * seekingRange * 2f && distSq >= minRange * minRange;
     }
 

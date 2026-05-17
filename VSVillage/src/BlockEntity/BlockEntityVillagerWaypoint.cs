@@ -12,11 +12,7 @@ public class BlockEntityVillagerWaypoint : BlockEntityVillagerPOI
 		}
 	}
 
-	public override void Initialize(ICoreAPI api)
-	{
-		base.Initialize(api);
-		Api.ModLoader.GetModSystem<VillageManager>().GetVillage(base.VillageId)?.Waypoints.Add(Pos);
-	}
+	// No Initialize override: base AddToVillage handles it. Earlier override double-added and skipped a null guard.
 
 	public override void RemoveFromVillage(Village village)
 	{

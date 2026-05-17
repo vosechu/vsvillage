@@ -6,14 +6,11 @@ using Vintagestory.API.MathTools;
 
 namespace VsVillage;
 
-/// <summary>
-/// Villagers path to the mayor station and idle there while
-/// <see cref="Village.IsGatherActive"/> is true.  The flag is cleared either
-/// by the "Clear Gather" button / command, or by the auto-timer registered
-/// when the gather was started (default 3 minutes).
-///
-/// Priority 9.5 — above sleep (9.0) but below combat (10.0) and storm shelter (11.0).
-/// </summary>
+// Villagers path to the mayor station and idle there while
+// Village.IsGatherActive is true.  The flag is cleared either
+// by the "Clear Gather" button / command, or by the auto-timer registered
+// when the gather was started (default 3 minutes).
+// Priority 9.5 - above sleep (9.0) but below combat (10.0) and storm shelter (11.0).
 public class AiTaskVillagerGather : AiTaskBase
 {
 	private const float WalkSpeed = 0.014f;
@@ -37,13 +34,13 @@ public class AiTaskVillagerGather : AiTaskBase
 		pathfinder = new VillagerAStarNew(entity.World.GetCachingBlockAccessor(synchronize: false, relight: false));
 	}
 
-	// ─── Lifecycle ────────────────────────────────────────────────────────────
+	// === Lifecycle ===
 
 	public override bool ShouldExecute()
 	{
 		EntityBehaviorVillager beh = entity.GetBehavior<EntityBehaviorVillager>();
 		if (beh?.Village?.IsGatherActive != true) return false;
-		if (reachedStation) return true; // already there — keep idling
+		if (reachedStation) return true; // already there - keep idling
 		return cooldownUntilMs <= entity.World.ElapsedMilliseconds;
 	}
 
@@ -58,7 +55,7 @@ public class AiTaskVillagerGather : AiTaskBase
 
 		targetPos = FindStandingPosNear(village.Pos.ToVec3d());
 
-		// Already close enough — skip pathfinding and idle immediately.
+		// Already close enough - skip pathfinding and idle immediately.
 		if (entity.Pos.SquareDistanceTo(targetPos) < ArrivalDistanceSq)
 		{
 			Arrive();
@@ -73,7 +70,7 @@ public class AiTaskVillagerGather : AiTaskBase
 
 		if (currentPath == null || currentPath.Count == 0)
 		{
-			// Could not find a path — give up for this tick.
+			// Could not find a path - give up for this tick.
 			stuck = true;
 			return;
 		}
@@ -85,7 +82,7 @@ public class AiTaskVillagerGather : AiTaskBase
 
 	public override bool ContinueExecute(float dt)
 	{
-		// Gather was cancelled externally — stop immediately.
+		// Gather was cancelled externally - stop immediately.
 		EntityBehaviorVillager beh = entity.GetBehavior<EntityBehaviorVillager>();
 		if (beh?.Village?.IsGatherActive != true) return false;
 
@@ -118,11 +115,11 @@ public class AiTaskVillagerGather : AiTaskBase
 		entity.Pos.Motion.Set(0.0, 0.0, 0.0);
 		entity.AnimManager.StopAnimation("idlelook");
 		if (animMeta != null) entity.AnimManager.StopAnimation(animMeta.Code);
-		CloseAllOpenDoors();
+		DoorPathHelper.CloseOpenDoorsAlongPath(entity, currentPath);
 		ResetState();
 	}
 
-	// ─── Helpers ──────────────────────────────────────────────────────────────
+	// === Helpers ===
 
 	private void ResetState()
 	{
@@ -179,12 +176,12 @@ public class AiTaskVillagerGather : AiTaskBase
 			if (currentPathIndex < currentPath.Count)
 			{
 				VillagerPathNode next = currentPath[currentPathIndex];
-				if (next.IsDoor) ToggleDoor(opened: true, next.BlockPos);
+				if (next.IsDoor) DoorPathHelper.ToggleDoor(entity, next.BlockPos, opened: true);
 			}
 			if (node.IsDoor)
 			{
 				BlockPos doorPos = node.BlockPos.Copy();
-				entity.World.RegisterCallback(delegate { ToggleDoor(opened: false, doorPos); }, 5000);
+				DoorPathHelper.ScheduleDoorClose(entity, doorPos, 5000);
 			}
 		}
 
@@ -221,46 +218,6 @@ public class AiTaskVillagerGather : AiTaskBase
 		stuckCheckTime = now;
 	}
 
-	private void ToggleDoor(bool opened, BlockPos target)
-	{
-		Block block = entity.World.BlockAccessor.GetBlock(target);
-		if (block?.Code == null || (!block.Code.Path.Contains("door") && !block.Code.Path.Contains("gate"))) return;
-
-		BlockSelection sel = new BlockSelection
-		{
-			Block = block,
-			Position = target,
-			HitPosition = new Vec3d(0.5, 0.5, 0.5),
-			Face = BlockFacing.NORTH
-		};
-		TreeAttribute attrs = new TreeAttribute();
-		attrs.SetBool("opened", opened);
-		try
-		{
-			block.Activate(entity.World, new Caller
-			{
-				Entity = entity,
-				Type = EnumCallerType.Entity,
-				Pos = entity.Pos.XYZ
-			}, sel, attrs);
-		}
-		catch (Exception ex)
-		{
-			entity.World.Logger.Warning("[VsVillage] AiTaskVillagerGather: door toggle at " + target + " failed: " + ex.Message);
-		}
-	}
-
-	private void CloseAllOpenDoors()
-	{
-		if (currentPath == null) return;
-		foreach (VillagerPathNode node in currentPath)
-		{
-			if (!node.IsDoor) continue;
-			Block block = entity.World.BlockAccessor.GetBlock(node.BlockPos);
-			if (block?.Code != null && (block.Code.Path.Contains("opened") || block.Code.Path.Contains("open")))
-				ToggleDoor(opened: false, node.BlockPos);
-		}
-	}
 
 	private Vec3d FindStandingPosNear(Vec3d centre)
 	{

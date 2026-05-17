@@ -6,22 +6,18 @@ using Vintagestory.GameContent;
 
 namespace VsVillage;
 
-/// <summary>
-/// Baker task: walk to the oven and fuel + ignite it when cold.
-///
-/// Dough loading is now handled by AiTaskVillagerBakerCollectBread (one round-trip
-/// pulls finished bread AND loads fresh dough), so this task is purely the cold-oven
-/// branch. Cooldown is short because the work is mostly checking temperature.
-///
-/// Also fills any empty barrels in the baker's room with water as a side effect.
-/// </summary>
+// Baker task: walk to the oven and fuel + ignite it when cold.
+// Dough loading is now handled by AiTaskVillagerBakerCollectBread (one round-trip
+// pulls finished bread AND loads fresh dough), so this task is purely the cold-oven
+// branch. Cooldown is short because the work is mostly checking temperature.
+// Also fills any empty barrels in the baker's room with water as a side effect.
 public class AiTaskVillagerBakerTendOven : AiTaskVillagerBakerBase
 {
     // ---------- config -------------------------------------------------------
 
-    /// <summary>Internal re-check guard: don't run GetTargetPos more than once
-    /// per checkIntervalMs even if the AI scheduler asks. Defaults to 5s, matching
-    /// the new short JSON cooldown.</summary>
+    // Internal re-check guard: don't run GetTargetPos more than once
+    // per checkIntervalMs even if the AI scheduler asks. Defaults to 5s, matching
+    // the new short JSON cooldown.
     private long checkIntervalMs;
 
     // ---------- state --------------------------------------------------------
@@ -29,7 +25,6 @@ public class AiTaskVillagerBakerTendOven : AiTaskVillagerBakerBase
     private long lastCheckMs = -99999L;
     private BlockPos ovenPos;
 
-    // -------------------------------------------------------------------------
 
     public AiTaskVillagerBakerTendOven(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
         : base(entity, taskConfig, aiConfig)
@@ -37,9 +32,7 @@ public class AiTaskVillagerBakerTendOven : AiTaskVillagerBakerBase
         checkIntervalMs = (long)(taskConfig["checkIntervalSeconds"].AsFloat(5f) * 1000f);
     }
 
-    // -------------------------------------------------------------------------
     // AiTaskGotoAndInteract overrides
-    // -------------------------------------------------------------------------
 
     protected override Vec3d GetTargetPos()
     {
@@ -97,12 +90,10 @@ public class AiTaskVillagerBakerTendOven : AiTaskVillagerBakerBase
         ovenPos = null;
     }
 
-    // -------------------------------------------------------------------------
     // Oven tending logic - fuel + ignite branch only
-    // -------------------------------------------------------------------------
 
-    /// <summary>True if the oven is cold + empty + has no fuel - ready to be fueled
-    /// and ignited. Dough-loading conditions are handled by CollectBread.</summary>
+    // True if the oven is cold + empty + has no fuel - ready to be fueled
+    // and ignited. Dough-loading conditions are handled by CollectBread.
     private bool OvenNeedsFueling(BlockEntityOven oven)
     {
         return !oven.IsBurning
@@ -132,9 +123,7 @@ public class AiTaskVillagerBakerTendOven : AiTaskVillagerBakerBase
         oven.MarkDirty(true);
     }
 
-    // -------------------------------------------------------------------------
     // Barrel filling
-    // -------------------------------------------------------------------------
 
     private void FillBarrelsInRoom(BlockPos ws)
     {

@@ -37,19 +37,28 @@ public class Village
 
     public ICoreAPI Api;
 
-    /// <summary>Runtime-only flag — not persisted. True while a Gather is active.</summary>
+    // Runtime-only flag - not persisted. True while a Gather is active.
     public bool IsGatherActive;
 
-    /// <summary>Callback ID for the gather auto-clear timer. -1 when no timer is running.</summary>
+    // Callback ID for the gather auto-clear timer. -1 when no timer is running.
     public long GatherCallbackId = -1;
 
     public string Id => "village-" + Pos.ToString();
 
-    public List<EntityBehaviorVillager> Villagers => VillagerSaveData.Values
-        .ToList()
-        .ConvertAll((VillagerData data) => Api.World.GetEntityById(data.Id)?.GetBehavior<EntityBehaviorVillager>())
-        .Where(v => v != null)
-        .ToList();
+    // Hot path. One list alloc instead of the prior chain (ToList -> ConvertAll -> Where -> ToList = 3 lists + enumerator).
+    public List<EntityBehaviorVillager> Villagers
+    {
+        get
+        {
+            var list = new List<EntityBehaviorVillager>(VillagerSaveData.Count);
+            foreach (VillagerData data in VillagerSaveData.Values)
+            {
+                var beh = Api.World.GetEntityById(data.Id)?.GetBehavior<EntityBehaviorVillager>();
+                if (beh != null) list.Add(beh);
+            }
+            return list;
+        }
+    }
 
     public void Init(ICoreAPI api)
     {
@@ -57,34 +66,20 @@ public class Village
         ScrubNullKeys();
         if (api.Side == EnumAppSide.Server)
         {
-            // Delay the ghost sweep until the server has had time to load its initial
-            // chunk radius. "MaxChunkRadius" / "SpawnChunksWidth" in server config
-            // controls how many chunks load on startup; we scale the wait accordingly.
-            // Default 15 s covers a typical radius of 8–12 chunks.
+            // Delay ghost sweep until initial chunks load. Scales with MaxChunkRadius, 15s default.
             int delayMs = 15000;
             try
             {
-                // Try the two known server-config property names (VS version differences).
                 var cfg = (api as Vintagestory.API.Server.ICoreServerAPI)?.Server?.Config;
-                if (cfg != null)
-                {
-                    // MaxChunkRadius is the standard name in most VS versions.
-                    int r = cfg.MaxChunkRadius;
-                    delayMs = Math.Max(8000, r * 1500);
-                }
+                if (cfg != null) delayMs = Math.Max(8000, cfg.MaxChunkRadius * 1500);
             }
-            catch
-            {
-                // Property unavailable — fall back to 15 s.
-            }
+            catch { }
             api.World.RegisterCallback(delegate { ScrubGhostStructures(); }, delayMs);
         }
     }
 
-    /// <summary>
-    /// Removes workstation/bed entries whose block entity no longer exists in the
-    /// world. Only acts on chunks that are currently loaded — safe to call on startup.
-    /// </summary>
+    // Removes workstation/bed entries whose block entity no longer exists in the
+    // world. Only acts on chunks that are currently loaded - safe to call on startup.
     private void ScrubGhostStructures()
     {
         if (Api == null) return;
@@ -94,7 +89,7 @@ public class Village
         foreach (BlockPos pos in Workstations.Keys)
         {
             if (pos == null) continue;
-            // Skip positions in unloaded chunks — null BE is ambiguous there.
+            // Skip positions in unloaded chunks - null BE is ambiguous there.
             if (!ba.IsValidPos(pos)) continue;
             if (ba.GetChunkAtBlockPos(pos) == null) continue;
             if (ba.GetBlockEntity<BlockEntityVillagerWorkstation>(pos) == null)

@@ -4,6 +4,7 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
+using Vintagestory.GameContent;
 
 namespace VsVillage;
 
@@ -45,20 +46,38 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
 
     private long maxTaskDurationMs;
 
+    // Post-arrival interaction cap, prevents sticky looping anims (default "nod") from parking the villager forever. JSON: maxInteractionSeconds.
+    private long maxInteractionMs;
+    private long targetReachedAtMs;
+
     protected float maxDistance { get; set; }
 
     protected long taskStartedAtMs;
+
+    // Re-call cadence for GetTargetPos in ShouldExecute. Civilians default 2000ms, combat tasks override to ~250ms. JSON: targetSearchIntervalMs.
+    protected long targetSearchIntervalMs;
+
+    // Entity-suffix gating, singular or plural array form. Vanilla AiTaskBase ignores these per-instance; all GotoAndInteract subclasses inherit via SuffixGatePasses.
+    private readonly string[] onlyForSuffixes;
+    private readonly string[] excludeSuffixes;
 
     public AiTaskGotoAndInteract(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
         : base(entity, taskConfig, aiConfig)
     {
         maxDistance = taskConfig["maxdistance"].AsFloat(5f);
-        moveSpeed = taskConfig["movespeed"].AsFloat(0.08f);
+        moveSpeed = taskConfig["movespeed"].AsFloat(0.008f);
         maxTaskDurationMs = (long)(taskConfig["maxtaskduration"].AsFloat(90f) * 1000f);
+        maxInteractionMs = (long)(taskConfig["maxInteractionSeconds"].AsFloat(5f) * 1000f);
+        targetSearchIntervalMs = taskConfig["targetSearchIntervalMs"].AsInt(2000);
+        onlyForSuffixes = ReadSuffixList(taskConfig, "onlyForEntitySuffix", "onlyForEntitySuffixes");
+        excludeSuffixes = ReadSuffixList(taskConfig, "excludeEntitySuffix", "excludeEntitySuffixes");
         interactAnim = new AnimationMetaData
         {
             Code = "nod",
-            Animation = taskConfig["interact"].AsString("nod")
+            Animation = taskConfig["interact"].AsString("nod"),
+            // Ease in/out smooths the walk-to-interact anim transition. Without it pose snaps mid-stride to interact, visible "hop".
+            EaseInSpeed  = 3f,
+            EaseOutSpeed = 3f
         }.Init();
         pathfinder = new VillagerAStarNew(entity.World.GetCachingBlockAccessor(synchronize: false, relight: false));
         lastPosition = null;
@@ -69,17 +88,60 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
         doorOpenedTime = 0L;
     }
 
+    // True if entity passes the onlyFor/exclude suffix gate. Subclasses with custom ShouldExecute call this manually.
+    protected bool SuffixGatePasses()
+    {
+        string path = entity.Code?.Path ?? "";
+        if (onlyForSuffixes != null)
+        {
+            bool any = false;
+            for (int i = 0; i < onlyForSuffixes.Length; i++)
+            {
+                if (path.EndsWith(onlyForSuffixes[i])) { any = true; break; }
+            }
+            if (!any) return false;
+        }
+        if (excludeSuffixes != null)
+        {
+            for (int i = 0; i < excludeSuffixes.Length; i++)
+            {
+                if (path.EndsWith(excludeSuffixes[i])) return false;
+            }
+        }
+        return true;
+    }
+
+    private static string[] ReadSuffixList(JsonObject cfg, string singularKey, string pluralKey)
+    {
+        JsonObject[] arr = cfg[pluralKey].AsArray();
+        if (arr != null && arr.Length > 0)
+        {
+            var list = new System.Collections.Generic.List<string>(arr.Length);
+            for (int i = 0; i < arr.Length; i++)
+            {
+                string s = arr[i].AsString();
+                if (!string.IsNullOrEmpty(s)) list.Add(s);
+            }
+            if (list.Count > 0) return list.ToArray();
+        }
+        string single = cfg[singularKey].AsString(null);
+        if (!string.IsNullOrEmpty(single)) return new[] { single };
+        return null;
+    }
+
     public override bool ShouldExecute()
     {
         if (!PreconditionsSatisfied()) return false;
+        if (!SuffixGatePasses()) return false;
 
+        // Vanilla cooldownUntilMs is an absolute timestamp; gate on it alone (don't add lastExecution).
         long elapsedMilliseconds = entity.World.ElapsedMilliseconds;
-        if (2000 + lastSearch < elapsedMilliseconds && cooldownUntilMs + lastExecution < elapsedMilliseconds)
+        if (targetSearchIntervalMs + lastSearch < elapsedMilliseconds && cooldownUntilMs < elapsedMilliseconds)
         {
             lastSearch = elapsedMilliseconds;
             targetPos = GetTargetPos();
         }
-        return targetPos != null && cooldownUntilMs + lastExecution < elapsedMilliseconds;
+        return targetPos != null && cooldownUntilMs < elapsedMilliseconds;
     }
 
     protected abstract Vec3d GetTargetPos();
@@ -124,6 +186,13 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
                 entity.Controls.WalkVector.Set(0.0, 0.0, 0.0);
                 ApplySeparationForce();
             }
+            // Hard timeout on the interaction phase. Some tasks (the morning
+            // GotoMayor gather, ambient chat, etc.) use the default "nod"
+            // interactAnim which can be sticky/looping - without this cap the
+            // task never ends and the villager freezes at the destination for
+            // the rest of the day.
+            if (entity.World.ElapsedMilliseconds - targetReachedAtMs > maxInteractionMs)
+                return false;
             return entity.AnimManager.IsAnimationActive(interactAnim.Code);
         }
         if (!targetReached && targetPos != null && currentPath != null)
@@ -137,11 +206,12 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
         }
         if (InteractionPossible())
         {
+            // Zero walk vector only, NOT StopAllMovement (latter resets jump/fly/sneak and can cause a vertical "hop" on uneven ground).
             entity.Controls.WalkVector.Set(0.0, 0.0, 0.0);
-            entity.Controls.StopAllMovement();
             entity.AnimManager.StopAnimation(animMeta.Code);
             entity.AnimManager.StartAnimation(interactAnim);
             targetReached = true;
+            targetReachedAtMs = entity.World.ElapsedMilliseconds;
             return true;
         }
         return !stuck && currentPath != null;
@@ -158,7 +228,7 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
         entity.Controls.WalkVector.Set(0.0, 0.0, 0.0);
         entity.Controls.StopAllMovement();
         entity.AnimManager.StopAnimation(animMeta.Code);
-        CloseAllOpenDoors();
+        DoorPathHelper.CloseOpenDoorsAlongPath(entity, currentPath);
         if (targetReached)
         {
             ApplyInteractionEffect();
@@ -173,37 +243,8 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
         currentlyOpeningDoor = null;
     }
 
-    protected abstract void ApplyInteractionEffect();
-
-    protected void ToggleDoor(bool opened, BlockPos target)
-    {
-        Block block = entity.World.BlockAccessor.GetBlock(target);
-        if (block != null && block.Code != null && (block.Code.Path.Contains("door") || block.Code.Path.Contains("gate")))
-        {
-            BlockSelection blockSel = new BlockSelection
-            {
-                Block = block,
-                Position = target,
-                HitPosition = new Vec3d(0.5, 0.5, 0.5),
-                Face = BlockFacing.NORTH
-            };
-            TreeAttribute treeAttribute = new TreeAttribute();
-            treeAttribute.SetBool("opened", opened);
-            try
-            {
-                block.Activate(entity.World, new Caller
-                {
-                    Entity = entity,
-                    Type = EnumCallerType.Entity,
-                    Pos = entity.Pos.XYZ
-                }, blockSel, treeAttribute);
-            }
-            catch (Exception ex)
-            {
-                entity.World.Logger.Error("[VsVillage] Failed to toggle door at " + target + ": " + ex.Message);
-            }
-        }
-    }
+    // Virtual no-op default. Override only when there's an actual effect on arrival.
+    protected virtual void ApplyInteractionEffect() { }
 
     private void HandlePathTraversal()
     {
@@ -234,7 +275,7 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
                 VillagerPathNode next = currentPath[currentPathIndex];
                 if (next.IsDoor)
                 {
-                    ToggleDoor(opened: true, next.BlockPos);
+                    DoorPathHelper.ToggleDoor(entity, next.BlockPos, opened: true);
                     currentlyOpeningDoor = next.BlockPos.Copy();
                     doorOpenedTime = entity.World.ElapsedMilliseconds;
                 }
@@ -242,10 +283,7 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
             if (villagerPathNode.IsDoor)
             {
                 BlockPos doorPos = villagerPathNode.BlockPos.Copy();
-                entity.World.RegisterCallback(delegate
-                {
-                    if (entity.Alive) ToggleDoor(opened: false, doorPos);
-                }, 3000);
+                DoorPathHelper.ScheduleDoorClose(entity, doorPos, 3000);
             }
         }
         if (currentPathIndex < currentPath.Count)
@@ -267,7 +305,7 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
     private void ApplySeparationForce()
     {
         Vec3d myPos = entity.Pos.XYZ;
-        Entity[] nearby = entity.World.GetEntitiesAround(myPos, 1.5f, 1.5f, (Entity e) => e != entity && e.Code != null && e.Code.Domain == "vsvillagejadelands");
+        Entity[] nearby = entity.World.GetEntitiesAround(myPos, 1.5f, 1.5f, (Entity e) => e != entity && e.Code != null && e.Code.Domain == "vsvillage");
         if (nearby == null || nearby.Length == 0) return;
 
         double fx = 0.0, fz = 0.0;
@@ -286,7 +324,7 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
             }
         }
 
-        // Clamp total force — tighter cap when standing at target so stacked
+        // Clamp total force - tighter cap when standing at target so stacked
         // villagers can't push each other away from their workstations.
         double forceMag = Math.Sqrt(fx * fx + fz * fz);
         double maxForce = targetReached ? 0.02 : 0.08;
@@ -298,21 +336,6 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
 
         entity.Controls.WalkVector.X += fx;
         entity.Controls.WalkVector.Z += fz;
-    }
-
-    protected void CloseAllOpenDoors()
-    {
-        if (currentPath == null) return;
-
-        foreach (VillagerPathNode node in currentPath)
-        {
-            if (node.IsDoor)
-            {
-                Block block = entity.World.BlockAccessor.GetBlock(node.BlockPos);
-                if (block != null && block.Code != null && (block.Code.Path.Contains("opened") || block.Code.Path.Contains("open")))
-                    ToggleDoor(opened: false, node.BlockPos);
-            }
-        }
     }
 
     private void CheckIfStuck()
@@ -331,9 +354,7 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
             {
                 timesStuck++;
 
-                // If we're stuck in front of a gate/door node (e.g. another villager
-                // closed it while we were walking through), re-open it immediately
-                // before attempting a repath — this is cheaper and usually sufficient.
+                // Stuck at a door/gate (another villager closed it mid-traverse) reopens before repath: cheaper and usually enough.
                 TryReopenBlockingGate();
 
                 if (timesStuck <= 5)
@@ -359,11 +380,7 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
         stuckCheckTime = now;
     }
 
-    /// <summary>
-    /// If the current or next path node is a gate/door and it appears to be closed,
-    /// re-open it.  Handles the case where another villager shuts a gate while this
-    /// one is mid-traverse, leaving them pressed against it unable to move.
-    /// </summary>
+    // Reopen the current or just-passed path-node door/gate if another villager closed it on us mid-traverse.
     private void TryReopenBlockingGate()
     {
         if (currentPath == null) return;
@@ -383,15 +400,12 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
             bool isClosed = !b.Code.Path.Contains("opened") && !b.Code.Path.Contains("-open");
             if (isClosed)
             {
-                ToggleDoor(opened: true, node.BlockPos);
+                DoorPathHelper.ToggleDoor(entity, node.BlockPos, opened: true);
                 currentlyOpeningDoor = node.BlockPos.Copy();
                 doorOpenedTime = entity.World.ElapsedMilliseconds;
                 // Schedule it to close again after we've passed through.
                 BlockPos doorPos = node.BlockPos.Copy();
-                entity.World.RegisterCallback(delegate
-                {
-                    if (entity.Alive) ToggleDoor(opened: false, doorPos);
-                }, 3000);
+                DoorPathHelper.ScheduleDoorClose(entity, doorPos, 3000);
                 return;
             }
         }
@@ -457,7 +471,7 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
             }
             else
             {
-                entity.World.Logger.Warning("[VsVillage] Teleport recovery: unsafe destination at " + dest + " — skipping");
+                entity.World.Logger.Warning("[VsVillage] Teleport recovery: unsafe destination at " + dest + " - skipping");
                 stuck = true;
             }
         }

@@ -7,10 +7,8 @@ using Vintagestory.GameContent;
 
 namespace VsVillage;
 
-/// <summary>
-/// Fires when the farmer has no crops to tend.
-/// Farmer patrols to random village waypoints.
-/// </summary>
+// Fires when the farmer has no crops to tend.
+// Farmer patrols to random village waypoints.
 public class AiTaskVillagerFarmerHelp : AiTaskGotoAndInteract
 {
     public AiTaskVillagerFarmerHelp(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
@@ -54,8 +52,6 @@ public class AiTaskVillagerFarmerHelp : AiTaskGotoAndInteract
         double dist  = entity.World.Rand.NextDouble() * village.Radius * 0.8;
         return village.Pos.ToVec3d().Add(Math.Cos(angle) * dist, 0, Math.Sin(angle) * dist);
     }
-
-    protected override void ApplyInteractionEffect() { }
 
     private bool IsFarmer() => entity?.Code?.Path?.EndsWith("-farmer") == true;
 }

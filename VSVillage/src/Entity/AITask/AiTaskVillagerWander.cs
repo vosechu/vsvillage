@@ -156,49 +156,12 @@ public class AiTaskVillagerWander : AiTaskBase
 		if (animMeta != null) entity.AnimManager.StopAnimation(animMeta.Code);
 		entity.Pos.Motion.X = 0.0;
 		entity.Pos.Motion.Z = 0.0;
-		CloseAllOpenDoors();
+		DoorPathHelper.CloseOpenDoorsAlongPath(entity, currentPath);
 		targetPos = null;
 		currentPath = null;
 		currentPathIndex = 0;
 		lastPosition = null;
 		timesStuck = 0;
-	}
-
-	private void ToggleDoor(bool opened, BlockPos target)
-	{
-		Block block = entity.World.BlockAccessor.GetBlock(target);
-		if (block?.Code == null || (!block.Code.Path.Contains("door") && !block.Code.Path.Contains("gate"))) return;
-
-		BlockSelection blockSel = new BlockSelection
-		{
-			Block = block, Position = target,
-			HitPosition = new Vec3d(0.5, 0.5, 0.5),
-			Face = BlockFacing.NORTH
-		};
-		TreeAttribute attrs = new TreeAttribute();
-		attrs.SetBool("opened", opened);
-		try
-		{
-			block.Activate(entity.World, new Caller { Entity = entity, Type = EnumCallerType.Entity, Pos = entity.Pos.XYZ }, blockSel, attrs);
-		}
-		catch (Exception ex)
-		{
-			entity.World.Logger.Error("[VsVillage] Wander: failed to toggle door: " + ex.Message);
-		}
-	}
-
-	private void CloseAllOpenDoors()
-	{
-		if (currentPath == null) return;
-		foreach (VillagerPathNode node in currentPath)
-		{
-			if (node.IsDoor)
-			{
-				Block block = entity.World.BlockAccessor.GetBlock(node.BlockPos);
-				if (block?.Code != null && (block.Code.Path.Contains("opened") || block.Code.Path.Contains("open")))
-					ToggleDoor(opened: false, node.BlockPos);
-			}
-		}
 	}
 
 	private void HandlePathTraversal()
@@ -214,12 +177,12 @@ public class AiTaskVillagerWander : AiTaskBase
 		{
 			currentPathIndex++;
 			if (currentPathIndex < currentPath.Count && currentPath[currentPathIndex].IsDoor)
-				ToggleDoor(opened: true, currentPath[currentPathIndex].BlockPos);
+				DoorPathHelper.ToggleDoor(entity, currentPath[currentPathIndex].BlockPos, opened: true);
 
 			if (node.IsDoor)
 			{
 				BlockPos doorPos = node.BlockPos.Copy();
-				entity.World.RegisterCallback(delegate { ToggleDoor(opened: false, doorPos); }, 5000);
+				DoorPathHelper.ScheduleDoorClose(entity, doorPos, 5000);
 			}
 		}
 		if (currentPathIndex < currentPath.Count)

@@ -14,16 +14,33 @@ public class EntityBehaviorTravellingTrader : EntityBehavior
 {
     private const long LeavingTimeoutMs = 5 * 60 * 1000; // 5 minutes real time
 
-    // Consistent with AiTaskTravellingTraderLeave.ExitDist — trader is considered
+    // Consistent with AiTaskTravellingTraderLeave.ExitDist, trader is considered
     // outside the village once beyond this distance from the village centre.
     private const float DespawnDist = 55f;
 
     private long _tickListenerId;
 
-    public bool IsAtStall { get; set; }
+    // WatchedAttributes-backed so the client debug overlay sees real values and the timeout persists across chunk reload.
+    public bool IsAtStall
+    {
+        get => entity.WatchedAttributes.GetBool("ttIsAtStall", false);
+        set
+        {
+            entity.WatchedAttributes.SetBool("ttIsAtStall", value);
+            entity.WatchedAttributes.MarkPathDirty("ttIsAtStall");
+        }
+    }
 
-    // Set when IsLeaving becomes true — used as a fallback despawn timeout.
-    public long LeavingStartedMs { get; set; }
+    // Set when IsLeaving becomes true. Fallback despawn timeout.
+    public long LeavingStartedMs
+    {
+        get => entity.WatchedAttributes.GetLong("ttLeavingStartedMs", 0L);
+        set
+        {
+            entity.WatchedAttributes.SetLong("ttLeavingStartedMs", value);
+            entity.WatchedAttributes.MarkPathDirty("ttLeavingStartedMs");
+        }
+    }
 
     public string VillageId
     {
@@ -116,6 +133,15 @@ public class EntityBehaviorTravellingTrader : EntityBehavior
         if (entity.Api.Side == EnumAppSide.Server)
         {
             _tickListenerId = entity.World.RegisterGameTickListener(CheckDespawn, 10000);
+
+            // Idempotent re-register with the manager (SaveGameLoaded already populated _active in the normal case).
+            string vid = VillageId;
+            if (!string.IsNullOrEmpty(vid))
+            {
+                entity.Api.ModLoader.GetModSystem<TravellingTraderManager>()
+                    ?.RegisterExistingTrader(entity.EntityId, GuardEntityId, vid, SpawnedTotalHours);
+            }
+
             Log("Initialized (server).");
         }
     }
@@ -127,6 +153,18 @@ public class EntityBehaviorTravellingTrader : EntityBehavior
             entity.World.UnregisterGameTickListener(_tickListenerId);
             _tickListenerId = 0L;
         }
+
+        // Only run cleanup on genuine removals. OutOfRange/Unload/Disconnect respawn intact, cleanup would orphan the paired guard.
+        if (despawn != null
+            && despawn.Reason != EnumDespawnReason.Death
+            && despawn.Reason != EnumDespawnReason.Removed
+            && despawn.Reason != EnumDespawnReason.Combusted
+            && despawn.Reason != EnumDespawnReason.Expire
+            && despawn.Reason != EnumDespawnReason.PickedUp)
+        {
+            return;
+        }
+
         entity.Api.ModLoader.GetModSystem<TravellingTraderManager>()?.OnTraderDespawned(entity.EntityId, VillageId);
         long guardId = GuardEntityId;
         if (guardId != 0)
@@ -148,11 +186,9 @@ public class EntityBehaviorTravellingTrader : EntityBehavior
         return "TravellingTrader";
     }
 
-    /// <summary>
-    /// Called by AiTaskTravellingTraderLeave when the trader has completed its
-    /// exit path. Despawns immediately if already outside DespawnDist from the
-    /// village centre, otherwise lets CheckDespawn handle it on the next poll.
-    /// </summary>
+    // Called by AiTaskTravellingTraderLeave when the trader has completed its
+    // exit path. Despawns immediately if already outside DespawnDist from the
+    // village centre, otherwise lets CheckDespawn handle it on the next poll.
     public void NotifyPathComplete()
     {
         if (entity.Api.Side != EnumAppSide.Server) return;
@@ -166,7 +202,7 @@ public class EntityBehaviorTravellingTrader : EntityBehavior
         double dist = entity.Pos.XYZ.DistanceTo(village.Pos.ToVec3d());
         if (dist > DespawnDist)
         {
-            Log($"Path complete and outside village ({dist:F0} > {DespawnDist}) — despawning.");
+            Log($"Path complete and outside village ({dist:F0} > {DespawnDist}) - despawning.");
             DespawnSelf();
         }
         // else: still inside, CheckDespawn will catch it within 10 seconds
@@ -232,7 +268,7 @@ public class EntityBehaviorTravellingTrader : EntityBehavior
             double distToVillage = entity.Pos.XYZ.DistanceTo(village.Pos.ToVec3d());
             if (distToVillage > DespawnDist)
             {
-                Log($"Left village area ({distToVillage:F0} > {DespawnDist}) — despawning.");
+                Log($"Left village area ({distToVillage:F0} > {DespawnDist}) - despawning.");
                 DespawnSelf();
                 return;
             }
@@ -240,17 +276,17 @@ public class EntityBehaviorTravellingTrader : EntityBehavior
 
         if (SpawnedTotalHours > 0 && entity.World.Calendar.TotalHours - SpawnedTotalHours >= 18.0)
         {
-            Log("18-hour timeout reached — despawning.");
+            Log("18-hour timeout reached - despawning.");
             DespawnSelf();
             return;
         }
 
         // Fallback: if IsLeaving has been set for more than 5 real minutes and the
-        // trader is still alive, something went wrong with the leave task — force despawn.
+        // trader is still alive, something went wrong with the leave task - force despawn.
         if (IsLeaving && LeavingStartedMs > 0 &&
             entity.World.ElapsedMilliseconds - LeavingStartedMs > LeavingTimeoutMs)
         {
-            Log("Departure timeout (5 min) reached — force despawning.");
+            Log("Departure timeout (5 min) reached - force despawning.");
             DespawnSelf();
             return;
         }
@@ -260,12 +296,11 @@ public class EntityBehaviorTravellingTrader : EntityBehavior
             IsLeaving = true;
             IsAtStall = false;
             LeavingStartedMs = entity.World.ElapsedMilliseconds;
-            Log("Visit timer expired — beginning departure walk.");
+            Log("Visit timer expired - beginning departure walk.");
             if (!string.IsNullOrEmpty(villageId))
             {
-                Village departVillage = village ?? entity.Api.ModLoader.GetModSystem<VillageManager>()?.GetVillage(villageId);
                 string traderName = entity.GetBehavior<EntityBehaviorNameTag>()?.DisplayName ?? "the travelling trader";
-                string villageName = !string.IsNullOrWhiteSpace(departVillage?.Name) ? departVillage.Name : Lang.Get("vsvillage:trader-village-unknown");
+                string villageName = !string.IsNullOrWhiteSpace(village?.Name) ? village.Name : Lang.Get("vsvillage:trader-village-unknown");
                 (entity.Api as ICoreServerAPI)?.BroadcastMessageToAllGroups(Lang.Get("vsvillage:trader-departing", traderName, villageName), EnumChatType.Notification);
             }
         }

@@ -9,7 +9,7 @@ using Vintagestory.GameContent;
 
 namespace VsVillage;
 
-[JsonObject(/*Could not decode attribute arguments.*/)]
+[JsonObject]
 public class ToggleBrazierFireAction : EntityActionBase
 {
 	public string[] states = new string[2] { "extinguish", "ignite" };
@@ -24,6 +24,7 @@ public class ToggleBrazierFireAction : EntityActionBase
 
 	public override string Type => "ToggleBrazierFire";
 
+	// Toggle any village gatherplace brazier within MaxDistance per the Ignite flag.
 	public override void Start(EntityActivity entityActivity)
 	{
 		EntityPos pos = vas.Entity.Pos;

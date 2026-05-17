@@ -1,24 +1,50 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using ProtoBuf;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
+using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
+using Vintagestory.API.Util;
 using Vintagestory.GameContent;
 
 namespace VsVillage;
 
 public class TravellingTraderManager : ModSystem
 {
-    private sealed class TraderEntry
+    // Persisted via SaveGame.StoreData. Explicit ProtoMember numbers - never
+    // reorder or renumber without a save migration. Public for protobuf-net.
+    [ProtoContract(ImplicitFields = ImplicitFields.None)]
+    public sealed class TraderEntry
     {
+        [ProtoMember(1)]
         public long TraderId;
 
+        [ProtoMember(2)]
         public long GuardId;
 
+        [ProtoMember(3)]
         public string VillageId;
+
+        // Stale-entry timeout for entries whose entity can't be queried (chunk unloaded, admin purge, etc.).
+        [ProtoMember(4)]
+        public double SpawnedTotalHours;
     }
+
+    [ProtoContract(ImplicitFields = ImplicitFields.None)]
+    public sealed class PersistedState
+    {
+        [ProtoMember(1)]
+        public Dictionary<string, TraderEntry> Active;
+    }
+
+    private const string SaveDataKey = "vsvillage_travellingtraders";
+
+    // Max in-game hours an active entry survives without a live trader entity. Visit caps at 18h; 30h covers detection slack.
+    private const double StaleEntryTimeoutHours = 30.0;
 
     private static readonly string[] Specialties = new string[9] { "agriculture", "artisan", "buildmaterials", "clothing", "commodities", "furniture", "luxuries", "survivalgoods", "treasurehunter" };
 
@@ -34,7 +60,8 @@ public class TravellingTraderManager : ModSystem
 
     private const float DepartureHour = 20f;
 
-    private readonly Dictionary<string, TraderEntry> _active = new Dictionary<string, TraderEntry>();
+    // GetActiveStallPos reads from the AI thread while OnTick/TrySpawn/etc write on main thread, so use ConcurrentDictionary.
+    private readonly ConcurrentDictionary<string, TraderEntry> _active = new ConcurrentDictionary<string, TraderEntry>();
 
     private ICoreServerAPI _sapi;
 
@@ -49,16 +76,106 @@ public class TravellingTraderManager : ModSystem
     {
         _sapi = api;
         api.Event.RegisterGameTickListener(OnTick, 180000);
-        api.Logger.Notification("[TravellingTraderManager] Started.");
+
+        // Persist _active so OnTick after restart doesn't dup-spawn before the trader's Initialize re-registers itself.
+        api.Event.SaveGameLoaded += OnSaveGameLoaded;
+        api.Event.GameWorldSave  += OnGameWorldSave;
+
+        api.Logger.Debug("[TravellingTraderManager] Started.");
+    }
+
+    private void OnSaveGameLoaded()
+    {
+        try
+        {
+            byte[] data = _sapi.WorldManager.SaveGame.GetData(SaveDataKey);
+            if (data == null || data.Length < 2) return;
+            PersistedState state = SerializerUtil.Deserialize<PersistedState>(data);
+            if (state?.Active == null) return;
+            int restored = 0;
+            double nowHours = _sapi.World.Calendar.TotalHours;
+            foreach (var kvp in state.Active)
+            {
+                if (kvp.Value == null || string.IsNullOrEmpty(kvp.Key)) continue;
+                // Pre-persistence entries deserialize with SpawnedTotalHours=0 which would
+                // disable the stale-entry timeout entirely. Stamp at load so the 30h window
+                // starts now; if the trader entity is still alive it'll re-register with its
+                // real spawn time, which is bounded by the same 30h cap anyway.
+                if (kvp.Value.SpawnedTotalHours <= 0.0) kvp.Value.SpawnedTotalHours = nowHours;
+                _active[kvp.Key] = kvp.Value;
+                restored++;
+            }
+            if (restored > 0)
+                _sapi.Logger.Notification($"[TravellingTraderManager] SaveGameLoaded: restored {restored} active trader entry/entries.");
+        }
+        catch (Exception ex)
+        {
+            _sapi.Logger.Error($"[TravellingTraderManager] SaveGameLoaded: failed to deserialize active state: {ex.Message}");
+            _active.Clear();
+        }
+    }
+
+    private void OnGameWorldSave()
+    {
+        try
+        {
+            // Snapshot the dict so concurrent OnTick mutations don't corrupt the serialized bytes.
+            PersistedState state = new PersistedState
+            {
+                Active = new Dictionary<string, TraderEntry>(_active)
+            };
+            _sapi.WorldManager.SaveGame.StoreData(SaveDataKey, SerializerUtil.Serialize(state));
+        }
+        catch (Exception ex)
+        {
+            _sapi.Logger.Error($"[TravellingTraderManager] GameWorldSave: failed to serialize active state: {ex.Message}");
+        }
     }
 
     public void OnTraderDespawned(long traderId, string villageId)
     {
-        if (villageId != null)
+        if (villageId == null) return;
+
+        // Only drop the entry if it matches THIS trader's id. If a duplicate
+        // trader is somehow tracked (race during reload re-registration) and
+        // the OLD one despawns, we don't want to clear the entry for the new
+        // one.
+        if (_active.TryGetValue(villageId, out var entry) && entry.TraderId == traderId)
         {
-            _active.Remove(villageId);
+            _active.TryRemove(villageId, out _);
             _sapi.Logger.Debug($"[TravellingTraderManager] Trader {traderId} removed from village {villageId}.");
         }
+        else
+        {
+            _sapi.Logger.Debug($"[TravellingTraderManager] Stale despawn for trader {traderId} in village {villageId}; active entry holds different trader (ignoring).");
+        }
+    }
+
+    // Re-register a trader after chunk reload. On TraderId mismatch the in-memory entry wins (OnTick uses it for dup-spawn suppression).
+    public void RegisterExistingTrader(long traderId, long guardId, string villageId, double spawnedTotalHours = 0.0)
+    {
+        if (string.IsNullOrEmpty(villageId)) return;
+        if (_active.TryGetValue(villageId, out var existing))
+        {
+            if (existing.TraderId == traderId)
+            {
+                if (existing.SpawnedTotalHours <= 0.0 && spawnedTotalHours > 0.0)
+                    existing.SpawnedTotalHours = spawnedTotalHours;
+                return;
+            }
+            _sapi?.Logger.Warning(
+                $"[TravellingTraderManager] Village {villageId} already has tracked trader {existing.TraderId}; " +
+                $"loading trader {traderId} is likely a leftover duplicate. Keeping the tracked entry.");
+            return;
+        }
+        _active[villageId] = new TraderEntry
+        {
+            TraderId = traderId,
+            GuardId = guardId,
+            VillageId = villageId,
+            SpawnedTotalHours = spawnedTotalHours
+        };
+        _sapi?.Logger.Debug($"[TravellingTraderManager] Re-registered existing trader {traderId} for village {villageId} (post-reload).");
     }
 
     public BlockPos GetActiveStallPos(string villageId)
@@ -87,18 +204,36 @@ public class TravellingTraderManager : ModSystem
             return;
         }
         List<string> dead = new List<string>();
+        double nowHours = _sapi.World.Calendar.TotalHours;
         foreach (KeyValuePair<string, TraderEntry> kvp in _active)
         {
             Entity e = _sapi.World.GetEntityById(kvp.Value.TraderId);
-            if (e == null || !e.Alive)
+            if (e != null && !e.Alive)
             {
+                // Entity loaded and confirmed dead, prune immediately.
                 dead.Add(kvp.Key);
+            }
+            else if (e == null)
+            {
+                // Entity not currently loaded. Pre-persistence we treated
+                // this as "dead and prune" which corrupted state on restart
+                // (chunks not loaded yet at first OnTick = false positive
+                // dead-prune = double-spawn). Now we keep the entry and only
+                // prune via the stale timeout - 30 in-game hours past spawn
+                // is well beyond the 18-hour visit cap, so any entry that
+                // hasn't been confirmed by a live entity by then is genuinely
+                // orphaned (entity purged out-of-band).
+                if (kvp.Value.SpawnedTotalHours > 0
+                    && nowHours - kvp.Value.SpawnedTotalHours > StaleEntryTimeoutHours)
+                {
+                    dead.Add(kvp.Key);
+                }
             }
         }
         foreach (string k in dead)
         {
-            _sapi.Logger.Debug("[TravellingTraderManager] Pruning dead entry for village " + k + ".");
-            _active.Remove(k);
+            _sapi.Logger.Debug("[TravellingTraderManager] Pruning dead/stale entry for village " + k + ".");
+            _active.TryRemove(k, out _);
         }
         float hour = _sapi.World.Calendar.HourOfDay;
         bool isMorning = hour >= 5f && hour <= 10f;
@@ -111,10 +246,8 @@ public class TravellingTraderManager : ModSystem
         }
     }
 
-    /// <summary>
-    /// Admin-command entry point — bypasses the RNG roll and morning-time check,
-    /// but still requires a market stall and valid spawn position.
-    /// </summary>
+    // Admin-command entry point - bypasses the RNG roll and morning-time check,
+    // but still requires a market stall and valid spawn position.
     public void TryForceSpawn(Village village) => TrySpawn(village);
 
     private void TrySpawn(Village village)
@@ -123,13 +256,13 @@ public class TravellingTraderManager : ModSystem
         BlockPos stallPos = FindMarketStallPos(village);
         if (stallPos == null)
         {
-            _sapi.Logger.Debug("[TravellingTraderManager] No outdoor stall position for " + village.Id + " — skipping.");
+            _sapi.Logger.Debug("[TravellingTraderManager] No outdoor stall position for " + village.Id + " - skipping.");
             return;
         }
         Vec3d spawnPos = FindSpawnPos(village);
         if (spawnPos == null)
         {
-            _sapi.Logger.Debug("[TravellingTraderManager] No valid spawn pos for " + village.Id + " — skipping.");
+            _sapi.Logger.Debug("[TravellingTraderManager] No valid spawn pos for " + village.Id + " - skipping.");
             return;
         }
         string sex = Sexes[_sapi.World.Rand.Next(Sexes.Length)];
@@ -168,7 +301,7 @@ public class TravellingTraderManager : ModSystem
         guardEntity.Pos.SetPos(guardPos);
         _sapi.World.SpawnEntity(guardEntity);
 
-        // Set behavior properties after SpawnEntity — behaviors are live now
+        // Set behavior properties after SpawnEntity - behaviors are live now
         EntityBehaviorTravellingTrader traderBeh = traderEntity.GetBehavior<EntityBehaviorTravellingTrader>();
         if (traderBeh != null)
         {
@@ -198,7 +331,8 @@ public class TravellingTraderManager : ModSystem
         {
             TraderId = traderEntity.EntityId,
             GuardId = guardEntity.EntityId,
-            VillageId = village.Id
+            VillageId = village.Id,
+            SpawnedTotalHours = _sapi.World.Calendar.TotalHours
         };
 
         _sapi.Logger.Notification($"[TravellingTraderManager] Spawned {traderCode} (id {traderEntity.EntityId}) + guard (id {guardEntity.EntityId}) for village {village.Id}. Stall: {stallPos}. Visit ends at {visitEnd:F1} h.");
@@ -220,17 +354,18 @@ public class TravellingTraderManager : ModSystem
         int r = Math.Min(village.Radius, 35);
         int cy = village.Pos.Y;
         BlockPos tmp = new BlockPos(0);
+        // Y scan was +/-8 (17 layers), market stalls typically sit within +/-2 of village.Pos.Y. Tighter Y saves ~3x GetBlock calls per scan.
         for (int dx = -r; dx <= r; dx++)
         {
             for (int dz = -r; dz <= r; dz++)
             {
                 int wx = village.Pos.X + dx;
                 int wz = village.Pos.Z + dz;
-                for (int dy = 8; dy >= -8; dy--)
+                for (int dy = 2; dy >= -2; dy--)
                 {
                     tmp.Set(wx, cy + dy, wz);
                     Block b = ba.GetBlock(tmp);
-                    if (b != null && b.Code?.Path?.StartsWith("marketstall") == true)
+                    if (b != null && b.Code?.Domain == "vsvillage" && b.Code?.Path?.StartsWith("marketstall") == true)
                     {
                         return tmp.Copy();
                     }

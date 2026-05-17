@@ -28,6 +28,11 @@ public class FillTroughAction : EntityActionBase
 			return;
 		}
 		POIRegistry modSystem = vas.Entity.Api.ModLoader.GetModSystem<POIRegistry>();
+		if (modSystem == null)
+		{
+			isFinished = true;
+			return;
+		}
 		targetTrough = modSystem.GetNearestPoi(vas.Entity.Pos.XYZ, 40f, (IPointOfInterest poi) => poi is BlockEntityTrough) as BlockEntityTrough;
 		if (targetTrough == null)
 		{
@@ -79,6 +84,7 @@ public class FillTroughAction : EntityActionBase
 		{
 			return;
 		}
+		// game: domain not required for pathing, known-working as-is. Known issue: may need explicit `game:` if a mod ever overrides grain-flax.
 		Item item = (targetTrough.Inventory[0].Empty ? vas.Entity.World.GetItem(new AssetLocation("grain-flax")) : targetTrough.Inventory[0].Itemstack.Item);
 		if (item != null)
 		{

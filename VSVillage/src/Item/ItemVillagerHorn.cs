@@ -28,7 +28,8 @@ public class ItemVillagerHorn : Item
 		{
 			byEntity.World?.PlaySoundAt(new AssetLocation("vsvillage:sounds/horn.ogg"), byEntity.Pos.X, byEntity.Pos.Y, byEntity.Pos.Z);
 			spawnVillager(byEntity, blockSel);
-			if (!(byEntity is EntityPlayer) || (byEntity as EntityPlayer).Player.WorldData.CurrentGameMode != EnumGameMode.Creative)
+			// Skip consume in creative. Null Player (respawning) is treated as non-creative so the horn is still consumed.
+			if (!(byEntity is EntityPlayer ep) || ep.Player?.WorldData?.CurrentGameMode != EnumGameMode.Creative)
 			{
 				slot.TakeOut(1);
 				slot.MarkDirty();
@@ -38,7 +39,7 @@ public class ItemVillagerHorn : Item
 
 	private void spawnVillager(EntityAgent byEntity, BlockSelection blockSel)
 	{
-		// One per village/area — scan 60 blocks for an existing mechhelper.
+		// One per village/area - scan 60 blocks for an existing mechhelper.
 		Entity[] existing = byEntity.World.GetEntitiesAround(
 			byEntity.Pos.XYZ, 60f, 20f,
 			e => e.Code?.Domain == "vsvillage" && e.Code?.Path == "village-mechhelper");

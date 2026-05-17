@@ -21,7 +21,8 @@ public class AiTaskVillagerRangedAttack : AiTaskBaseTargetable
 
 	private float maxDist = 15f;
 
-	protected int searchWaitMs = 7000;
+	// Time between re-scans for a target
+	protected int searchWaitMs = 1000;
 
 	private float startTimeStamp;
 
@@ -47,7 +48,7 @@ public class AiTaskVillagerRangedAttack : AiTaskBaseTargetable
 
 	private float damage;
 
-	/// <summary>Pre-computed: false when this task doesn't apply to this entity type (e.g. non-archers skip the archer-only ranged task).</summary>
+	// Pre-computed: false when this task doesn't apply to this entity type (e.g. non-archers skip the archer-only ranged task).
 	private readonly bool _isApplicableToThisEntity;
 
 	public AiTaskVillagerRangedAttack(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
@@ -63,7 +64,7 @@ public class AiTaskVillagerRangedAttack : AiTaskBaseTargetable
 		string projectileCode = taskConfig["projectile"].AsString();
 		projectileType = entity.World.GetEntityType(new AssetLocation(projectileCode));
 		if (projectileType == null && _isApplicableToThisEntity)
-			entity.World.Logger.Warning("[VsVillage] AiTaskVillagerRangedAttack: projectile entity type '{0}' not found — archer will not shoot. Check the 'projectile' key in villager.json.", projectileCode);
+			entity.World.Logger.Warning("[VsVillage] AiTaskVillagerRangedAttack: projectile entity type '{0}' not found - archer will not shoot. Check the 'projectile' key in villager.json.", projectileCode);
 		if (taskConfig["drawingsound"].Exists)
 		{
 			drawingsound = new AssetLocation(taskConfig["drawingsound"].AsString());
@@ -72,14 +73,21 @@ public class AiTaskVillagerRangedAttack : AiTaskBaseTargetable
 		{
 			shootingSound = new AssetLocation(taskConfig["shootingsound"].AsString());
 		}
-		if (taskConfig["animationRelase"].Exists)
+		// Bare anim codes pinned in source - these always exist on the villager-male/female shape.
+		animMeta = new AnimationMetaData
 		{
-			animationRelease = new AnimationMetaData
-			{
-				Animation = taskConfig["animationRelase"].AsString(),
-				Code = taskConfig["animationRelase"].AsString()
-			}.Init();
-		}
+			Animation = "bowaimandhit",
+			Code = "bowaimandhit",
+			SupressDefaultAnimation = true,
+			Weight = 5f
+		}.Init();
+		animationRelease = new AnimationMetaData
+		{
+			Animation = "bowhit",
+			Code = "bowhit",
+			SupressDefaultAnimation = true,
+			Weight = 5f
+		}.Init();
 		damage = taskConfig["damage"].AsFloat(3f);
 	}
 
@@ -209,7 +217,7 @@ public class AiTaskVillagerRangedAttack : AiTaskBaseTargetable
 		entity.World.RayTraceForSelection(entity.Pos.XYZ.AddCopy(entity.LocalEyePos), targetEntity.Pos.XYZ.AddCopy(targetEntity.LocalEyePos), ref blockSelection, ref entitySelection);
 		// If a block was hit the path is obstructed
 		if (blockSelection?.Position != null) return true;
-		// If no entity was struck the ray went past everything — clear shot
+		// If no entity was struck the ray went past everything - clear shot
 		if (entitySelection?.Entity == null) return false;
 		// Obstructed only when the thing struck is NOT the intended target
 		return entitySelection.Entity != targetEntity;

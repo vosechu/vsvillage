@@ -309,6 +309,11 @@
 				"blendMode": "average"
 			},
 			{
+				"code": "kneellaundry",
+				"animation": "balanced-kneellaundry",
+				"blendMode": "average"
+			},
+			{
 				"code": "hammer-forge",
 				"animation": "balanced-hammer-forge",
 				"blendMode": "Add",
@@ -664,16 +669,103 @@
 				"blendMode": "average"
 			},
 			{
+				"code": "bowhit",
 				"animation": "bowhit",
-				"blendMode": "average"
+				"blendMode": "Add",
+				"elementWeight": {
+					"Neck": 100,
+					"Head": 100,
+					"LowerTorso": 100,
+					"UpperTorso": 100,
+					"UpperArmRHelper": 100,
+					"UpperArmR": 100,
+					"LowerArmRHelper": 100,
+					"LowerArmR": 100,
+					"UpperArmLHelper": 100,
+					"UpperArmL": 100,
+					"LowerArmLHelper": 100,
+					"LowerArmL": 100
+				},
+				"elementBlendMode": {
+					"Neck": "AddAverage",
+					"Head": "AddAverage",
+					"LowerTorso": "AddAverage",
+					"UpperTorso": "AddAverage",
+					"UpperArmRHelper": "AddAverage",
+					"LowerArmRHelper": "AddAverage",
+					"UpperArmR": "AddAverage",
+					"LowerArmR": "AddAverage",
+					"UpperArmLHelper": "AddAverage",
+					"LowerArmLHelper": "AddAverage",
+					"UpperArmL": "AddAverage",
+					"LowerArmL": "AddAverage"
+				}
 			},
 			{
+				"code": "bowaim",
 				"animation": "bowaim",
-				"blendMode": "average"
+				"blendMode": "Add",
+				"elementWeight": {
+					"Neck": 100,
+					"Head": 100,
+					"LowerTorso": 100,
+					"UpperTorso": 100,
+					"UpperArmRHelper": 100,
+					"UpperArmR": 100,
+					"LowerArmRHelper": 100,
+					"LowerArmR": 100,
+					"UpperArmLHelper": 100,
+					"UpperArmL": 100,
+					"LowerArmLHelper": 100,
+					"LowerArmL": 100
+				},
+				"elementBlendMode": {
+					"Neck": "AddAverage",
+					"Head": "AddAverage",
+					"LowerTorso": "AddAverage",
+					"UpperTorso": "AddAverage",
+					"UpperArmRHelper": "AddAverage",
+					"LowerArmRHelper": "AddAverage",
+					"UpperArmR": "AddAverage",
+					"LowerArmR": "AddAverage",
+					"UpperArmLHelper": "AddAverage",
+					"LowerArmLHelper": "AddAverage",
+					"UpperArmL": "AddAverage",
+					"LowerArmL": "AddAverage"
+				}
 			},
 			{
+				"code": "bowaimandhit",
 				"animation": "bowaimandhit",
-				"blendMode": "average"
+				"blendMode": "Add",
+				"elementWeight": {
+					"Neck": 100,
+					"Head": 100,
+					"LowerTorso": 100,
+					"UpperTorso": 100,
+					"UpperArmRHelper": 100,
+					"UpperArmR": 100,
+					"LowerArmRHelper": 100,
+					"LowerArmR": 100,
+					"UpperArmLHelper": 100,
+					"UpperArmL": 100,
+					"LowerArmLHelper": 100,
+					"LowerArmL": 100
+				},
+				"elementBlendMode": {
+					"Neck": "AddAverage",
+					"Head": "AddAverage",
+					"LowerTorso": "AddAverage",
+					"UpperTorso": "AddAverage",
+					"UpperArmRHelper": "AddAverage",
+					"LowerArmRHelper": "AddAverage",
+					"UpperArmR": "AddAverage",
+					"LowerArmR": "AddAverage",
+					"UpperArmLHelper": "AddAverage",
+					"LowerArmLHelper": "AddAverage",
+					"UpperArmL": "AddAverage",
+					"LowerArmL": "AddAverage"
+				}
 			},
 			{
 				"animation": "elderbalanced-sitfloor",
@@ -917,11 +1009,12 @@
 {
 	"code": "taskai",
 	"aitasks": [
+		// === COMBAT ===
 		{
 			"code": "villagerrangedattack",
 			"onlyForEntitySuffix": "-archer",
 			"entityCodes": [ "bandit-*", "lonehuntergoblin-*", "ork-*", "surfacegoblin-*", "drifter-*", "shiver-*", "bowtorn-*", "direwolf-*", "hellboar-*", "bear-*", "wolf-*" ],
-			"priority": 7,
+			"priority": 8,
 			"movespeed": 0.012,
 			"damage": 8,
 			"minDist": 3,
@@ -929,8 +1022,6 @@
 			"durationMs": 2000,
 			"releaseAtMs": 1200,
 			"seekingRange": 25,
-			"animation": "BowAim",
-			"animationRelase": "BowHit",
 			"drawingsound": "game:sounds/bow-draw.ogg",
 			"shootingsound": "game:sounds/bow-release.ogg",
 			"projectile": "game:arrow-iron"
@@ -938,8 +1029,8 @@
 		{
 			"code": "villagermeleeattack",
 			"entityCodes": [ "bandit-*", "lonehuntergoblin-*", "ork-*", "surfacegoblin-*", "drifter-*", "shiver-*", "bowtorn-*", "direwolf-*", "hellboar-*", "bear-*", "wolf-*" ],
-			"priority": 6,
-			"movespeed": 0.012,
+			"priority": 7.5,
+			"movespeed": 0.018,
 			"damageByType": {
 				"*-soldier": 12,
 				"*-archer": 5,
@@ -950,15 +1041,15 @@
 				"*-archer": 1,
 				"*": 0
 			},
-			"mincooldown": 1500,
-			"maxcooldown": 2500,
+			"mincooldown": 300,
+			"maxcooldown": 600,
 			"attackDurationMs": 900,
 			"animation": "Attack",
 			"animationSpeed": 2,
 			"stabanimation": "spear-attack",
-			"stabanimationspeed": 0.7,
+			"stabanimationspeed": 1.5,
 			"slashanimation": "spear-attack",
-			"slashanimationspeed": 0.7,
+			"slashanimationspeed": 1.5,
 			"seekingRange": 25
 		},
 		{
@@ -966,13 +1057,14 @@
 			"code": "villagerchaseentity",
 			"requiredEntitySuffixes": [ "-soldier", "-archer" ],
 			"entityCodes": [ "bandit-*", "lonehuntergoblin-*", "ork-*", "surfacegoblin-*", "drifter-*", "shiver-*", "bowtorn-*", "direwolf-*", "hellboar-*", "bear-*", "wolf-*" ],
-			"priority": 5.5,
+			"priority": 7,
 			"seekingRange": 20,
-			"maxFollowTime": 120,
+			"maxFollowTime": 240,
 			"maxdistance": 20,
-			"mincooldown": 1000,
-			"maxcooldown": 1500,
-			"movespeed": 0.012,
+			"mincooldown": 200,
+			"maxcooldown": 400,
+			"targetSearchIntervalMs": 250,
+			"movespeed": 0.025,
 			"animation": "Run",
 			"animationSpeed": 1.75
 		},
@@ -980,12 +1072,13 @@
 
 			"code": "villagerseekentity",
 			"entityCodes": [ "bandit-*", "surfacegoblin-*", "wolf-*" ],
-			"priority": 5,
-			"mincooldown": 1000,
-			"maxcooldown": 1500,
+			"priority": 6.5,
+			"mincooldown": 200,
+			"maxcooldown": 400,
+			"targetSearchIntervalMs": 250,
 			"seekingRange": 20,
-			"maxFollowTime": 60,
-			"movespeed": 0.012,
+			"maxFollowTime": 90,
+			"movespeed": 0.018,
 			"animation": "Run",
 			"animationSpeed": 1.75
 		},
@@ -995,18 +1088,19 @@
 			"entityCodes": [ "drifter-*", "locust-*", "shiver-*", "bowtorn-*", "bear-*", "wolf-*", "ork-*", "direwolf-*", "hellboar-*" ],
 			"excludeEntitySuffixes": [ "-soldier", "-archer" ],
 			"priority": 10,
-			"movespeed": 0.015,
-			"seekingRange": 20,
-			"fleeingDistance": 30,
+			"movespeed": 0.020,
+			"seekingRange": 14,
+			"fleeingDistance": 18,
 			"fleeDurationMs": 12000,
 			"animation": "Run",
 			"animationSpeed": 1.75
 		},
+		// === SLEEP ===
 		{
 			"code": "villagersleep",
 			"excludeEntitySuffix": "-soldier",
 			"priority": 9.0,
-			"movespeed": 0.008,
+			"movespeed": 0.012,
 			"animation": "Walk",
 			"duringDayTimeFrames": [
 				{
@@ -1020,18 +1114,49 @@
 		{
 			"code": "villagersleep",
 			"onlyForEntitySuffix": "-soldier",
-			"priority": 9.0,
-			"movespeed": 0.008,
+			"priority": 3.0,
+			"movespeed": 0.012,
 			"animation": "Walk",
 			"duringDayTimeFrames": [
 				{
 					"fromHour": 7,
+					"toHour": 10
+				}
+			],
+			"mincooldown": 5000,
+			"maxcooldown": 10000
+		},
+		{
+			"code": "villagersleep",
+			"onlyForEntitySuffix": "-soldier",
+			"priority": 3.0,
+			"movespeed": 0.012,
+			"animation": "Walk",
+			"duringDayTimeFrames": [
+				{
+					"fromHour": 10,
+					"toHour": 13
+				}
+			],
+			"mincooldown": 5000,
+			"maxcooldown": 10000
+		},
+		{
+			"code": "villagersleep",
+			"onlyForEntitySuffix": "-soldier",
+			"priority": 3.0,
+			"movespeed": 0.012,
+			"animation": "Walk",
+			"duringDayTimeFrames": [
+				{
+					"fromHour": 13,
 					"toHour": 15
 				}
 			],
 			"mincooldown": 5000,
 			"maxcooldown": 10000
 		},
+		// === MORNING & DAILY ROUTINE ===
 		{
 			"code": "villagergather",
 			"priority": 9.5,
@@ -1049,13 +1174,14 @@
 			"maxdistance": 5,
 			"animation": "walk",
 			"animationSpeed": 1,
-			"priority": 7.5,
-			"movespeed": 0.008
+			"priority": 8.5,
+			"movespeed": 0.012
 		},
 		{
 			"code": "villagergotomayor",
+			"excludeEntitySuffixes": [ "-soldier", "-archer" ],
 			"priority": 5.6,
-			"movespeed": 0.010,
+			"movespeed": 0.013,
 			"animation": "walk",
 			"mincooldown": 10000,
 			"maxcooldown": 20000,
@@ -1071,30 +1197,112 @@
 		},
 		{
 			"code": "villagergotowork",
-			"priority": 6.0,
-			"movespeed": 0.010,
+			"excludeEntitySuffixes": [ "-soldier", "-archer" ],
+			"priority": 4.0,
+			"movespeed": 0.013,
 			"animation": "Walk",
-			"mincooldown": 2000,
-			"maxcooldown": 4000,
+			"mincooldown": 5000,
+			"maxcooldown": 10000,
 			"duringDayTimeFrames": [
 				{
 					"fromHour": 7.5,
-					"toHour": 17
+					"toHour": 8.0
 				}
 			],
 			"maxdistance": 80
 		},
 		{
+			"code": "villagergotowork",
+			"excludeEntitySuffixes": [ "-soldier", "-archer" ],
+			"priority": 4.0,
+			"movespeed": 0.013,
+			"animation": "Walk",
+			"mincooldown": 5000,
+			"maxcooldown": 10000,
+			"duringDayTimeFrames": [
+				{
+					"fromHour": 12.0,
+					"toHour": 12.5
+				}
+			],
+			"maxdistance": 80
+		},
+		{
+			"code": "villagergotowork",
+			"excludeEntitySuffixes": [ "-soldier", "-archer" ],
+			"priority": 4.0,
+			"movespeed": 0.013,
+			"animation": "Walk",
+			"mincooldown": 5000,
+			"maxcooldown": 10000,
+			"duringDayTimeFrames": [
+				{
+					"fromHour": 16.5,
+					"toHour": 17.0
+				}
+			],
+			"maxdistance": 80
+		},
+		{
+			"code": "villagergotowork",
+			"onlyForEntitySuffix": "-soldier",
+			"priority": 5.5,
+			"movespeed": 0.013,
+			"animation": "Walk",
+			"mincooldown": 8000,
+			"maxcooldown": 20000,
+			"duringDayTimeFrames": [
+				{
+					"fromHour": 7,
+					"toHour": 8
+				},
+				{
+					"fromHour": 13,
+					"toHour": 14
+				},
+				{
+					"fromHour": 19,
+					"toHour": 20
+				}
+			],
+			"maxdistance": 200
+		},
+		{
+			"code": "villagergotowork",
+			"onlyForEntitySuffix": "-archer",
+			"priority": 5.5,
+			"movespeed": 0.013,
+			"animation": "Walk",
+			"mincooldown": 8000,
+			"maxcooldown": 20000,
+			"duringDayTimeFrames": [
+				{
+					"fromHour": 7,
+					"toHour": 8
+				},
+				{
+					"fromHour": 13,
+					"toHour": 14
+				},
+				{
+					"fromHour": 19,
+					"toHour": 20
+				}
+			],
+			"maxdistance": 200
+		},
+		// === SHEPHERD - PEN WORK ===
+		{
 			"code": "villagerfilltrough",
 			"minduration": 4000,
 			"maxduration": 6000,
-			"mincooldown": 2500,
-			"maxcooldown": 12000,
+			"mincooldown": 60000,
+			"maxcooldown": 180000,
 			"maxdistance": 40,
 			"animation": "walk",
 			"animationSpeed": 1,
 			"priority": 5.6,
-			"movespeed": 0.008,
+			"movespeed": 0.012,
 			"duringDayTimeFrames": [
 				{
 					"fromHour": 8,
@@ -1102,6 +1310,7 @@
 				}
 			]
 		},
+		// === FARMER ===
 		{
 			"code": "villagercultivatecrops",
 			"minduration": 4000,
@@ -1112,7 +1321,7 @@
 			"animation": "walk",
 			"animationSpeed": 1,
 			"priority": 5.0,
-			"movespeed": 0.008,
+			"movespeed": 0.012,
 			"farmlandCooldownSeconds": 20,
 			"duringDayTimeFrames": [
 				{
@@ -1129,13 +1338,13 @@
 			"code": "villagerremovedeadcrops",
 			"minduration": 1000,
 			"maxduration": 2000,
-			"mincooldown": 1500,
-			"maxcooldown": 3000,
+			"mincooldown": 60000,
+			"maxcooldown": 120000,
 			"maxdistance": 40,
 			"animation": "walk",
 			"animationSpeed": 1,
 			"priority": 5.3,
-			"movespeed": 0.008,
+			"movespeed": 0.012,
 			"clearedCooldownSeconds": 60,
 			"duringDayTimeFrames": [
 				{
@@ -1164,6 +1373,66 @@
 			]
 		},
 		{
+			"code": "villagerhoetilling",
+			"onlyForEntitySuffix": "-farmer",
+			"priority": 4.7,
+			"movespeed": 0.012,
+			"animation": "walk",
+			"animationSpeed": 1,
+			"minduration": 3000,
+			"maxduration": 6000,
+			"mincooldown": 2000,
+			"maxcooldown": 5000,
+			"maxdistance": 30,
+			"duringDayTimeFrames": [
+				{
+					"fromHour": 8,
+					"toHour": 16.5
+				}
+			]
+		},
+		// === PROFESSION CHATTER ===
+		{
+			"code": "villagershepherdtend",
+			"onlyForEntitySuffix": "-shepherd",
+			"priority": 4.5,
+			"movespeed": 0.012,
+			"animation": "walk",
+			"animationSpeed": 1,
+			"minduration": 4000,
+			"maxduration": 8000,
+			"mincooldown": 15000,
+			"maxcooldown": 35000,
+			"maxdistance": 14,
+			"minRange": 1,
+			"duringDayTimeFrames": [
+				{
+					"fromHour": 8,
+					"toHour": 16.5
+				}
+			]
+		},
+		{
+			"code": "villagerprofessionchat",
+			"priority": 4.6,
+			"movespeed": 0.013,
+			"animation": "walk",
+			"animationSpeed": 1,
+			"minduration": 2000,
+			"maxduration": 4000,
+			"mincooldown": 240000,
+			"maxcooldown": 480000,
+			"maxdistance": 18,
+			"interact": "welcome",
+			"excludeEntitySuffixes": [ "-soldier", "-archer" ],
+			"duringDayTimeFrames": [
+				{
+					"fromHour": 9,
+					"toHour": 16
+				}
+			]
+		},
+		{
 			"code": "villagerfarmerhelp",
 			"minduration": 8000,
 			"maxduration": 20000,
@@ -1173,7 +1442,7 @@
 			"animation": "walk",
 			"animationSpeed": 1,
 			"priority": 4.8,
-			"movespeed": 0.008,
+			"movespeed": 0.012,
 			"duringDayTimeFrames": [
 				{
 					"fromHour": 7.5,
@@ -1181,6 +1450,7 @@
 				}
 			]
 		},
+		// === PATROL ===
 		{
 			"code": "villagerpatrol",
 			"excludeEntitySuffix": "-soldier",
@@ -1213,6 +1483,7 @@
 				}
 			]
 		},
+		// === SMITH ===
 		{
 			"code": "villagersmithidle",
 			"minduration": 1500,
@@ -1223,7 +1494,7 @@
 			"animation": "walk",
 			"animationSpeed": 1,
 			"priority": 5.3,
-			"movespeed": 0.008,
+			"movespeed": 0.012,
 			"forgeTendIntervalHours": 2,
 			"duringDayTimeFrames": [
 				{
@@ -1236,7 +1507,7 @@
 
 			"code": "villagersmithhammer",
 			"priority": 6.1,
-			"movespeed": 0.009,
+			"movespeed": 0.012,
 			"animation": "walk",
 			"animationSpeed": 1,
 			"maxdistance": 30,
@@ -1250,6 +1521,7 @@
 				}
 			]
 		},
+		// === PROFESSION IDLE ===
 		{
 			"code": "villagerprofessionidle",
 			"professionSuffix": "-herbalist",
@@ -1265,7 +1537,7 @@
 			"animation": "walk",
 			"animationSpeed": 1,
 			"priority": 5.1,
-			"movespeed": 0.008,
+			"movespeed": 0.012,
 			"duringDayTimeFrames": [
 				{
 					"fromHour": 8,
@@ -1287,7 +1559,7 @@
 			"animation": "walk",
 			"animationSpeed": 1,
 			"priority": 5.1,
-			"movespeed": 0.008,
+			"movespeed": 0.012,
 			"duringDayTimeFrames": [
 				{
 					"fromHour": 8,
@@ -1295,10 +1567,11 @@
 				}
 			]
 		},
+		// === BAKER ===
 		{
 			"code": "villagerbakertendoven",
-			"priority": 5.3,
-			"movespeed": 0.008,
+			"priority": 3.8,
+			"movespeed": 0.012,
 			"animation": "walk",
 			"animationSpeed": 1,
 			"minduration": 20000,
@@ -1319,7 +1592,7 @@
 		{
 			"code": "villagerbakercollectbread",
 			"priority": 6.0,
-			"movespeed": 0.008,
+			"movespeed": 0.012,
 			"animation": "walk",
 			"animationSpeed": 1,
 			"minduration": 2000,
@@ -1334,10 +1607,11 @@
 				}
 			]
 		},
+		// === HERBALIST & TAMING ===
 		{
 			"code": "villagertameanimal",
 			"priority": 5.1,
-			"movespeed": 0.008,
+			"movespeed": 0.012,
 			"animation": "walk",
 			"searchRadius": 30,
 			"mincooldown": 1200000,
@@ -1351,8 +1625,8 @@
 		},
 		{
 			"code": "villagercheckflowers",
-			"priority": 5.1,
-			"movespeed": 0.009,
+			"priority": 3.8,
+			"movespeed": 0.012,
 			"animation": "walk",
 			"animationSpeed": 1,
 			"minduration": 3000,
@@ -1371,7 +1645,7 @@
 		{
 			"code": "villagerfillflowerpot",
 			"priority": 5.5,
-			"movespeed": 0.009,
+			"movespeed": 0.012,
 			"animation": "walk",
 			"animationSpeed": 1,
 			"minduration": 3000,
@@ -1388,43 +1662,29 @@
 		},
 
 
+		// === STORM SHELTER ===
 		{
 			"code": "villagerstormshelter",
 			"priority": 15.0,
-			"movespeed": 0.014,
+			"movespeed": 0.020,
 			"animation": "Run",
 			"mincooldown": 5000,
 			"maxcooldown": 10000
 		},
-		{
-			"code": "villagergoshopping",
-			"priority": 4.2,
-			"movespeed": 0.010,
-			"animation": "walk",
-			"minduration": 3000,
-			"maxduration": 6000,
-			"mincooldown": 600000,
-			"maxcooldown": 1200000,
-			"duringDayTimeFrames": [
-				{
-					"fromHour": 12,
-					"toHour": 13
-				}
-			],
-			"maxdistance": 40
-		},
+		// === EVENING & SOCIAL ===
 		{
 			"code": "villagergotogather",
 			"priority": 5.7,
-			"movespeed": 0.008,
+			"movespeed": 0.010,
 			"animation": "walk",
 			"minduration": 3000,
 			"maxduration": 5000,
 			"mincooldown": 10000,
 			"maxcooldown": 20000,
+			"excludeEntitySuffixes": [ "-soldier", "-archer" ],
 			"duringDayTimeFrames": [
 				{
-					"fromHour": 18.5,
+					"fromHour": 17.5,
 					"toHour": 21
 				}
 			],
@@ -1443,7 +1703,7 @@
 			"animation": "Walk",
 			"interact": "welcome",
 			"maxdistance": 4,
-			"excludeEntitySuffixes": [ "-smith", "-baker" ],
+			"excludeEntitySuffixes": [ "-smith", "-baker", "-soldier", "-archer" ],
 			"duringDayTimeFrames": [
 				{
 					"fromHour": 7,
@@ -1483,6 +1743,7 @@
 			"gesture": "greet",
 			"gestureDurationMs": 3000,
 			"maxdistance": 5,
+			"excludeEntitySuffixes": [ "-soldier", "-archer" ],
 			"duringDayTimeFrames": [
 				{
 					"fromHour": 18.5,
@@ -1500,6 +1761,7 @@
 			"gesture": "refuse",
 			"gestureDurationMs": 5000,
 			"maxdistance": 5,
+			"excludeEntitySuffixes": [ "-soldier", "-archer" ],
 			"duringDayTimeFrames": [
 				{
 					"fromHour": 19,
@@ -1593,7 +1855,7 @@
 		//			"maxcooldown": 120000,
 		//			"minduration": 1000,
 		//			"maxduration": 2000,
-		//			"movespeed": 0.008,
+		//			"movespeed": 0.012,
 		//			"animation": "Walk",
 		//			"interact": "welcome",
 		//			"maxdistance": 4,
@@ -1614,7 +1876,7 @@
 		//		"maxcooldown": 120000,
 		//	"minduration": 1000,
 		//			"maxduration": 2000,
-		//			"movespeed": 0.008,
+		//			"movespeed": 0.012,
 		//			"animation": "Walk",
 		//			"interact": "welcome",
 		//			"maxdistance": 4,
@@ -1635,6 +1897,7 @@
 			"gesture": "nod",
 			"gestureDurationMs": 2000,
 			"maxdistance": 3,
+			"excludeEntitySuffixes": [ "-soldier", "-archer" ],
 			"duringDayTimeFrames": [
 				{
 					"fromHour": 8,
@@ -1652,6 +1915,7 @@
 			"gesture": "greet",
 			"gestureDurationMs": 2000,
 			"maxdistance": 4,
+			"excludeEntitySuffixes": [ "-soldier", "-archer" ],
 			"duringDayTimeFrames": [
 				{
 					"fromHour": 6,
@@ -1659,6 +1923,7 @@
 				}
 			]
 		},
+		// === FALLBACK ===
 		{
 			"code": "idle",
 			"priority": 1.0,

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -22,11 +21,9 @@ public class VillageManager : ModSystem
 
 	private const int villagerHiringCost = 5;
 
-	/// <summary>
-	/// When true, <see cref="AiTaskVillagerStormShelter"/> treats conditions as if
-	/// a temporal storm is active regardless of the real stability system.
-	/// Set via /vsvillage stormdrillstart and cleared by /vsvillage stormdrillend.
-	/// </summary>
+	// When true, AiTaskVillagerStormShelter treats conditions as if
+	// a temporal storm is active regardless of the real stability system.
+	// Set via /vsvillage stormdrillstart and cleared by /vsvillage stormdrillend.
 	public static bool StormDrillActive { get; set; }
 
 	public override void Start(ICoreAPI api)
@@ -107,7 +104,7 @@ public class VillageManager : ModSystem
 			.HandleWith(args =>
 			{
 				StormDrillActive = true;
-				return TextCommandResult.Success("Storm drill started — villagers will seek shelter.");
+				return TextCommandResult.Success("Storm drill started - villagers will seek shelter.");
 			})
 			.EndSubCommand();
 
@@ -129,12 +126,12 @@ public class VillageManager : ModSystem
 				Village v = GetVillageAtPlayer(player);
 				if (v == null) return TextCommandResult.Error("Not within any village radius.");
 				ValidateStructures(v, player, api);
-				return TextCommandResult.Success("Validation complete — see chat for results.");
+				return TextCommandResult.Success("Validation complete - see chat for results.");
 			})
 			.EndSubCommand();
 	}
 
-	/// <summary>Returns the village whose radius contains the player's position, or null.</summary>
+	// Returns the village whose radius contains the player's position, or null.
 	private Village GetVillageAtPlayer(IServerPlayer player)
 	{
 		if (player?.Entity == null) return null;
@@ -154,12 +151,7 @@ public class VillageManager : ModSystem
 		return closest;
 	}
 
-	/// <summary>
-	/// Sets the gather flag so villagers path to the mayor station via
-	/// <see cref="AiTaskVillagerGather"/> and registers a 3-minute auto-clear timer.
-	/// When <paramref name="teleport"/> is true the villagers are also immediately
-	/// teleported (admin command only — never from the GUI button).
-	/// </summary>
+	// Set village gather flag, schedule 3min auto-clear. teleport=true is admin-only, never from the GUI button.
 	private void GatherVillagers(Village v, bool teleport = false)
 	{
 		// Cancel any previous gather timer for this village.
@@ -189,7 +181,7 @@ public class VillageManager : ModSystem
 		}, 180000);
 	}
 
-	/// <summary>Scan loaded chunks for ghost workstations/beds and report results to <paramref name="player"/>.</summary>
+	// Scan loaded chunks for ghost workstations/beds and report results to .
 	private void ValidateStructures(Village v, IServerPlayer player, ICoreServerAPI api)
 	{
 		IBlockAccessor ba = api.World.BlockAccessor;
@@ -248,9 +240,13 @@ public class VillageManager : ModSystem
 		}
 		if (!Villages.TryGetValue(id, out var value) && Api is ICoreServerAPI coreServerAPI)
 		{
+			// Hoisted out of the try so the catch can include the byte length in
+			// its diagnostic - knowing if SaveGame.GetData even returned bytes is
+			// half the battle when the deserializer throws.
+			byte[] data = null;
 			try
 			{
-				byte[] data = coreServerAPI.WorldManager.SaveGame.GetData(id);
+				data = coreServerAPI.WorldManager.SaveGame.GetData(id);
 				value = ((data == null || data.Length < 10) ? null : SerializerUtil.Deserialize<Village>(data));
 				value?.Init(coreServerAPI);
 				if (value != null)
@@ -258,28 +254,20 @@ public class VillageManager : ModSystem
 					Villages.TryAdd(id, value);
 				}
 			}
-			catch (Exception)
+			catch (Exception ex)
 			{
-				Api.Logger.Error("Village with id=" + id + " could not be loaded and will be newly created. Maybe it was removed/ outdated/ corrupted. I guess we will never know for sure because I am too lazy to log this information.");
-				Match villageMatch = Regex.Match(id, "village-(\\d+), (\\d+), (\\d+)");
-				List<int> list;
-				if (villageMatch.Success && villageMatch.Groups.Count >= 4)
-				{
-					list = villageMatch.Groups.Values.ToList().GetRange(1, 3).ConvertAll((Group number) => int.Parse(number.Value));
-				}
-				else
-				{
-					Api.Logger.Error("Village with id=" + id + " could not parse position from id string, using origin as fallback.");
-					list = new List<int> { 0, 0, 0 };
-				}
-				value = new Village
-				{
-					Pos = new BlockPos(list[0], list[1], list[2]),
-					Radius = 50,
-					Name = "Lauras little Village"
-				};
-				value?.Init(coreServerAPI);
-				Villages.TryAdd(id, value);
+				// Do NOT TryAdd a fallback village here. The previous code
+				// inserted a placeholder "Lauras little Village" and then the
+				// next world save overwrote the original bytes on disk,
+				// permanently destroying the real village state. Log loudly
+				// instead and leave the disk bytes untouched so manual recovery
+				// is possible. Caller gets null and behaves as if the village
+				// is absent until the load succeeds (e.g. after a server
+				// restart or schema migration).
+				int dataLen = (data == null) ? -1 : data.Length;
+				Api.Logger.Error("[VsVillage] Village id=" + id + " failed to deserialize (" + dataLen + " bytes on disk). Disk bytes preserved for manual recovery; this village will appear absent until load succeeds. Exception:");
+				Api.Logger.Error(ex);
+				value = null;
 			}
 		}
 		return value;
@@ -287,11 +275,12 @@ public class VillageManager : ModSystem
 
 	public Village GetVillage(BlockPos pos)
 	{
+		// Euclidean to match GetVillageAtPlayer. Block-coord-square check used to disagree at corners.
 		foreach (Village value in Villages.Values)
 		{
-			BlockPos pos2 = value.Pos;
-			int radius = value.Radius;
-			if (pos2.X - radius <= pos.X && pos2.X + radius >= pos.X && pos2.Z - radius <= pos.Z && pos2.Z + radius >= pos.Z)
+			int dx = value.Pos.X - pos.X;
+			int dz = value.Pos.Z - pos.Z;
+			if ((long)dx * dx + (long)dz * dz <= (long)value.Radius * value.Radius)
 			{
 				return value;
 			}
@@ -363,7 +352,7 @@ public class VillageManager : ModSystem
 			BlockEntityVillagerWorkstation blockEntity = api.World.BlockAccessor.GetBlockEntity<BlockEntityVillagerWorkstation>(message.Pos);
 			if (blockEntity == null)
 			{
-				Api.Logger.Error("[VsVillage] create: no workstation block entity at " + message.Pos + " — village creation aborted.");
+				Api.Logger.Error("[VsVillage] create: no workstation block entity at " + message.Pos + " - village creation aborted.");
 				break;
 			}
 			blockEntity.VillageId = village5.Id;
@@ -402,13 +391,13 @@ public class VillageManager : ModSystem
 			BlockPos structPos = message.StructureToRemove;
 			if (structPos == null)
 			{
-				Api.Logger.Error("[VsVillage] removeStructure message has null StructureToRemove — ignoring.");
+				Api.Logger.Error("[VsVillage] removeStructure message has null StructureToRemove - ignoring.");
 				break;
 			}
 			Village village3 = GetVillage(message.Id);
 			if (village3 == null)
 			{
-				Api.Logger.Error("[VsVillage] removeStructure: village '" + message.Id + "' not found — ignoring.");
+				Api.Logger.Error("[VsVillage] removeStructure: village '" + message.Id + "' not found - ignoring.");
 				break;
 			}
 			// Notify the owning villager so they seek a new workstation immediately.
@@ -441,9 +430,9 @@ public class VillageManager : ModSystem
 		}
 		case EnumVillageManagementOperation.markStructureInvalid:
 		{
-			// Force-remove a ghost entry — block entity may not exist, so skip the BE call.
+			// Force-remove a ghost entry - block entity may not exist, so skip the BE call.
 			BlockPos ghostPos = message.StructureToRemove;
-			if (ghostPos == null) { Api.Logger.Error("[VsVillage] markStructureInvalid: null pos — ignoring."); break; }
+			if (ghostPos == null) { Api.Logger.Error("[VsVillage] markStructureInvalid: null pos - ignoring."); break; }
 			Village ghostVillage = GetVillage(message.Id);
 			if (ghostVillage == null) { Api.Logger.Error("[VsVillage] markStructureInvalid: village '" + message.Id + "' not found."); break; }
 
@@ -501,6 +490,44 @@ public class VillageManager : ModSystem
 			village2.Name = message.Name;
 			break;
 		}
+		case EnumVillageManagementOperation.dismissMechhelper:
+		{
+			Village dmv = GetVillage(message.Id);
+			if (dmv?.Pos == null)
+			{
+				Api.Logger.Error("[VsVillage] dismissMechhelper: village '" + message.Id + "' not found or has no Pos.");
+				break;
+			}
+			// Look in a 60-block radius around the mayor workstation - same scope the
+			// Villager Horn uses when checking for an existing keeper, so the GUI and
+			// the horn agree on which mechhelper "belongs" to this village.
+			Vec3d centre = dmv.Pos.ToVec3d().Add(0.5, 0.5, 0.5);
+			Entity[] keepers = api.World.GetEntitiesAround(centre, 60f, 20f,
+				e => e.Code?.Domain == "vsvillage" && e.Code?.Path == "village-mechhelper" && e.Alive);
+
+			int dismissed = 0;
+			foreach (Entity k in keepers)
+			{
+				api.World.DespawnEntity(k, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
+				dismissed++;
+			}
+
+			// Brief poof effect so the player gets visual feedback at the village centre.
+			SimpleParticleProperties poof = new SimpleParticleProperties(
+				30f, 60f, ColorUtil.ToRgba(75, 169, 169, 169),
+				new Vec3d(), new Vec3d(2.0, 1.0, 2.0),
+				new Vec3f(-0.25f, 0f, -0.25f), new Vec3f(0.25f, 0f, 0.25f),
+				3f, -0.075f, 0.5f, 3f, EnumParticleModel.Quad);
+			poof.MinPos = centre;
+			api.World.SpawnParticles(poof);
+
+			fromPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
+				dismissed > 0
+					? "[VsVillage] Dismissed " + dismissed + " Settlement Keeper(s) from '" + dmv.Name + "'."
+					: "[VsVillage] No Settlement Keeper found near '" + dmv.Name + "'.",
+				EnumChatType.Notification);
+			break;
+		}
 		case EnumVillageManagementOperation.recoverOrphanedVillagers:
 		{
 			Village rv = GetVillage(message.Id);
@@ -512,7 +539,7 @@ public class VillageManager : ModSystem
 			{
 				EntityBehaviorVillager bv = e.GetBehavior<EntityBehaviorVillager>();
 				if (bv == null) return false;
-				// Only touch vsvillage entities — don't grab other mods' villagers.
+				// Only touch vsvillage entities - don't grab other mods' villagers.
 				if (e.Code?.Domain != "vsvillage") return false;
 				// Skip villagers already registered to this village.
 				if (bv.VillageId == rv.Id) return false;
@@ -699,12 +726,13 @@ public class VillageManager : ModSystem
 			if (profession != EnumVillagerProfession.farmer && profession != EnumVillagerProfession.shepherd)
 			{
 				List<EntityBehaviorVillager> list = village.Villagers.Where((EntityBehaviorVillager v) => v != null).ToList();
-				int foodProducers = list.Count((EntityBehaviorVillager v) =>
-					v.Profession == EnumVillagerProfession.farmer ||
-					v.Profession == EnumVillagerProfession.shepherd);
+				int farmers = list.Count((EntityBehaviorVillager v) => v.Profession == EnumVillagerProfession.farmer);
+				int shepherds = list.Count((EntityBehaviorVillager v) => v.Profession == EnumVillagerProfession.shepherd);
 				int bakers = list.Count((EntityBehaviorVillager v) => v.Profession == EnumVillagerProfession.baker);
-				// Each farmer/shepherd feeds 2 villagers; each baker feeds 1 (half contribution).
-				if (2 * foodProducers + bakers - list.Count <= 0)
+				// Tuning: farmer feeds 3 (themselves + 2 others), shepherd feeds 2,
+				// baker contributes 1. Previously farmer + shepherd grouped at 2 each,
+				// which was too grindy for the early village ramp.
+				if (3 * farmers + 2 * shepherds + bakers - list.Count <= 0)
 				{
 					fromPlayer.SendIngameError("not-enough-food", null);
 					return false;
@@ -725,7 +753,7 @@ public class VillageManager : ModSystem
 					}
 				}
 			}
-			if (num2 < 5)
+			if (num2 < villagerHiringCost)
 			{
 				fromPlayer.SendIngameError("not-enough-gears", null);
 				result = false;
@@ -809,16 +837,16 @@ public class VillageManager : ModSystem
 							{
 								if (item2?.Itemstack?.Collectible?.Code?.Path == "gear-rusty")
 								{
-									ItemStack itemStack = item2.TakeOut(Math.Min(item2.Itemstack.StackSize, 5 - num2));
+									ItemStack itemStack = item2.TakeOut(Math.Min(item2.Itemstack.StackSize, villagerHiringCost - num2));
 									item2.MarkDirty();
 									num2 += itemStack.StackSize;
 								}
-								if (num2 >= 5)
+								if (num2 >= villagerHiringCost)
 								{
 									break;
 								}
 							}
-							if (num2 < 5)
+							if (num2 < villagerHiringCost)
 							{
 								continue;
 							}

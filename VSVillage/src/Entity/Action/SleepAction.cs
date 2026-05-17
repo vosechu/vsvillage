@@ -9,7 +9,7 @@ using Vintagestory.GameContent;
 
 namespace VsVillage;
 
-[JsonObject(/*Could not decode attribute arguments.*/)]
+[JsonObject]
 public class SleepAction : EntityActionBase
 {
 	public const string ActionType = "Sleep";
@@ -24,6 +24,7 @@ public class SleepAction : EntityActionBase
 
 	public override string Type => "Sleep";
 
+	// Snap entity to bed pos+yaw, start sleep anim, capture TimeOfDayCondition for IsFinished wake check.
 	public override void Start(EntityActivity entityActivity)
 	{
 		EntityBehaviorVillager behavior = vas.Entity.GetBehavior<EntityBehaviorVillager>();
@@ -51,6 +52,7 @@ public class SleepAction : EntityActionBase
 		});
 	}
 
+	// Sleeping pose offset from bed center toward the head-end (per the bed's "side" variant).
 	private Vec3d getPos(BlockEntityVillagerBed bed)
 	{
 		string text = bed.Block.Variant["side"];

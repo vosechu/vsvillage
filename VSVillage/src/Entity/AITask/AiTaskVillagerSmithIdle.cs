@@ -68,9 +68,7 @@ public class AiTaskVillagerSmithIdle : AiTaskGotoAndInteract
 		base.FinishExecute(cancelled);
 	}
 
-	// -------------------------------------------------------------------------
 	// Forge-tending logic
-	// -------------------------------------------------------------------------
 
 	private void TryTendForge()
 	{
@@ -86,7 +84,7 @@ public class AiTaskVillagerSmithIdle : AiTaskGotoAndInteract
 		BlockEntityForge forge = FindForge(ws);
 		if (forge == null) return;
 
-		// Only skip tending if the forge is actively burning — ignore residual fuel
+		// Only skip tending if the forge is actively burning - ignore residual fuel
 		// level, because a cold forge with leftover fuel still needs relighting.
 		if (forge.IsBurning) return;
 
@@ -98,7 +96,7 @@ public class AiTaskVillagerSmithIdle : AiTaskGotoAndInteract
 
 		if (!forge.FuelSlot.Empty)
 		{
-			// Fuel slot already has something — only add if it's the same item and there's room.
+			// Fuel slot already has something - only add if it's the same item and there's room.
 			if (!forge.FuelSlot.Itemstack.Equals(entity.World, coal, GlobalConstants.IgnoredStackAttributes))
 			{
 				return;
@@ -113,17 +111,15 @@ public class AiTaskVillagerSmithIdle : AiTaskGotoAndInteract
 		forge.FuelSlot.MarkDirty();
 		forge.MarkDirty();
 
-		// Always attempt ignition after adding fuel — don't gate on CanIgnite,
+		// Always attempt ignition after adding fuel - don't gate on CanIgnite,
 		// which can return false for a cold forge even when there is plenty of fuel.
 		forge.TryIgnite();
 
 		lastCoalAddedTotalHours = now;
 	}
 
-	/// <summary>
-	/// Returns the first usable forge-fuel Item that exists in this world's item registry.
-	/// Tries lignite first (as requested), then falls back to higher-grade coals.
-	/// </summary>
+	// Returns the first usable forge-fuel Item that exists in this world's item registry.
+	// Tries lignite first (as requested), then falls back to higher-grade coals.
 	private Item ResolveCoalItem()
 	{
 		string[] candidates = { "game:ore-ungraded-lignite", "game:coal-bituminous", "game:coal-anthracite", "game:coalcoke" };
@@ -135,11 +131,9 @@ public class AiTaskVillagerSmithIdle : AiTaskGotoAndInteract
 		return null;
 	}
 
-	/// <summary>
-	/// Finds a BlockEntityForge at or near (±2 blocks) the workstation position.
-	/// The smith's workstation is a custom VSVillage block, not the forge itself,
-	/// so we search the surrounding area rather than the exact position.
-	/// </summary>
+	// Finds a BlockEntityForge at or near (±2 blocks) the workstation position.
+	// The smith's workstation is a custom VSVillage block, not the forge itself,
+	// so we search the surrounding area rather than the exact position.
 	private BlockEntityForge FindForge(BlockPos ws)
 	{
 		// Try the workstation block itself first (future-proofing).

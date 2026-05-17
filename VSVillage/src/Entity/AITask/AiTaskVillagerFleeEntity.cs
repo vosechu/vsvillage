@@ -1,32 +1,19 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
+using Vintagestory.GameContent;
 
 namespace VsVillage;
 
-/// <summary>
-/// Villager flee task that uses <see cref="VillagerAStarNew"/> so villagers can
-/// navigate through gates, around fences, and across uneven terrain while panicking
-/// — instead of getting wedged against the first fence post they touch.
-///
-/// Replaces the vanilla <c>fleeentity</c> task for villagers.  Movement pattern is
-/// identical to <see cref="AiTaskVillagerShepherdWander"/>: direct A* path traversal
-/// with a stuck-detection loop that re-paths at a different angle rather than giving up.
-///
-/// JSON config keys:
-///   entityCodes           — list of entity code patterns to flee from (supports trailing *).
-///   excludeEntitySuffixes — villager types that skip this task (e.g. ["-soldier","-archer"]).
-///   seekingRange          — radius to notice a threat (default 20).
-///   fleeingDistance       — distance at which we consider ourselves safe (default 30).
-///   movespeed             — movement speed while fleeing (default 0.015).
-///   fleeDurationMs        — hard cap on one flee episode in ms (default 12000).
-/// </summary>
+// Villager flee task using VillagerAStarNew (gates, fences, terrain). Replaces vanilla fleeentity for villagers.
+// SHELTER mode first (nearest barracks, then bed), PANIC mode fallback (5-angle away-from-threat A* legs).
 public class AiTaskVillagerFleeEntity : AiTaskBase
 {
-    // ── Config ────────────────────────────────────────────────────────────────
+    // === Config ===
     private readonly List<string> threatCodes = new List<string>();
     private readonly List<string> excludeSuffixes = new List<string>();
     private float seekingRange = 20f;
@@ -34,7 +21,7 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
     private float moveSpeed = 0.015f;
     private long fleeDurationMs = 12000L;
 
-    // ── Runtime state ─────────────────────────────────────────────────────────
+    // === Runtime state ===
     private Entity threat;
     private List<VillagerPathNode> currentPath;
     private int pathIndex;
@@ -46,14 +33,27 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
     private int timesStuck;
     private long lastRepathMs;
 
-    // ── Door state ────────────────────────────────────────────────────────────
+    // === Shelter-mode state ===
+    // Non-null when we're heading for shelter (barracks or bed room).
+    private Vec3d shelterPos;
+    // True once we have arrived at shelterPos and are cowering in place.
+    private bool reachedShelter;
+
+    // === Door state ===
     private BlockPos currentlyOpeningDoor;
     private long doorOpenedTime;
 
     private const long RepathIntervalMs = 1500L;
     private const long StuckCheckMs = 2000L;
 
-    // ── Constructor ───────────────────────────────────────────────────────────
+    // Cower animation played once the villager is at the shelter position.
+    // Matches the storm-shelter idle so it reads as "huddled and waiting".
+    private const string CowerAnimation = "idlelook";
+
+    // Vertical detection cap. Threats beyond this Y delta are ignored so villagers don't flee unreachable monsters.
+    private const float MaxVertDetection = 3f;
+
+    // === Constructor ===
 
     public AiTaskVillagerFleeEntity(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
         : base(entity, taskConfig, aiConfig)
@@ -82,7 +82,31 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
             entity.World.GetCachingBlockAccessor(synchronize: false, relight: false));
     }
 
-    // ── ShouldExecute ─────────────────────────────────────────────────────────
+    // === Sleep-window hurt gate ===
+
+    private long _lastHurtAtMs = -1L;
+    // Window during which a recent hit still authorises a sleep-hours flee. Long enough
+    // to cover the full fleeDurationMs (12s) plus aftermath, short enough that one hit
+    // doesn't unlock fleeing for the rest of the night.
+    private const long HurtMemoryMs = 30_000L;
+
+    public override void OnEntityHurt(DamageSource source, float damage)
+    {
+        base.OnEntityHurt(source, damage);
+        if (source?.Type == EnumDamageType.Heal) return;
+        _lastHurtAtMs = entity.World.ElapsedMilliseconds;
+    }
+
+    private bool IsSleepHours()
+    {
+        float hour = entity.World.Calendar.HourOfDay / entity.World.Calendar.HoursPerDay * 24f;
+        return hour >= 21f || hour < 6f;
+    }
+
+    private bool RecentlyHurt()
+        => _lastHurtAtMs >= 0L && entity.World.ElapsedMilliseconds - _lastHurtAtMs < HurtMemoryMs;
+
+    // === ShouldExecute ===
 
     public override bool ShouldExecute()
     {
@@ -94,14 +118,18 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
         foreach (string sfx in excludeSuffixes)
             if (myPath.EndsWith(sfx)) return false;
 
+        // Asleep villagers don't preemptively flee from prowling hostiles. Only run if
+        // a hit has actually landed recently, otherwise they should keep sleeping.
+        if (IsSleepHours() && !RecentlyHurt()) return false;
+
         threat = entity.World.GetNearestEntity(
-            entity.Pos.XYZ, seekingRange, seekingRange * 0.5f,
+            entity.Pos.XYZ, seekingRange, MaxVertDetection,
             e => e != entity && e.Alive && e.IsInteractable && MatchesThreat(e));
 
         return threat != null;
     }
 
-    // ── StartExecute ──────────────────────────────────────────────────────────
+    // === StartExecute ===
 
     public override void StartExecute()
     {
@@ -116,25 +144,70 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
         lastPos = entity.Pos.XYZ.Clone();
         currentlyOpeningDoor = null;
         doorOpenedTime = 0L;
+        shelterPos = null;
+        reachedShelter = false;
 
-        ComputeAndPath();
+        // First try to find a shelter (barracks → bed room). If neither is
+        // reachable, fall through to the original PANIC flee behaviour.
+        TryAcquireShelter();
+
+        if (shelterPos != null)
+        {
+            PathToShelter();
+            // If the shelter pathfind failed, drop back to panic mode.
+            if (currentPath == null || currentPath.Count == 0)
+            {
+                shelterPos = null;
+                ComputeAndPath();
+            }
+        }
+        else
+        {
+            ComputeAndPath();
+        }
     }
 
-    // ── ContinueExecute ───────────────────────────────────────────────────────
+    // === ContinueExecute ===
 
     public override bool ContinueExecute(float dt)
     {
-        if (currentPath == null || stuck) return false;
-
         long now = entity.World.ElapsedMilliseconds;
 
         if (now - fleeStartMs > fleeDurationMs) return false;
         if (threat == null || !threat.Alive) return false;
-        if (entity.Pos.SquareDistanceTo(threat.Pos) > fleeingDistance * fleeingDistance)
-            return false;
 
-        // Repath periodically so we keep running away as the threat moves.
-        if (now - lastRepathMs > RepathIntervalMs)
+        // Horizontal-only safety check + Y-clamp.
+        double dxSafe = entity.Pos.X - threat.Pos.X;
+        double dzSafe = entity.Pos.Z - threat.Pos.Z;
+        bool threatIsFar = (dxSafe * dxSafe + dzSafe * dzSafe) > fleeingDistance * fleeingDistance
+                          || Math.Abs(entity.Pos.Y - threat.Pos.Y) > MaxVertDetection;
+
+        // === Cowering branch ===
+        if (reachedShelter)
+        {
+            // Once the threat is far enough away, stop cowering and resume normal life.
+            if (threatIsFar) return false;
+            PlayCowerAnimation();
+            // Hold still - no walk vector.
+            entity.Controls.WalkVector.Set(0.0, 0.0, 0.0);
+            return true;
+        }
+
+        // === Moving branch ===
+        if (currentPath == null || stuck) return false;
+        if (threatIsFar) return false;
+
+        // SHELTER mode: did we arrive?
+        if (shelterPos != null && entity.Pos.SquareDistanceTo(shelterPos) < 2.25)
+        {
+            ArriveAtShelter();
+            return true;
+        }
+
+        // Repath periodically. PANIC mode re-runs ComputeAndPath as the threat
+        // moves; SHELTER mode keeps the same destination so we don't get stuck
+        // recomputing the same path.
+        if (shelterPos == null && now - lastRepathMs > RepathIntervalMs)
         {
             lastRepathMs = now;
             ComputeAndPath();
@@ -144,9 +217,17 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
         CheckIfStuck();
         if (stuck) return false;
 
-        // Reached the end of the current path — immediately plan a new leg.
+        // Reached end of current path leg.
         if (pathIndex >= currentPath.Count)
         {
+            if (shelterPos != null)
+            {
+                // SHELTER mode: we've reached the end of the path without arriving.
+                // Treat as arrived (close enough) and start cowering.
+                ArriveAtShelter();
+                return true;
+            }
+            // PANIC mode: plan another leg.
             ComputeAndPath();
             if (stuck) return false;
         }
@@ -155,7 +236,7 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
         return true;
     }
 
-    // ── FinishExecute ─────────────────────────────────────────────────────────
+    // === FinishExecute ===
 
     public override void FinishExecute(bool cancelled)
     {
@@ -164,25 +245,145 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
         entity.Controls.StopAllMovement();
         if (animMeta != null)
             entity.AnimManager.StopAnimation(animMeta.Code);
+        entity.AnimManager.StopAnimation(CowerAnimation);
         entity.Pos.Motion.X = 0.0;
         entity.Pos.Motion.Z = 0.0;
-        CloseAllOpenDoors();
+        DoorPathHelper.CloseOpenDoorsAlongPath(entity, currentPath);
         threat = null;
         currentPath = null;
         pathIndex = 0;
         timesStuck = 0;
         lastPos = null;
         currentlyOpeningDoor = null;
+        shelterPos = null;
+        reachedShelter = false;
     }
 
-    // ── Pathfinding ───────────────────────────────────────────────────────────
+    // === Shelter acquisition ===
 
-    /// <summary>
-    /// Computes a flee destination in the direction away from the threat, then runs
-    /// A* to it.  Tries five angles (0°, ±45°, ±90°) so that a blocked primary
-    /// direction doesn't leave the villager frozen — they'll curve around fences
-    /// rather than slamming into them.
-    /// </summary>
+    // Pick a shelter destination: barracks first, then the villager's assigned bed.
+    // Leaves shelterPos null if neither is available.
+    private void TryAcquireShelter()
+    {
+        EntityBehaviorVillager vb = entity.GetBehavior<EntityBehaviorVillager>();
+        Village village = vb?.Village;
+
+        // 1. Barracks (nearest soldier workstation, scattered inside its room).
+        if (village != null)
+            shelterPos = FindBarracksPos(village);
+
+        // 2. Bed room (a standing tile next to the villager's bed).
+        if (shelterPos == null && vb?.Bed != null)
+            shelterPos = FindStandingPosNear(vb.Bed.ToVec3d());
+    }
+
+    private Vec3d FindBarracksPos(Village village)
+    {
+        List<VillagerWorkstation> barracks = village.Workstations.Values
+            .Where(ws => ws.Profession == EnumVillagerProfession.soldier)
+            .ToList();
+        if (barracks.Count == 0) return null;
+
+        Vec3d myPos = entity.Pos.XYZ;
+        VillagerWorkstation nearest = barracks
+            .OrderBy(ws => ws.Pos.DistanceTo(myPos.AsBlockPos))
+            .First();
+
+        // Constrain to the workstation's room so we don't end up outside.
+        RoomRegistry roomReg = entity.Api.ModLoader.GetModSystem<RoomRegistry>();
+        Room room = null;
+        try { room = roomReg?.GetRoomForPosition(nearest.Pos); } catch { }
+
+        System.Random rng = entity.World.Rand;
+        for (int attempt = 0; attempt < 12; attempt++)
+        {
+            int ox = rng.Next(-3, 4);
+            int oz = rng.Next(-3, 4);
+            BlockPos candidateBlock = nearest.Pos.AddCopy(ox, 0, oz);
+
+            if (room != null)
+            {
+                Cuboidi loc = room.Location;
+                if (candidateBlock.X < loc.X1 || candidateBlock.X > loc.X2 ||
+                    candidateBlock.Z < loc.Z1 || candidateBlock.Z > loc.Z2)
+                    continue;
+            }
+
+            Vec3d pos = FindStandingPosNear(candidateBlock.ToVec3d());
+            if (pos != null) return pos;
+        }
+
+        return FindStandingPosNear(nearest.Pos.ToVec3d());
+    }
+
+    // Find a clear standing tile adjacent to .
+    private Vec3d FindStandingPosNear(Vec3d centre)
+    {
+        IBlockAccessor ba = entity.World.BlockAccessor;
+        BlockPos bp = centre.AsBlockPos;
+        foreach (BlockFacing facing in BlockFacing.HORIZONTALS)
+        {
+            BlockPos neighbor = bp.AddCopy(facing.Normali.X, 0, facing.Normali.Z);
+            Block atPos = ba.GetBlock(neighbor);
+            Block above = ba.GetBlock(neighbor.UpCopy());
+            Block below = ba.GetBlock(neighbor.DownCopy());
+            bool posClear = atPos.CollisionBoxes == null || atPos.CollisionBoxes.Length == 0;
+            bool headClear = above.CollisionBoxes == null || above.CollisionBoxes.Length == 0;
+            bool grounded = below.CollisionBoxes != null && below.CollisionBoxes.Length != 0;
+            if (posClear && headClear && grounded)
+                return neighbor.ToVec3d().Add(0.5, 0.0, 0.5);
+        }
+        return centre.Add(0.5, 1.0, 0.5);
+    }
+
+    // Run A* once to the shelter destination.
+    private void PathToShelter()
+    {
+        if (shelterPos == null) { stuck = true; return; }
+        pathfinder.blockAccessor.Begin();
+        pathfinder.SetEntityCollisionBox(entity);
+        BlockPos start = pathfinder.GetStartPos(entity.Pos.XYZ);
+        currentPath = pathfinder.FindPath(start, shelterPos.AsBlockPos, 10000);
+        pathfinder.blockAccessor.Commit();
+        if (currentPath != null && currentPath.Count > 0)
+        {
+            pathIndex = 0;
+            stuck = false;
+            currentlyOpeningDoor = null;
+        }
+    }
+
+    private void ArriveAtShelter()
+    {
+        entity.Controls.WalkVector.Set(0.0, 0.0, 0.0);
+        entity.Controls.StopAllMovement();
+        entity.Pos.Motion.X = 0.0;
+        entity.Pos.Motion.Z = 0.0;
+        if (animMeta != null)
+            entity.AnimManager.StopAnimation(animMeta.Code);
+        reachedShelter = true;
+        PlayCowerAnimation();
+    }
+
+    private void PlayCowerAnimation()
+    {
+        if (!entity.AnimManager.IsAnimationActive(CowerAnimation))
+        {
+            entity.AnimManager.StartAnimation(new AnimationMetaData
+            {
+                Animation = CowerAnimation,
+                Code = CowerAnimation,
+                AnimationSpeed = 1.0f,
+                BlendMode = EnumAnimationBlendMode.Average
+            }.Init());
+        }
+    }
+
+    // === PANIC-mode pathfinding ===
+
+    // Computes a flee destination in the direction away from the threat, then
+    // runs A* to it. Tries five angles so a blocked primary direction doesn't
+    // leave the villager frozen.
     private void ComputeAndPath()
     {
         if (threat == null) { stuck = true; return; }
@@ -190,17 +391,12 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
         Vec3d myPos = entity.Pos.XYZ;
         Vec3d threatPos = threat.Pos.XYZ;
 
-        // Unit vector pointing away from the threat.
         double dx = myPos.X - threatPos.X;
         double dz = myPos.Z - threatPos.Z;
         double dist = Math.Sqrt(dx * dx + dz * dz);
         if (dist < 0.01) { dx = 1; dz = 0; } else { dx /= dist; dz /= dist; }
 
-        // How far each A* leg should reach — run 75% of fleeingDistance per leg so
-        // the villager keeps making progress without needing enormous search depths.
         float legDist = fleeingDistance * 0.75f;
-
-        // Try angles in order: straight back, then slight curves, then wide curves.
         float[] angles = { 0f, -0.785f, 0.785f, -1.571f, 1.571f };
 
         pathfinder.blockAccessor.Begin();
@@ -219,8 +415,6 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
                 (int)myPos.Y,
                 (int)(myPos.Z + fdz * legDist));
 
-            // 1200 iterations per attempt — fast enough for real-time flee, handles
-            // typical pen/fence layouts without excessive CPU cost.
             List<VillagerPathNode> path = pathfinder.FindPath(startPos, dest, 1200);
             if (path != null && path.Count > 1)
             {
@@ -234,11 +428,10 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
         }
 
         pathfinder.blockAccessor.Commit();
-        // No walkable angle found — mark stuck so ContinueExecute exits gracefully.
         stuck = true;
     }
 
-    // ── Movement ──────────────────────────────────────────────────────────────
+    // === Movement ===
 
     private void HandlePathTraversal()
     {
@@ -269,7 +462,7 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
                 VillagerPathNode next = currentPath[pathIndex];
                 if (next.IsDoor)
                 {
-                    ToggleDoor(opened: true, next.BlockPos);
+                    DoorPathHelper.ToggleDoor(entity, next.BlockPos, opened: true);
                     currentlyOpeningDoor = next.BlockPos.Copy();
                     doorOpenedTime = entity.World.ElapsedMilliseconds;
                 }
@@ -277,10 +470,7 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
             if (villagerPathNode.IsDoor)
             {
                 BlockPos doorPos = villagerPathNode.BlockPos.Copy();
-                entity.World.RegisterCallback(delegate
-                {
-                    if (entity.Alive) ToggleDoor(opened: false, doorPos);
-                }, 3000);
+                DoorPathHelper.ScheduleDoorClose(entity, doorPos, 3000);
             }
         }
         if (pathIndex < currentPath.Count)
@@ -292,7 +482,7 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
             dir = dir.Normalize();
             entity.Pos.Yaw = (float)Math.Atan2(dir.X, dir.Z);
             entity.Controls.WalkVector.Set(dir.X * moveSpeed, 0.0, dir.Z * moveSpeed);
-            if (!entity.AnimManager.IsAnimationActive(animMeta.Code))
+            if (animMeta != null && !entity.AnimManager.IsAnimationActive(animMeta.Code))
             {
                 entity.AnimManager.StartAnimation(animMeta);
             }
@@ -311,8 +501,17 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
             if (timesStuck >= 3)
             {
                 timesStuck = 0;
-                // Try a fresh path at a different angle before giving up.
-                ComputeAndPath();
+                // SHELTER mode: drop to PANIC mode rather than re-attempting the
+                // same blocked shelter path forever.
+                if (shelterPos != null)
+                {
+                    shelterPos = null;
+                    ComputeAndPath();
+                }
+                else
+                {
+                    ComputeAndPath();
+                }
             }
         }
         else
@@ -324,54 +523,7 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
         stuckCheckMs = now;
     }
 
-    // ── Door helpers ──────────────────────────────────────────────────────────
-
-    private void ToggleDoor(bool opened, BlockPos target)
-    {
-        Block block = entity.World.BlockAccessor.GetBlock(target);
-        if (block != null && block.Code != null && (block.Code.Path.Contains("door") || block.Code.Path.Contains("gate")))
-        {
-            BlockSelection blockSel = new BlockSelection
-            {
-                Block = block,
-                Position = target,
-                HitPosition = new Vec3d(0.5, 0.5, 0.5),
-                Face = BlockFacing.NORTH
-            };
-            TreeAttribute treeAttribute = new TreeAttribute();
-            treeAttribute.SetBool("opened", opened);
-            try
-            {
-                block.Activate(entity.World, new Caller
-                {
-                    Entity = entity,
-                    Type = EnumCallerType.Entity,
-                    Pos = entity.Pos.XYZ
-                }, blockSel, treeAttribute);
-            }
-            catch (Exception ex)
-            {
-                entity.World.Logger.Error("[VsVillage] Failed to toggle door at " + target + ": " + ex.Message);
-            }
-        }
-    }
-
-    private void CloseAllOpenDoors()
-    {
-        if (currentPath == null) return;
-
-        foreach (VillagerPathNode node in currentPath)
-        {
-            if (node.IsDoor)
-            {
-                Block block = entity.World.BlockAccessor.GetBlock(node.BlockPos);
-                if (block != null && block.Code != null && (block.Code.Path.Contains("opened") || block.Code.Path.Contains("-open")))
-                    ToggleDoor(opened: false, node.BlockPos);
-            }
-        }
-    }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // === Helpers ===
 
     private bool MatchesThreat(Entity e)
     {

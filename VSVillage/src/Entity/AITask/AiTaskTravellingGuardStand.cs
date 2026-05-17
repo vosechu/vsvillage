@@ -138,7 +138,7 @@ public class AiTaskTravellingGuardStand : AiTaskBase
 		{
 			entity.AnimManager.StopAnimation(animMeta.Code);
 		}
-		CloseOpenDoors();
+		DoorPathHelper.CloseOpenDoorsAlongPath(entity, _path);
 		_path = null;
 		_timesStuck = 0;
 	}
@@ -191,15 +191,12 @@ public class AiTaskTravellingGuardStand : AiTaskBase
 			_pathIdx++;
 			if (_pathIdx < _path.Count && _path[_pathIdx].IsDoor)
 			{
-				ToggleDoor(open: true, _path[_pathIdx].BlockPos);
+				DoorPathHelper.ToggleDoor(entity, _path[_pathIdx].BlockPos, opened: true);
 			}
 			if (node.IsDoor)
 			{
 				BlockPos dp = node.BlockPos.Copy();
-				entity.World.RegisterCallback(delegate
-				{
-					ToggleDoor(open: false, dp);
-				}, 5000);
+				DoorPathHelper.ScheduleDoorClose(entity, dp, 5000);
 			}
 		}
 		if (_pathIdx < _path.Count)
@@ -241,53 +238,4 @@ public class AiTaskTravellingGuardStand : AiTaskBase
 		_stuckCheckTime = now;
 	}
 
-	private void ToggleDoor(bool open, BlockPos pos)
-	{
-		Block b = entity.World.BlockAccessor.GetBlock(pos);
-		if (b?.Code == null || (!b.Code.Path.Contains("door") && !b.Code.Path.Contains("gate")))
-		{
-			return;
-		}
-		BlockSelection sel = new BlockSelection
-		{
-			Block = b,
-			Position = pos,
-			HitPosition = new Vec3d(0.5, 0.5, 0.5),
-			Face = BlockFacing.NORTH
-		};
-		TreeAttribute attrs = new TreeAttribute();
-		attrs.SetBool("opened", open);
-		try
-		{
-			b.Activate(entity.World, new Caller
-			{
-				Entity = entity,
-				Type = EnumCallerType.Entity,
-				Pos = entity.Pos.XYZ
-			}, sel, attrs);
-		}
-		catch (Exception ex)
-		{
-			entity.World.Logger.Error("[VsVillage] GuardStand: failed to toggle door at " + pos + ": " + ex.Message);
-		}
-	}
-
-	private void CloseOpenDoors()
-	{
-		if (_path == null)
-		{
-			return;
-		}
-		foreach (VillagerPathNode node in _path)
-		{
-			if (node.IsDoor)
-			{
-				Block b = entity.World.BlockAccessor.GetBlock(node.BlockPos);
-				if (b?.Code != null && (b.Code.Path.Contains("opened") || b.Code.Path.Contains("open")))
-				{
-					ToggleDoor(open: false, node.BlockPos);
-				}
-			}
-		}
-	}
 }

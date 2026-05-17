@@ -29,7 +29,7 @@ public class AiTaskVillagerPatrol : AiTaskBase
 
 	private int timesStuck;
 
-	/// <summary>Pre-computed: false when this patrol entry doesn't apply to this entity type (e.g. soldier-only night patrol skipped by archers).</summary>
+	//Pre-computed: false when this patrol entry doesn't apply to this entity type (e.g. soldier-only night patrol skipped by archers).
 	private readonly bool _isApplicableToThisEntity;
 
 	public AiTaskVillagerPatrol(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
@@ -156,61 +156,12 @@ public class AiTaskVillagerPatrol : AiTaskBase
 		}
 		entity.Pos.Motion.X = 0.0;
 		entity.Pos.Motion.Z = 0.0;
-		CloseAllOpenDoors();
+		DoorPathHelper.CloseOpenDoorsAlongPath(entity, currentPath);
 		targetPos = null;
 		currentPath = null;
 		currentPathIndex = 0;
 		lastPosition = null;
 		timesStuck = 0;
-	}
-
-	private void ToggleDoor(bool opened, BlockPos target)
-	{
-		Block block = entity.World.BlockAccessor.GetBlock(target);
-		if (block != null && block.Code != null && (block.Code.Path.Contains("door") || block.Code.Path.Contains("gate")))
-		{
-			BlockSelection blockSel = new BlockSelection
-			{
-				Block = block,
-				Position = target,
-				HitPosition = new Vec3d(0.5, 0.5, 0.5),
-				Face = BlockFacing.NORTH
-			};
-			TreeAttribute treeAttribute = new TreeAttribute();
-			treeAttribute.SetBool("opened", opened);
-			try
-			{
-				block.Activate(entity.World, new Caller
-				{
-					Entity = entity,
-					Type = EnumCallerType.Entity,
-					Pos = entity.Pos.XYZ
-				}, blockSel, treeAttribute);
-			}
-			catch (Exception ex)
-			{
-				entity.World.Logger.Error("Patrol: Failed to toggle door: " + ex.Message);
-			}
-		}
-	}
-
-	private void CloseAllOpenDoors()
-	{
-		if (currentPath == null)
-		{
-			return;
-		}
-		foreach (VillagerPathNode node in currentPath)
-		{
-			if (node.IsDoor)
-			{
-				Block block = entity.World.BlockAccessor.GetBlock(node.BlockPos);
-				if (block != null && block.Code != null && (block.Code.Path.Contains("opened") || block.Code.Path.Contains("open")))
-				{
-					ToggleDoor(opened: false, node.BlockPos);
-				}
-			}
-		}
 	}
 
 	private Vec3d FindPatrolPoint(Vec3d center)
@@ -265,16 +216,13 @@ public class AiTaskVillagerPatrol : AiTaskBase
 				VillagerPathNode nextNode = currentPath[currentPathIndex];
 				if (nextNode.IsDoor)
 				{
-					ToggleDoor(opened: true, nextNode.BlockPos);
+					DoorPathHelper.ToggleDoor(entity, nextNode.BlockPos, opened: true);
 				}
 			}
 			if (node.IsDoor)
 			{
 				BlockPos doorPos = node.BlockPos.Copy();
-				entity.World.RegisterCallback(delegate
-				{
-					ToggleDoor(opened: false, doorPos);
-				}, 5000);
+				DoorPathHelper.ScheduleDoorClose(entity, doorPos, 5000);
 			}
 		}
 		if (currentPathIndex < currentPath.Count)

@@ -6,20 +6,16 @@ using Vintagestory.GameContent;
 
 namespace VsVillage;
 
-/// <summary>
-/// Primary work activity for smiths: approach the anvil in their workstation
-/// room and hammer on it for a long duration. Much more visible than forge
-/// tending (which happens once per day) — this is what the smith should be
-/// doing most of his waking, on-shift hours.
-///
-/// Like the forge task, the smith's workstation is a custom VsVillage block;
-/// the anvil is placed nearby, so we scan a ±2-block radius around the
-/// workstation to locate it.
-///
-/// JSON config keys:
-///   hammerDurationSeconds  — how long one hammering bout lasts (default 30 s).
-///   duringDayTimeFrames    — handled by AiTaskBase; restrict to work hours.
-/// </summary>
+// Primary work activity for smiths: approach the anvil in their workstation
+// room and hammer on it for a long duration. Much more visible than forge
+// tending (which happens once per day) - this is what the smith should be
+// doing most of his waking, on-shift hours.
+// Like the forge task, the smith's workstation is a custom VsVillage block;
+// the anvil is placed nearby, so we scan a ±2-block radius around the
+// workstation to locate it.
+// JSON config keys:
+//   hammerDurationSeconds  - how long one hammering bout lasts (default 30 s).
+//   duringDayTimeFrames    - handled by AiTaskBase; restrict to work hours.
 public class AiTaskVillagerSmithHammer : AiTaskGotoAndInteract
 {
     private const string HammerAnimCode = "hammer-forge";
@@ -137,15 +133,11 @@ public class AiTaskVillagerSmithHammer : AiTaskGotoAndInteract
         lastExecution = entity.World.ElapsedMilliseconds;
     }
 
-    // -----------------------------------------------------------------------
     // Anvil discovery
-    // -----------------------------------------------------------------------
 
-    /// <summary>
-    /// Finds an anvil block within ±2 horizontal / ±1 vertical of the workstation.
-    /// Matches any block whose code path contains "anvil" (covers vanilla metal
-    /// variants: anvil-copper, anvil-bronze, anvil-iron, anvil-meteoriciron, etc.).
-    /// </summary>
+    // Finds an anvil block within ±2 horizontal / ±1 vertical of the workstation.
+    // Matches any block whose code path contains "anvil" (covers vanilla metal
+    // variants: anvil-copper, anvil-bronze, anvil-iron, anvil-meteoriciron, etc.).
     private BlockPos FindAnvil(BlockPos ws)
     {
         IBlockAccessor ba = entity.World.BlockAccessor;

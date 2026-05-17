@@ -11,6 +11,9 @@ public class AiTaskVillagerGotoWork : AiTaskGotoAndInteract
 
     private BlockPos workstationPos;
 
+    // Suffix-gating (onlyForEntitySuffix / excludeEntitySuffixes) is now handled
+    // by the AiTaskGotoAndInteract base class: see base.SuffixGatePasses().
+
     public AiTaskVillagerGotoWork(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
         : base(entity, taskConfig, aiConfig)
     {
@@ -23,6 +26,7 @@ public class AiTaskVillagerGotoWork : AiTaskGotoAndInteract
 
     protected override Vec3d GetTargetPos()
     {
+        if (!SuffixGatePasses()) return null;
         EntityBehaviorVillager behavior = entity.GetBehavior<EntityBehaviorVillager>();
         Village village = behavior?.Village;
         if (village == null)
@@ -37,10 +41,10 @@ public class AiTaskVillagerGotoWork : AiTaskGotoAndInteract
                 workstationPos = stallPos.Copy();
                 Vec3d stallTarget = stallPos.ToVec3d().Add(0.25, 0.0, 0.25);
 
-                // If we're already standing at this target, don't recompute — reuse
-                // our current position so we don't micro-walk to a slightly different spot.
-                if (targetPos != null && entity.Pos.SquareDistanceTo(targetPos) < 2.25)
-                    return targetPos;
+                // Already at the stall: don't re-fire gotowork. Returning null
+                // short-circuits ShouldExecute so the trader can sit at the stall
+                // and run other tasks (trade dialog, idle, etc.) without gotowork preempting on every cooldown tick.
+                if (entity.Pos.SquareDistanceTo(stallTarget) < 2.25) return null;
 
                 return stallTarget;
             }
@@ -69,12 +73,14 @@ public class AiTaskVillagerGotoWork : AiTaskGotoAndInteract
 
         Vec3d computedTarget = getWorkstationStandingPos((blockPos != null) ? blockPos.ToVec3d().Add(0.25, 0.0, 0.25) : null);
 
-        // If we already have a valid target and are already close enough to it,
-        // return the existing targetPos instead of a freshly computed one.
-        // This prevents micro-sliding when the task re-evaluates while the villager
-        // is already standing at their workstation.
-        if (computedTarget != null && targetPos != null && entity.Pos.SquareDistanceTo(targetPos) < 2.25)
-            return targetPos;
+        // Already at the workstation: don't re-fire gotowork. Returning null
+        // short-circuits ShouldExecute so the villager can sit at the
+        // workstation and run their actual work tasks (cultivate, hammer,
+        // tend-oven, etc.) without gotowork preempting on every cooldown tick.
+        // gotowork will fire again only if the villager moves away (e.g. gets
+        // pushed by another villager, returns from a flee, etc.).
+        if (computedTarget != null && entity.Pos.SquareDistanceTo(computedTarget) < 2.25)
+            return null;
 
         return computedTarget;
     }

@@ -586,7 +586,7 @@
             "animation": "Attack",
             "stabanimation": "spear-attack",
             "stabanimationspeed": 0.7,
-            "slashanimation": "speak-attack",
+            "slashanimation": "spear-attack",
             "slashanimationspeed": 0.7,
             "animationSpeed": 2.0,
             "durationMs": 1300,

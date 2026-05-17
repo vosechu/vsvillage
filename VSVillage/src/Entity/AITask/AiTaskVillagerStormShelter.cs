@@ -129,7 +129,7 @@ public class AiTaskVillagerStormShelter : AiTaskBase
 		{
 			entity.AnimManager.StopAnimation(animMeta.Code);
 		}
-		CloseAllOpenDoors();
+		DoorPathHelper.CloseOpenDoorsAlongPath(entity, currentPath);
 		targetPos = null;
 		currentPath = null;
 		currentPathIndex = 0;
@@ -262,16 +262,13 @@ public class AiTaskVillagerStormShelter : AiTaskBase
 				VillagerPathNode next = currentPath[currentPathIndex];
 				if (next.IsDoor)
 				{
-					ToggleDoor(opened: true, next.BlockPos);
+					DoorPathHelper.ToggleDoor(entity, next.BlockPos, opened: true);
 				}
 			}
 			if (node.IsDoor)
 			{
 				BlockPos doorPos = node.BlockPos.Copy();
-				entity.World.RegisterCallback(delegate
-				{
-					ToggleDoor(opened: false, doorPos);
-				}, 5000);
+				DoorPathHelper.ScheduleDoorClose(entity, doorPos, 5000);
 			}
 		}
 		if (currentPathIndex < currentPath.Count)
@@ -286,56 +283,6 @@ public class AiTaskVillagerStormShelter : AiTaskBase
 			if (animMeta != null && !entity.AnimManager.IsAnimationActive(animMeta.Code))
 			{
 				entity.AnimManager.StartAnimation(animMeta);
-			}
-		}
-	}
-
-	private void ToggleDoor(bool opened, BlockPos target)
-	{
-		Block block = entity.World.BlockAccessor.GetBlock(target);
-		if (block?.Code == null || (!block.Code.Path.Contains("door") && !block.Code.Path.Contains("gate")))
-		{
-			return;
-		}
-		BlockSelection sel = new BlockSelection
-		{
-			Block = block,
-			Position = target,
-			HitPosition = new Vec3d(0.5, 0.5, 0.5),
-			Face = BlockFacing.NORTH
-		};
-		TreeAttribute attrs = new TreeAttribute();
-		attrs.SetBool("opened", opened);
-		try
-		{
-			block.Activate(entity.World, new Caller
-			{
-				Entity = entity,
-				Type = EnumCallerType.Entity,
-				Pos = entity.Pos.XYZ
-			}, sel, attrs);
-		}
-		catch (Exception ex)
-		{
-			entity.World.Logger.Error("StormShelter: door toggle failed: " + ex.Message);
-		}
-	}
-
-	private void CloseAllOpenDoors()
-	{
-		if (currentPath == null)
-		{
-			return;
-		}
-		foreach (VillagerPathNode node in currentPath)
-		{
-			if (node.IsDoor)
-			{
-				Block block = entity.World.BlockAccessor.GetBlock(node.BlockPos);
-				if (block?.Code != null && (block.Code.Path.Contains("opened") || block.Code.Path.Contains("open")))
-				{
-					ToggleDoor(opened: false, node.BlockPos);
-				}
 			}
 		}
 	}

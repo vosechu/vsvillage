@@ -4,6 +4,7 @@ using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.API.Util;
+using Vintagestory.GameContent;
 using Vintagestory.ServerMods;
 
 namespace VsVillage;
@@ -23,6 +24,10 @@ public class VillageGenerator : ModStdWorldGen
 	private IWorldGenBlockAccessor worldgenBlockAccessor;
 
 	private LCGRandom rand;
+
+	// Cached on InitWorldGenerator so we don't do a ModSystem lookup on every
+	// candidate chunk inside handler(). Null if the survival mod isn't loaded.
+	private GenStoryStructures storySystem;
 
 	public override double ExecuteOrder()
 	{
@@ -44,10 +49,10 @@ public class VillageGenerator : ModStdWorldGen
 			Config = api.LoadModConfig<VillageConfig>("villageconfig.json");
 			if (Config != null)
 			{
-				api.Logger.Notification("Mod Config successfully loaded.");
+				api.Logger.Debug("[VsVillage] Mod Config successfully loaded.");
 				return;
 			}
-			api.Logger.Notification("No Mod Config specified. Falling back to default settings");
+			api.Logger.Debug("[VsVillage] No Mod Config specified. Falling back to default settings");
 			Config = new VillageConfig();
 		}
 		catch
@@ -105,6 +110,7 @@ public class VillageGenerator : ModStdWorldGen
 	private void initWorldGen()
 	{
 		LoadGlobalConfig(sapi);
+		storySystem = sapi.ModLoader.GetModSystem<GenStoryStructures>();
 		foreach (Mod mod in sapi.ModLoader.Mods)
 		{
 			Structures.AddRange(sapi.Assets.TryGet(new AssetLocation(mod.Info.ModID, "config/villagestructures.json"))?.ToObject<List<WorldGenVillageStructure>>().ConvertAll((WorldGenVillageStructure worldGenVillageStructure) => worldGenVillageStructure.Init(sapi, mod.Info.ModID)) ?? new List<WorldGenVillageStructure>());
@@ -190,6 +196,31 @@ public class VillageGenerator : ModStdWorldGen
 		VillageGrid villageGrid = new VillageGrid(villageType.Length, villageType.Height);
 		BlockPos blockPos = new BlockPos(32 * request.ChunkX, 0, 32 * request.ChunkZ, 0);
 		BlockPos end = villageGrid.getEnd(blockPos);
+
+		// Avoid spawning on vanilla trader camps (Group="trader") and dungeon
+		// surface entrances (Group="stairs"). Underground dungeon bodies are at
+		// a different Y range so 3D Intersects won't false-trigger on them.
+		Cuboidi villageCuboid = new Cuboidi(blockPos, end);
+		int worldgenBuf = Config.WorldgenBufferBlocks;
+		foreach (GeneratedStructure gs in mapRegion.GeneratedStructures)
+		{
+			if (gs.Group != "trader" && gs.Group != "stairs") continue;
+			if (gs.Location.Clone().GrowBy(worldgenBuf, 0, worldgenBuf).Intersects(villageCuboid)) return;
+		}
+
+		// Story locations are placed in a later worldgen pass (Vegetation), so they
+		// aren't in mapregion.GeneratedStructures yet. Query the planned-location
+		// dictionary on GenStoryStructures instead (cached in initWorldGen).
+		if (storySystem?.Structures != null)
+		{
+			foreach (KeyValuePair<string, StoryStructureLocation> kv in storySystem.Structures)
+			{
+				Cuboidi loc = kv.Value?.Location;
+				if (loc == null) continue;
+				if (loc.Clone().GrowBy(worldgenBuf, 0, worldgenBuf).Intersects(villageCuboid)) return;
+			}
+		}
+
 		if (worldgenBlockAccessor.GetChunk(blockPos.X / 32, 0, blockPos.Z / 32) != null && worldgenBlockAccessor.GetChunk(blockPos.X / 32, 0, end.Z / 32) != null && worldgenBlockAccessor.GetChunk(end.X / 32, 0, blockPos.Z / 32) != null && worldgenBlockAccessor.GetChunk(end.X / 32, 0, end.Z / 32) != null)
 		{
 			worldgenBlockAccessor.BeginColumn();

@@ -91,14 +91,12 @@ public class VillagerPathNode : IEquatable<VillagerPathNode>, IComparable<Villag
 	public int CompareTo(VillagerPathNode other)
 	{
 		int num = fCost.CompareTo(other.fCost);
-		if (num == 0)
-		{
-			num = hCost.CompareTo(other.hCost);
-		}
-		if (num == 0)
-		{
-			num = BlockPos.GetHashCode().CompareTo(other.BlockPos.GetHashCode());
-		}
+		if (num == 0) num = hCost.CompareTo(other.hCost);
+		// Tiebreak on actual XYZ, not GetHashCode. Hash collisions on distinct
+		// positions made SortedSet treat unequal nodes as duplicates and drop one.
+		if (num == 0) num = BlockPos.X.CompareTo(other.BlockPos.X);
+		if (num == 0) num = BlockPos.Y.CompareTo(other.BlockPos.Y);
+		if (num == 0) num = BlockPos.Z.CompareTo(other.BlockPos.Z);
 		return num;
 	}
 

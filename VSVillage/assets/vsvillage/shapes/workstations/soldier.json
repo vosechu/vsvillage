@@ -10,13 +10,13 @@
 	"textures": {
 		"top": "game:block/wood/table/aged/top",
 		"blue": "game:block/cloth/linen/blue",
-		"material": "game:item/tool/material/iron",
+		"material": "game:item/tool/shield/metal/iron",
 		"iron1": "game:block/metal/sheet/iron1",
 		"bottom": "game:block/wood/table/aged/bottom",
 		"legs": "game:block/wood/table/aged/legs",
 		"aged": "game:block/wood/debarked/aged",
 		"sides": "game:block/wood/table/aged/sides",
-		"handle": "game:item/tool/material/handle",
+		"handle": "game:item/tool/handle",
 		"aged1": "game:block/wood/planks/aged1",
 		"globe1": "game:block/wood/globe1"
 	},

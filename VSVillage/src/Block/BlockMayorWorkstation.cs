@@ -1,5 +1,6 @@
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
+using Vintagestory.API.Config;
 using Vintagestory.API.Server;
 
 namespace VsVillage;
@@ -17,7 +18,14 @@ public class BlockMayorWorkstation : Block
 		}
 		if (flag && world.Api is ICoreServerAPI coreServerAPI && byPlayer is IServerPlayer serverPlayer)
 		{
-			coreServerAPI.Network.GetChannel("villagemanagementnetwork").SendPacket(coreServerAPI.ModLoader.GetModSystem<VillageManager>().GetVillage(villageId), serverPlayer);
+			VillageManager mgr = coreServerAPI.ModLoader.GetModSystem<VillageManager>();
+			Village village = mgr?.GetVillage(villageId);
+			if (village == null)
+			{
+				serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup, Lang.Get("vsvillage:village-data-unavailable"), EnumChatType.Notification);
+				return true;
+			}
+			coreServerAPI.Network.GetChannel("villagemanagementnetwork").SendPacket(village, serverPlayer);
 		}
 		return true;
 	}

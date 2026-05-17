@@ -6,19 +6,15 @@ using Vintagestory.GameContent;
 
 namespace VsVillage;
 
-/// <summary>
-/// Baker task: walk to the oven and manage the bread cycle.
-/// - Pulls any finished bread out.
-/// - Loads fresh dough into empty slots, but only if the oven is hot enough.
-///
-/// Vanilla requires the oven to be at minBakeTemp before dough is loaded (cold
-/// pre-loading just doesn't bake), so the temperature gate stays. Pulling and
-/// loading happen in the same visit since the baker is already at the oven -
-/// avoids double round-trips and keeps the bread cycle tight.
-///
-/// Fueling + ignition is a separate task (AiTaskVillagerBakerTendOven) so each
-/// phase has its own cooldown.
-/// </summary>
+// Baker task: walk to the oven and manage the bread cycle.
+// - Pulls any finished bread out.
+// - Loads fresh dough into empty slots, but only if the oven is hot enough.
+// Vanilla requires the oven to be at minBakeTemp before dough is loaded (cold
+// pre-loading just doesn't bake), so the temperature gate stays. Pulling and
+// loading happen in the same visit since the baker is already at the oven -
+// avoids double round-trips and keeps the bread cycle tight.
+// Fueling + ignition is a separate task (AiTaskVillagerBakerTendOven) so each
+// phase has its own cooldown.
 public class AiTaskVillagerBakerCollectBread : AiTaskVillagerBakerBase
 {
     private BlockPos ovenPos;

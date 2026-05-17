@@ -4,12 +4,10 @@ using Vintagestory.GameContent;
 
 namespace VsVillage;
 
-/// <summary>
-/// Placeholder task that triggers the villager weapon-flip behaviour via the
-/// priority system.  ShouldExecute always returns false so it never actually
-/// runs its own tick — the weapon flip is driven externally by
-/// AiTaskVillagerMeleeAttack hooking into this task's priority slot.
-/// </summary>
+// Placeholder task that triggers the villager weapon-flip behaviour via the
+// priority system.  ShouldExecute always returns false so it never actually
+// runs its own tick - the weapon flip is driven externally by
+// AiTaskVillagerMeleeAttack hooking into this task's priority slot.
 public class AiTaskVillagerFlipWeapon : AiTaskIdle
 {
 	public AiTaskVillagerFlipWeapon(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)

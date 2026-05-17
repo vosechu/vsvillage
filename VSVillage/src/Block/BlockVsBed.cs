@@ -4,11 +4,11 @@ using Vintagestory.API.Server;
 
 namespace VsVillage;
 
-/// <summary>
-/// Block class for villager beds.  Right-clicking sends a
-/// <see cref="VillageAssignmentContext"/> to the client so the player can open the
-/// assignment GUI and manually assign a villager to sleep here.
-/// </summary>
+
+// Block class for villager beds.  Right-clicking sends a
+// VillageAssignmentContext to the client so the player can open the
+// assignment GUI and manually assign a villager to sleep here.
+
 public class BlockVsBed : Block
 {
 	public override bool OnBlockInteractStart(IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel)
@@ -17,7 +17,7 @@ public class BlockVsBed : Block
 		{
 			BlockEntityVillagerBed be = sapi.World.BlockAccessor.GetBlockEntity<BlockEntityVillagerBed>(blockSel.Position);
 			if (be == null || string.IsNullOrEmpty(be.VillageId))
-				return false; // not assigned to a village — no interaction
+				return false; // not assigned to a village - no interaction
 
 			Village village = sapi.ModLoader.GetModSystem<VillageManager>()?.GetVillage(be.VillageId);
 			if (village == null)

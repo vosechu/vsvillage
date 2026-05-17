@@ -11,7 +11,7 @@ using Vintagestory.GameContent;
 
 namespace VsVillage;
 
-[JsonObject(/*Could not decode attribute arguments.*/)]
+[JsonObject]
 public class GotoPointOfInterestAction : EntityActionBase
 {
 	public const string ActionType = "GotoPointOfInterest";
@@ -36,6 +36,7 @@ public class GotoPointOfInterestAction : EntityActionBase
 
 	public override string Type => "GotoPointOfInterest";
 
+	// Re-snap index to closest path node, then close prev door and open current+next so the entity walks through without stopping.
 	public override void OnTick(float dt)
 	{
 		EntityPos Pos = vas.Entity.Pos;
@@ -71,6 +72,7 @@ public class GotoPointOfInterestAction : EntityActionBase
 		}
 	}
 
+	// Resolve target POI (workstation / bed / random gatherplace), pathfind, dispatch wppathTraverser.
 	public override void Start(EntityActivity entityActivity)
 	{
 		EntityBehaviorVillager behavior = vas.Entity.GetBehavior<EntityBehaviorVillager>();
@@ -188,6 +190,7 @@ public class GotoPointOfInterestAction : EntityActionBase
 		return $"Goto {Target}, Walkspeed {WalkSpeed}, Animation {AnimCode}, AnimSpeed {AnimSpeed}";
 	}
 
+	// Activate door/gate at target with the "opened" attribute. No-op for non-door blocks. Swallows exceptions so a broken door state doesn't abort the path.
 	private void toggleDoor(bool opened, BlockPos target)
 	{
 		Block block = vas.Entity.Api.World.BlockAccessor.GetBlock(target);

@@ -9,7 +9,7 @@ public class ItemVillagerGear : Item
 	{
 		get
 		{
-			if (Enum.TryParse<VillagerGearType>(Variant["type"].ToUpper(), out var result))
+			if (Enum.TryParse<VillagerGearType>(Variant["type"]?.ToUpper(), out var result))
 			{
 				return result;
 			}

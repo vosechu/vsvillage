@@ -6,11 +6,9 @@ using Vintagestory.API.MathTools;
 
 namespace VsVillage;
 
-/// <summary>
-/// GUI opened when a player right-clicks a workstation or bed that belongs to a
-/// village.  Lists compatible villagers and lets the player manually assign one,
-/// or clear the current assignment.
-/// </summary>
+// GUI opened when a player right-clicks a workstation or bed that belongs to a
+// village.  Lists compatible villagers and lets the player manually assign one,
+// or clear the current assignment.
 public class AssignVillagerGui : GuiDialog
 {
 	private readonly VillageAssignmentContext ctx;
@@ -56,12 +54,16 @@ public class AssignVillagerGui : GuiDialog
 		List<VillagerData> compatible;
 		if (!ctx.IsBed)
 		{
-			EnumVillagerProfession requiredProfession = ctx.Village.Workstations.TryGetValue(ctx.StructurePos, out VillagerWorkstation ws2)
-				? ws2.Profession
-				: EnumVillagerProfession.farmer;
-			compatible = ctx.Village.VillagerSaveData.Values
-				.Where(v => v.Profession == requiredProfession)
-				.ToList();
+			if (ctx.Village.Workstations.TryGetValue(ctx.StructurePos, out VillagerWorkstation ws2))
+			{
+				compatible = ctx.Village.VillagerSaveData.Values.Where(v => v.Profession == ws2.Profession).ToList();
+			}
+			else
+			{
+				// Workstation entry vanished between server-send and client-compose. Empty list instead of misleading farmer-default.
+				capi.Logger.Warning("[VsVillage] Assign GUI: workstation at {0} no longer tracked.", ctx.StructurePos);
+				compatible = new List<VillagerData>();
+			}
 		}
 		else
 		{
@@ -137,7 +139,7 @@ public class AssignVillagerGui : GuiDialog
 			}
 		}
 
-		// --- Layout — shift select/buttons down when stats add extra lines ---
+		// --- Layout - shift select/buttons down when stats add extra lines ---
 		double infoH       = hasStats ? 130.0 : 80.0;
 		double selectY     = 20.0 + infoH + 10.0;
 		double buttonY     = selectY + 40.0;
