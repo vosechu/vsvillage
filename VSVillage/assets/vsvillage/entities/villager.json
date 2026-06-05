@@ -670,7 +670,7 @@
 			},
 			{
 				"code": "bowhit",
-				"animation": "bowhit",
+				"animation": "balanced-bowhit",
 				"blendMode": "Add",
 				"elementWeight": {
 					"Neck": 100,
@@ -703,7 +703,7 @@
 			},
 			{
 				"code": "bowaim",
-				"animation": "bowaim",
+				"animation": "balanced-bowaim",
 				"blendMode": "Add",
 				"elementWeight": {
 					"Neck": 100,
@@ -736,7 +736,7 @@
 			},
 			{
 				"code": "bowaimandhit",
-				"animation": "bowaimandhit",
+				"animation": "balanced-bowaimandhit",
 				"blendMode": "Add",
 				"elementWeight": {
 					"Neck": 100,
@@ -1019,8 +1019,8 @@
 			"damage": 8,
 			"minDist": 3,
 			"maxDist": 16,
-			"durationMs": 2000,
-			"releaseAtMs": 1200,
+			"durationMs": 1500,
+			"releaseAtMs": 1000,
 			"seekingRange": 25,
 			"drawingsound": "game:sounds/bow-draw.ogg",
 			"shootingsound": "game:sounds/bow-release.ogg",
@@ -1047,9 +1047,9 @@
 			"animation": "Attack",
 			"animationSpeed": 2,
 			"stabanimation": "spear-attack",
-			"stabanimationspeed": 1.5,
+			"stabanimationspeed": 1.2,
 			"slashanimation": "spear-attack",
-			"slashanimationspeed": 1.5,
+			"slashanimationspeed": 1.2,
 			"seekingRange": 25
 		},
 		{
@@ -1167,11 +1167,11 @@
 		{
 			"code": "villagerhealwounded",
 			"slot": 1,
-			"minduration": 5000,
-			"maxduration": 8000,
+			"minduration": 15000,
+			"maxduration": 24000,
 			"mincooldown": 45000,
 			"maxcooldown": 90000,
-			"maxdistance": 5,
+			"maxdistance": 15,
 			"animation": "walk",
 			"animationSpeed": 1,
 			"priority": 8.5,
@@ -1363,7 +1363,7 @@
 			"animation": "walk",
 			"animationSpeed": 1,
 			"priority": 5.2,
-			"movespeed": 0.008,
+			"movespeed": 0.012,
 			"waterCooldownSeconds": 30,
 			"duringDayTimeFrames": [
 				{
@@ -1570,7 +1570,7 @@
 		// === BAKER ===
 		{
 			"code": "villagerbakertendoven",
-			"priority": 3.8,
+			"priority": 5.4,
 			"movespeed": 0.012,
 			"animation": "walk",
 			"animationSpeed": 1,

@@ -60,6 +60,8 @@ public class EntityBehaviorTravellingGuard : EntityBehavior
 	public override void Initialize(EntityProperties properties, JsonObject attributes)
 	{
 		base.Initialize(properties, attributes);
+		// Bypass Synergy mod's Entity Activation Range skip beyond 48 blocks. No effect without Synergy.
+		entity.AlwaysActive = true;
 		if (entity.Api.Side == EnumAppSide.Server)
 		{
 			_tickListenerId = entity.World.RegisterGameTickListener(CheckDespawn, 10000);

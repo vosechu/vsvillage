@@ -79,7 +79,8 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
         }
 
         pathfinder = new VillagerAStarNew(
-            entity.World.GetCachingBlockAccessor(synchronize: false, relight: false));
+            entity.World.GetCachingBlockAccessor(synchronize: false, relight: false),
+            entity.World, entity);
     }
 
     // === Sleep-window hurt gate ===
@@ -261,8 +262,8 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
 
     // === Shelter acquisition ===
 
-    // Pick a shelter destination: barracks first, then the villager's assigned bed.
-    // Leaves shelterPos null if neither is available.
+    // Shelter chain: barracks (designed for combat) -> mayor station (central, almost
+    // always present) -> villager's own bed (last resort, may be far from threat).
     private void TryAcquireShelter()
     {
         EntityBehaviorVillager vb = entity.GetBehavior<EntityBehaviorVillager>();
@@ -272,7 +273,11 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
         if (village != null)
             shelterPos = FindBarracksPos(village);
 
-        // 2. Bed room (a standing tile next to the villager's bed).
+        // 2. Mayor station as the central village fallback. Almost always present.
+        if (shelterPos == null && village?.Pos != null)
+            shelterPos = FindStandingPosNear(village.Pos.ToVec3d());
+
+        // 3. Bed room (a standing tile next to the villager's bed).
         if (shelterPos == null && vb?.Bed != null)
             shelterPos = FindStandingPosNear(vb.Bed.ToVec3d());
     }
@@ -381,9 +386,9 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
 
     // === PANIC-mode pathfinding ===
 
-    // Computes a flee destination in the direction away from the threat, then
-    // runs A* to it. Tries five angles so a blocked primary direction doesn't
-    // leave the villager frozen.
+    // Five angles away from threat; first viable one wins. Destinations outside
+    // the village radius are skipped so a panicking villager can't sprint into
+    // the wilderness and get stranded.
     private void ComputeAndPath()
     {
         if (threat == null) { stuck = true; return; }
@@ -398,6 +403,9 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
 
         float legDist = fleeingDistance * 0.75f;
         float[] angles = { 0f, -0.785f, 0.785f, -1.571f, 1.571f };
+
+        Village village = entity.GetBehavior<EntityBehaviorVillager>()?.Village;
+        double villageRadiusSq = village != null ? village.Radius * (double)village.Radius : 0.0;
 
         pathfinder.blockAccessor.Begin();
         pathfinder.SetEntityCollisionBox(entity);
@@ -414,6 +422,9 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
                 (int)(myPos.X + fdx * legDist),
                 (int)myPos.Y,
                 (int)(myPos.Z + fdz * legDist));
+
+            // Stay inside village radius. Skip any angle that lands outside.
+            if (village?.Pos != null && village.Pos.DistanceSqTo(dest.X, dest.Y, dest.Z) > villageRadiusSq) continue;
 
             List<VillagerPathNode> path = pathfinder.FindPath(startPos, dest, 1200);
             if (path != null && path.Count > 1)

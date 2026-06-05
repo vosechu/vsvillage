@@ -12,6 +12,9 @@ public class AiTaskVillagerGotoGatherspot : AiTaskGotoAndInteract
 
 	private long lastExecutionTime;
 
+	// N civilians converge on the brazier 18:30-20:54; crowd-avoidance would deadlock them.
+	protected override bool RespectCrowdAvoidance => false;
+
 	public AiTaskVillagerGotoGatherspot(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
 		: base(entity, taskConfig, aiConfig)
 	{

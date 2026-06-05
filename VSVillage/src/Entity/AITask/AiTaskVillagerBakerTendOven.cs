@@ -39,6 +39,11 @@ public class AiTaskVillagerBakerTendOven : AiTaskVillagerBakerBase
         if (!IsBaker()) return null;
         if (entity.World.ElapsedMilliseconds - lastCheckMs < checkIntervalMs) return null;
 
+        // Far from workstation: walk there first. ApplyInteractionEffect gates on
+        // ovenPos != null so this redirect arrival is a no-op interaction.
+        Vec3d approach = GetWorkstationApproachPosOrNull();
+        if (approach != null) { ovenPos = null; return approach; }
+
         BlockPos ws = entity.GetBehavior<EntityBehaviorVillager>()?.Workstation;
         if (ws == null) return null;
 
@@ -55,7 +60,9 @@ public class AiTaskVillagerBakerTendOven : AiTaskVillagerBakerBase
         if (targetPos == null) return false;
         double dx = entity.Pos.X - targetPos.X;
         double dz = entity.Pos.Z - targetPos.Z;
-        return dx * dx + dz * dz < 49.0;
+        // 4.0 = 2 blocks horizontal. The prior 49.0 (7 blocks) let the baker
+        // tend the oven from across the room.
+        return dx * dx + dz * dz < 4.0;
     }
 
     protected override void ApplyInteractionEffect()

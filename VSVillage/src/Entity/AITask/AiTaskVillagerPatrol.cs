@@ -43,7 +43,7 @@ public class AiTaskVillagerPatrol : AiTaskBase
 		{
 			patrolOffset = taskConfig["patrolOffset"].AsFloat(5f);
 		}
-		pathfinder = new VillagerAStarNew(entity.World.GetCachingBlockAccessor(synchronize: false, relight: false));
+		pathfinder = new VillagerAStarNew(entity.World.GetCachingBlockAccessor(synchronize: false, relight: false), entity.World, entity);
 
 		string codePath = entity.Code?.Path ?? "";
 		string onlyFor  = taskConfig["onlyForEntitySuffix"].AsString(null);

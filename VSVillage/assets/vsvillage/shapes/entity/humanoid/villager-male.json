@@ -87940,8 +87940,8 @@
 			]
 		},
 		{
-			"name": "BowHit",
-			"code": "bowhit",
+			"name": "Balanced-BowHit",
+			"code": "balanced-bowhit",
 			"quantityframes": 10,
 			"onActivityStopped": "PlayTillEnd",
 			"onAnimationEnd": "Stop",
@@ -87994,8 +87994,8 @@
 			]
 		},
 		{
-			"name": "BowAim",
-			"code": "bowaim",
+			"name": "Balanced-BowAim",
+			"code": "balanced-bowaim",
 			"quantityframes": 16,
 			"onActivityStopped": "PlayTillEnd",
 			"onAnimationEnd": "Hold",
@@ -88177,8 +88177,8 @@
 			]
 		},
 		{
-			"name": "BowAimAndHit",
-			"code": "bowaimandhit",
+			"name": "Balanced-BowAimAndHit",
+			"code": "balanced-bowaimandhit",
 			"quantityframes": 30,
 			"onActivityStopped": "EaseOut",
 			"onAnimationEnd": "Stop",

@@ -31,7 +31,7 @@ public class AiTaskVillagerGather : AiTaskBase
 	public AiTaskVillagerGather(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
 		: base(entity, taskConfig, aiConfig)
 	{
-		pathfinder = new VillagerAStarNew(entity.World.GetCachingBlockAccessor(synchronize: false, relight: false));
+		pathfinder = new VillagerAStarNew(entity.World.GetCachingBlockAccessor(synchronize: false, relight: false), entity.World, entity);
 	}
 
 	// === Lifecycle ===

@@ -38,6 +38,29 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
 
     protected long lastRepathTime;
 
+    // Proactive obstacle state. Pause 500ms when blocked, then ONE repath attempt;
+    // if still blocked, fall back to a path that ignores crowd avoidance.
+    private long blockedSinceMs;
+    private bool blockedRepathTried;
+    private bool crowdAvoidanceDisabledForThisPath;
+
+    // Scheduled gather tasks (mayor meetup, brazier socialize) override to false
+    // because N villagers converging on one point would deadlock the avoidance.
+    protected virtual bool RespectCrowdAvoidance => true;
+
+    // Far from the workstation: subclasses can call this from GetTargetPos to redirect
+    // there first. Avoids long bedroom-to-workpiece pathfinds that fail under crowd
+    // avoidance. Returns null when close (< 3 blocks).
+    protected Vec3d GetWorkstationApproachPosOrNull()
+    {
+        BlockPos ws = entity.GetBehavior<EntityBehaviorVillager>()?.Workstation;
+        if (ws == null) return null;
+        double dx = entity.Pos.X - (ws.X + 0.5);
+        double dz = entity.Pos.Z - (ws.Z + 0.5);
+        if (dx * dx + dz * dz < 9.0) return null;
+        return ws.ToVec3d().Add(0.5, 0.0, 0.5);
+    }
+
     protected BlockPos currentlyOpeningDoor;
 
     protected long doorOpenedTime;
@@ -79,7 +102,7 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
             EaseInSpeed  = 3f,
             EaseOutSpeed = 3f
         }.Init();
-        pathfinder = new VillagerAStarNew(entity.World.GetCachingBlockAccessor(synchronize: false, relight: false));
+        pathfinder = new VillagerAStarNew(entity.World.GetCachingBlockAccessor(synchronize: false, relight: false), entity.World, entity);
         lastPosition = null;
         stuckCheckTime = 0L;
         timesStuck = 0;
@@ -149,6 +172,7 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
     public override void StartExecute()
     {
         taskStartedAtMs = entity.World.ElapsedMilliseconds;
+        entity.GetBehavior<EntityBehaviorVillager>()?.TouchBusy();
         pathfinder.blockAccessor.Begin();
         pathfinder.SetEntityCollisionBox(entity);
         BlockPos startPos = pathfinder.GetStartPos(entity.Pos.XYZ);
@@ -164,10 +188,36 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
             stuckCheckTime = entity.World.ElapsedMilliseconds;
             timesStuck = 0;
         }
+        else if (TryRecoveryTeleportToMayor())
+        {
+            // Tier-3 fallback fired: we teleported to the mayor station, try the
+            // pathfind once more from the new position. Most "lost villager" cases
+            // (flee aftermath, admin teleport, chunk-load jiggle) succeed from here.
+            pathfinder.blockAccessor.Begin();
+            startPos = pathfinder.GetStartPos(entity.Pos.XYZ);
+            currentPath = pathfinder.FindPath(startPos, asBlockPos);
+            pathfinder.blockAccessor.Commit();
+            if (currentPath != null && currentPath.Count > 0)
+            {
+                currentPathIndex = 0;
+                stuck = false;
+                targetReached = false;
+                lastPosition = entity.Pos.XYZ.Clone();
+                stuckCheckTime = entity.World.ElapsedMilliseconds;
+                timesStuck = 0;
+            }
+            else
+            {
+                stuck = true;
+            }
+        }
         else
         {
             stuck = true;
         }
+        blockedSinceMs = 0;
+        blockedRepathTried = false;
+        crowdAvoidanceDisabledForThisPath = false;
         base.StartExecute();
     }
 
@@ -262,6 +312,44 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
             stuck = true;
             return;
         }
+
+        // Proactive obstacle check: pause 500ms when the next cell is occupied by another
+        // villager/player, then one repath attempt. If still blocked, abandon the path so
+        // the priority system can switch tasks. Skipped during gathers (villagers cluster).
+        long nowMs = entity.World.ElapsedMilliseconds;
+        bool gathering = entity.GetBehavior<EntityBehaviorVillager>()?.Village?.IsGatherActive == true;
+        if (!gathering && RespectCrowdAvoidance && !crowdAvoidanceDisabledForThisPath
+            && IsCellBlockedByOther(currentPath[currentPathIndex].BlockPos))
+        {
+            if (blockedSinceMs == 0) blockedSinceMs = nowMs;
+            if (nowMs - blockedSinceMs < 500)
+            {
+                entity.Controls.WalkVector.Set(0.0, 0.0, 0.0);
+                entity.AnimManager.StopAnimation(animMeta.Code);
+                return;
+            }
+            if (!blockedRepathTried)
+            {
+                blockedRepathTried = true;
+                lastRepathTime = nowMs;
+                AttemptRepath();
+                return;
+            }
+            // Pause expired AND one repath already failed. Fall back to a path that
+            // ignores crowd avoidance, and disable avoidance for the remainder of this
+            // path so we don't immediately re-trigger when other villagers are still there.
+            crowdAvoidanceDisabledForThisPath = true;
+            blockedSinceMs = 0;
+            blockedRepathTried = false;
+            AttemptRepathIgnoringCrowd();
+            return;
+        }
+        if (!crowdAvoidanceDisabledForThisPath)
+        {
+            blockedSinceMs = 0;
+            blockedRepathTried = false;
+        }
+
         VillagerPathNode villagerPathNode = currentPath[currentPathIndex];
         Vec3d vec3d = villagerPathNode.BlockPos.ToVec3d().Add(0.5, 0.0, 0.5);
         Vec3d xYZ = entity.Pos.XYZ;
@@ -411,6 +499,26 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
         }
     }
 
+    // Exact-cell match aligned with VillagerAStarNew.RefreshOccupiedCells (which uses
+    // AsBlockPos = floor). The earlier 0.7m box flagged 2-4 adjacent cells per entity
+    // while A* only knew about one, so repaths kept producing the same blocked path.
+    private bool IsCellBlockedByOther(BlockPos pos)
+    {
+        Vec3d center = pos.ToVec3d().Add(0.5, 0.5, 0.5);
+        var near = entity.World.GetEntitiesAround(center, 1.5f, 1.5f, e =>
+        {
+            if (e == entity) return false;
+            if (e is EntityPlayer) return true;
+            return e.HasBehavior<EntityBehaviorVillager>();
+        });
+        if (near == null) return false;
+        for (int i = 0; i < near.Length; i++)
+        {
+            if (near[i].Pos.AsBlockPos.Equals(pos)) return true;
+        }
+        return false;
+    }
+
     protected void AttemptRepath()
     {
         if (targetPos == null) return;
@@ -430,6 +538,72 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
         {
             entity.World.Logger.Warning("[VsVillage] Pathfinder: no alternative path found for entity " + entity.EntityId);
         }
+    }
+
+    // Fallback used after one avoidance-aware repath fails to clear the blockage.
+    // Tells the A* to skip the occupied-cells set once, so the new path can go
+    // through villager-occupied cells (we'll walk into them physically; engine collision handles the rest).
+    protected void AttemptRepathIgnoringCrowd()
+    {
+        if (targetPos == null) return;
+
+        pathfinder.blockAccessor.Begin();
+        pathfinder.SetEntityCollisionBox(entity);
+        BlockPos startPos = pathfinder.GetStartPos(entity.Pos.XYZ);
+        pathfinder.IgnoreCrowdOnce = true;
+        List<VillagerPathNode> newPath = pathfinder.FindPath(startPos, targetPos.AsBlockPos);
+        pathfinder.blockAccessor.Commit();
+        if (newPath != null && newPath.Count > 0)
+        {
+            currentPath = newPath;
+            currentPathIndex = 0;
+            stuck = false;
+        }
+    }
+
+    // Tier-3 fallback: teleport to mayor station when we can't compute any path
+    // AND we're clearly outside the village. Cooldowned so a permanently broken
+    // task doesn't teleport-loop every 5 seconds.
+    private long lastRecoveryTeleportMs = 0;
+    private const long RecoveryTeleportCooldownMs = 60_000L;
+
+    private bool TryRecoveryTeleportToMayor()
+    {
+        long now = entity.World.ElapsedMilliseconds;
+        if (now - lastRecoveryTeleportMs < RecoveryTeleportCooldownMs) return false;
+
+        Village village = entity.GetBehavior<EntityBehaviorVillager>()?.Village;
+        if (village?.Pos == null) return false;
+
+        // Only fire when villager is outside the village. Targets unreachable from
+        // inside (walled-off bed) don't benefit from a mid-village teleport.
+        double radiusSq = village.Radius * (double)village.Radius;
+        if (village.Pos.DistanceSqTo(entity.Pos.X, entity.Pos.Y, entity.Pos.Z) < radiusSq) return false;
+
+        Vec3d dest = FindStandingPosNearMayor(village.Pos.ToVec3d());
+        if (dest == null) return false;
+
+        entity.TeleportTo(dest);
+        lastRecoveryTeleportMs = now;
+        return true;
+    }
+
+    private Vec3d FindStandingPosNearMayor(Vec3d centre)
+    {
+        IBlockAccessor ba = entity.World.BlockAccessor;
+        BlockPos bp = centre.AsBlockPos;
+        foreach (BlockFacing facing in BlockFacing.HORIZONTALS)
+        {
+            BlockPos n = bp.AddCopy(facing.Normali.X, 0, facing.Normali.Z);
+            Block at    = ba.GetBlock(n);
+            Block above = ba.GetBlock(n.UpCopy());
+            Block below = ba.GetBlock(n.DownCopy());
+            bool posClear  = at.CollisionBoxes    == null || at.CollisionBoxes.Length    == 0;
+            bool headClear = above.CollisionBoxes == null || above.CollisionBoxes.Length == 0;
+            bool grounded  = below.CollisionBoxes != null && below.CollisionBoxes.Length != 0;
+            if (posClear && headClear && grounded) return n.ToVec3d().Add(0.5, 0.0, 0.5);
+        }
+        return null;
     }
 
     private void TeleportToRecoveryPosition()

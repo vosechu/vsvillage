@@ -485,6 +485,10 @@ public static class VillagerHireRequirementChecker
     private static bool IsPenBarrier(Block block)
     {
         if (block?.Code == null) return false;
+        // isFence is vanilla's canonical fence attribute. Wattle fence sets it but
+        // its code path is "wattle-..." with no "fence" substring, which the old
+        // check missed - the BFS then walked right past wattle pens.
+        if (block.Attributes?["isFence"].AsBool(false) == true) return true;
         string path = block.Code.Path;
         return path.Contains("fence") || path.Contains("gate");
     }
@@ -594,9 +598,9 @@ public static class VillagerHireRequirementChecker
             if (IsVsWorkstation(b) && !IsWorkstationOfProfession(b, "soldier"))
                 return "Soldier/Archer room cannot contain civilian workstations. Dedicate this room to combat professions.";
         }
-        if (!roomBlocks.Any(b =>
-                b.Code?.Path?.Contains("toolrack") == true ||
-                b.Code?.Path?.Contains("tool-rack") == true))
+        // Hire requires a tool rack with at least one spear or bow in its inventory.
+        // Block-presence alone would pass empty racks.
+        if (!HasLoadedToolrack(room, api.World))
             return "Soldier/Archer room requires a tool rack loaded with a spear or bow.";
 
         Cuboidi barrackLoc = room.Location;
@@ -650,6 +654,41 @@ public static class VillagerHireRequirementChecker
         {
             return null;
         }
+    }
+
+    // True if the room contains at least one toolrack with a spear or bow in any of its 4 inventory slots.
+    // Walks the same cells GetBlocksInRoom does but keeps positions so BlockEntityToolrack can be resolved.
+    private static bool HasLoadedToolrack(Room room, IWorldAccessor world)
+    {
+        IBlockAccessor ba = world.BlockAccessor;
+        Cuboidi loc = room.Location;
+        int x1 = loc.X1;
+        int x2 = Math.Min(loc.X2, x1 + RoomScanCap);
+        int y1 = loc.Y1;
+        int y2 = Math.Min(loc.Y2, y1 + RoomHeightCap);
+        int z1 = loc.Z1;
+        int z2 = Math.Min(loc.Z2, z1 + RoomScanCap);
+        BlockPos tmp = new BlockPos(0);
+        for (int i = x1; i <= x2; i++)
+            for (int j = y1; j <= y2; j++)
+                for (int k = z1; k <= z2; k++)
+                {
+                    tmp.Set(i, j, k);
+                    Block b = ba.GetBlock(tmp);
+                    string path = b?.Code?.Path;
+                    if (string.IsNullOrEmpty(path)) continue;
+                    if (!path.Contains("toolrack") && !path.Contains("tool-rack")) continue;
+                    BlockEntityToolrack rack = ba.GetBlockEntity<BlockEntityToolrack>(tmp);
+                    if (rack?.inventory == null) continue;
+                    for (int s = 0; s < rack.inventory.Count; s++)
+                    {
+                        string itemPath = rack.inventory[s]?.Itemstack?.Collectible?.Code?.Path;
+                        if (string.IsNullOrEmpty(itemPath)) continue;
+                        if (itemPath.StartsWith("bow-") || itemPath.StartsWith("spear-"))
+                            return true;
+                    }
+                }
+        return false;
     }
 
     private static List<Block> GetBlocksInRoom(Room room, IWorldAccessor world)

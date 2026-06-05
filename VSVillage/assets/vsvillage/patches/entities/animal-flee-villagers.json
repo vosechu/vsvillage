@@ -70,7 +70,7 @@
 
     // -------------------------------------------------------------------------
     // Sheep — flees all villagers EXCEPT shepherd
-    // behaviors[10] has THREE fleeentity tasks: aitasks[2], [7], [9]
+    // behaviors[10] has THREE fleeentity tasks: aitasks[2], [9], [11] (1.22.3 order)
     // -------------------------------------------------------------------------
     {
         "file": "game:entities/animal/mammal/hooved/sheep-adult.json",
@@ -91,7 +91,7 @@
     {
         "file": "game:entities/animal/mammal/hooved/sheep-adult.json",
         "op": "addeach",
-        "path": "/server/behaviors/10/aitasks/7/entityCodes/-",
+        "path": "/server/behaviors/10/aitasks/11/entityCodes/-",
         "value": [
             "villager-*-smith",
             "villager-*-farmer",

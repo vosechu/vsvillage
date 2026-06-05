@@ -66,9 +66,12 @@ public class AiTaskVillagerSeekEntity : AiTaskGotoAndInteract
     {
         if (!IsAllowedEntityType()) return null;
 
-        // Keep existing live target if still valid.
+        // Keep existing live target if still valid AND still inside village.
         if (targetEntity != null && targetEntity.Alive && InRange(targetEntity))
+        {
+            if (!IsTargetInsideVillage(targetEntity)) { targetEntity = null; return null; }
             return targetEntity.Pos.XYZ;
+        }
 
         targetEntity = null;
 
@@ -76,7 +79,7 @@ public class AiTaskVillagerSeekEntity : AiTaskGotoAndInteract
         // acquire hostiles deep underground or up in the canopy with no surface path.
         targetEntity = entity.World.GetNearestEntity(
             entity.Pos.XYZ, seekingRange, MaxVertDetection,
-            e => e != entity && e.Alive && e.IsInteractable && MatchesCode(e) && IsBeyondMinRange(e));
+            e => e != entity && e.Alive && e.IsInteractable && MatchesCode(e) && IsBeyondMinRange(e) && IsTargetInsideVillage(e));
 
         if (targetEntity != null)
         {
@@ -222,6 +225,16 @@ public class AiTaskVillagerSeekEntity : AiTaskGotoAndInteract
     {
         if (minRange <= 0f) return true;
         return entity.Pos.SquareDistanceTo(e.Pos) >= minRange * minRange;
+    }
+
+    // Threats outside the village aren't worth pursuing - civilians defend home,
+    // they don't chase fleeing hostiles into the wilderness.
+    private bool IsTargetInsideVillage(Entity target)
+    {
+        Village village = entity.GetBehavior<EntityBehaviorVillager>()?.Village;
+        if (village?.Pos == null) return true;
+        double radiusSq = village.Radius * (double)village.Radius;
+        return village.Pos.DistanceSqTo(target.Pos.X, target.Pos.Y, target.Pos.Z) <= radiusSq;
     }
 
     private bool MatchesCode(Entity e)

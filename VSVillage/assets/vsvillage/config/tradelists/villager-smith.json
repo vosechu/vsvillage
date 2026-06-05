@@ -28,7 +28,7 @@
             { "code": "game:pickaxehead-bismuthbronze","type": "item", "stacksize": 1, "stock": { "avg": 2, "var": 1 }, "price": { "avg": 11, "var": 2 } },
             { "code": "game:axehead-bismuthbronze",   "type": "item", "stacksize": 1, "stock": { "avg": 2, "var": 1 }, "price": { "avg": 11, "var": 2 } },
             { "code": "game:shovelhead-bismuthbronze", "type": "item", "stacksize": 1, "stock": { "avg": 2, "var": 1 }, "price": { "avg": 11, "var": 2 } },
-            { "code": "game:hoe-head-bismuthbronze",   "type": "item", "stacksize": 1, "stock": { "avg": 2, "var": 1 }, "price": { "avg": 11, "var": 2 } },
+            { "code": "game:hoehead-bismuthbronze",   "type": "item", "stacksize": 1, "stock": { "avg": 2, "var": 1 }, "price": { "avg": 11, "var": 2 } },
             { "code": "game:hammerhead-bismuthbronze","type": "item", "stacksize": 1, "stock": { "avg": 2, "var": 1 }, "price": { "avg": 11, "var": 2 } },
             { "code": "game:knifeblade-bismuthbronze", "type": "item", "stacksize": 1, "stock": { "avg": 2, "var": 1 }, "price": { "avg": 11, "var": 2 } },
 

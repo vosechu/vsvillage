@@ -43,7 +43,7 @@ public class VillageCommands : ModSystem
 			.WithArgs(parsers.WordRange("stage", "start", "end"))
 			.RequiresPrivilege(Privilege.root)
 			.WithExamples("waypointpath start", "waypointpath end")
-			.HandleWith((TextCommandCallingArgs args) => onCmdAStar(args, new WaypointAStar(sapi.World.GetCachingBlockAccessor(synchronize: true, relight: true))));
+			.HandleWith((TextCommandCallingArgs args) => onCmdAStar(args, new WaypointAStar(sapi.World.GetCachingBlockAccessor(synchronize: true, relight: true), sapi.World)));
 		chatCommands.Create("highlightvillagewaypoints").WithAlias("hvw").WithDescription("Highlight all paths between waypoints in your village")
 			.RequiresPrivilege(Privilege.root)
 			.WithExamples("highlightvillagewaypoints", "hvw")
@@ -196,7 +196,7 @@ public class VillageCommands : ModSystem
 		string text = (string)args[0];
 		IPlayer player = args.Caller.Player;
 		BlockPos asBlockPos = player.Entity.Pos.XYZ.AsBlockPos;
-		VillagerAStarNew villagerAStarNew = waypointAStar ?? new VillagerAStarNew(sapi.World.GetCachingBlockAccessor(synchronize: true, relight: true));
+		VillagerAStarNew villagerAStarNew = waypointAStar ?? new VillagerAStarNew(sapi.World.GetCachingBlockAccessor(synchronize: true, relight: true), sapi.World);
 		switch (text)
 		{
 		case "start":

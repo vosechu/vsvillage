@@ -15,6 +15,7 @@ public static class DoorPathHelper
 	private const int ClusterScanRadius = 1;
 
 	// Toggle door/gate at target. Redirects multiblock filler -> anchor, then activates one cell per unique code in the 3x3x3 cube.
+	// Bails on locked doors so villagers respect player padlocks (pathfinder should route around these in the first place).
 	public static void ToggleDoor(EntityAgent caller, BlockPos target, bool opened)
 	{
 		if (caller == null || target == null) return;
@@ -32,6 +33,7 @@ public static class DoorPathHelper
 		}
 
 		if (!IsDoorOrGate(block)) return;
+		if (IsLocked(caller.World, target)) return;
 
 		ActivateAt(caller, target, block, opened);
 
@@ -108,6 +110,15 @@ public static class DoorPathHelper
 	{
 		string p = block?.Code?.Path;
 		return !string.IsNullOrEmpty(p) && (p.Contains("door") || p.Contains("gate"));
+	}
+
+	// True if the block at pos has a player-placed lock (via the vanilla reinforcement system).
+	// Reinforced-but-not-locked blocks return false (they're only hardened against breaking).
+	public static bool IsLocked(IWorldAccessor world, BlockPos pos)
+	{
+		if (world == null || pos == null) return false;
+		ModSystemBlockReinforcement bre = world.Api?.ModLoader?.GetModSystem<ModSystemBlockReinforcement>();
+		return bre?.GetReinforcment(pos)?.Locked == true;
 	}
 
 	public static bool IsDoorCurrentlyOpen(Block block)

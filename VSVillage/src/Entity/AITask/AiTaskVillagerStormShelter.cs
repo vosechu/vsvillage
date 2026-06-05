@@ -35,7 +35,7 @@ public class AiTaskVillagerStormShelter : AiTaskBase
 	public AiTaskVillagerStormShelter(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
 		: base(entity, taskConfig, aiConfig)
 	{
-		pathfinder = new VillagerAStarNew(entity.World.GetCachingBlockAccessor(synchronize: false, relight: false));
+		pathfinder = new VillagerAStarNew(entity.World.GetCachingBlockAccessor(synchronize: false, relight: false), entity.World, entity);
 	}
 
 	public override bool ShouldExecute()
@@ -80,6 +80,23 @@ public class AiTaskVillagerStormShelter : AiTaskBase
 			pathfinder.blockAccessor.Commit();
 			if (currentPath == null || currentPath.Count == 0)
 			{
+				// Tier-3 fallback: storm exposure kills villagers. Teleport directly to
+				// the shelter spot or the mayor station rather than letting them stand
+				// in the open until something else picks them up.
+				if (IsPositionSafe(targetPos))
+				{
+					entity.TeleportTo(targetPos);
+					ArriveAtShelter();
+					return;
+				}
+				Vec3d mayorStand = village?.Pos != null ? FindStandingPosNear(village.Pos.ToVec3d()) : null;
+				if (mayorStand != null && IsPositionSafe(mayorStand))
+				{
+					entity.TeleportTo(mayorStand);
+					targetPos = mayorStand;
+					ArriveAtShelter();
+					return;
+				}
 				stuck = true;
 				return;
 			}
@@ -285,6 +302,19 @@ public class AiTaskVillagerStormShelter : AiTaskBase
 				entity.AnimManager.StartAnimation(animMeta);
 			}
 		}
+	}
+
+	// Safety check used by the Tier-3 teleport fallback; matches the shape the
+	// sleep task uses (clear at, clear above, solid below).
+	private bool IsPositionSafe(Vec3d pos)
+	{
+		if (pos == null) return false;
+		IBlockAccessor ba = entity.World.BlockAccessor;
+		BlockPos bp = pos.AsBlockPos;
+		bool atClear   = ba.GetBlock(bp).CollisionBoxes == null || ba.GetBlock(bp).CollisionBoxes.Length == 0;
+		bool headClear = ba.GetBlock(bp.UpCopy()).CollisionBoxes == null || ba.GetBlock(bp.UpCopy()).CollisionBoxes.Length == 0;
+		bool grounded  = ba.GetBlock(bp.DownCopy()).CollisionBoxes != null && ba.GetBlock(bp.DownCopy()).CollisionBoxes.Length != 0;
+		return atClear && headClear && grounded;
 	}
 
 	private void CheckIfStuck()

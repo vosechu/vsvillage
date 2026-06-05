@@ -10,6 +10,9 @@ public class AiTaskVillagerGotoMayor : AiTaskGotoAndInteract
 
 	private long lastExecutionTime;
 
+	// N villagers converge on the mayor at 6:00-7:30; crowd-avoidance would deadlock them.
+	protected override bool RespectCrowdAvoidance => false;
+
 	public AiTaskVillagerGotoMayor(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
 		: base(entity, taskConfig, aiConfig)
 	{

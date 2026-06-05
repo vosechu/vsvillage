@@ -4,8 +4,8 @@ namespace VsVillage;
 
 public class WaypointAStar : VillagerAStarNew
 {
-	public WaypointAStar(ICachingBlockAccessor blockAccessor)
-		: base(blockAccessor)
+	public WaypointAStar(ICachingBlockAccessor blockAccessor, IWorldAccessor world)
+		: base(blockAccessor, world)
 	{
 	}
 

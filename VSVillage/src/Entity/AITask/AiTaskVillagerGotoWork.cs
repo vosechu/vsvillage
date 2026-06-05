@@ -87,7 +87,14 @@ public class AiTaskVillagerGotoWork : AiTaskGotoAndInteract
 
     public override bool ShouldExecute()
     {
-        return base.ShouldExecute() && IntervalUtil.matchesCurrentTime(duringDayTimeFrames, entity.World, offset);
+        if (!base.ShouldExecute()) return false;
+        if (IntervalUtil.matchesCurrentTime(duringDayTimeFrames, entity.World, offset)) return true;
+        // 30s-idle fallback fires only during daytime hours (7-20). Lets a baker whose
+        // oven task keeps failing walk back to their workstation, but never at night.
+        double hour = entity.World.Calendar.HourOfDay;
+        if (hour < 7.0 || hour >= 20.0) return false;
+        var beh = entity.GetBehavior<EntityBehaviorVillager>();
+        return beh != null && entity.World.ElapsedMilliseconds - beh.LastBusyAtMs > 30000;
     }
 
     private Vec3d getRandomPosNearby(Vec3d middle)

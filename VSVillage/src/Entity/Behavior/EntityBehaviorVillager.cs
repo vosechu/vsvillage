@@ -87,6 +87,13 @@ public class EntityBehaviorVillager : EntityBehavior
         }
     }
 
+    // Updated by AiTaskGotoAndInteract.StartExecute whenever a path-based task fires.
+    // AiTaskVillagerGotoWork reads this to bypass its time-window gate when the
+    // villager has been idle for too long (catches a baker whose oven task is failing).
+    public long LastBusyAtMs;
+
+    public void TouchBusy() => LastBusyAtMs = entity.World.ElapsedMilliseconds;
+
     public EntityBehaviorVillager(Entity entity)
         : base(entity)
     {
@@ -94,6 +101,9 @@ public class EntityBehaviorVillager : EntityBehavior
 
     public override void Initialize(EntityProperties properties, JsonObject attributes)
     {
+        LastBusyAtMs = entity.World.ElapsedMilliseconds;
+        // Bypass Synergy mod's Entity Activation Range skip beyond 48 blocks of any player. No effect without Synergy.
+        entity.AlwaysActive = true;
         if (!Enum.TryParse(attributes["profession"].AsString(), ignoreCase: true, out EnumVillagerProfession parsedProfession))
         {
             entity.World.Logger.Warning("[VsVillage] Unknown profession '" + attributes["profession"].AsString() + "' on entity " + entity.EntityId + ", defaulting to villager.");

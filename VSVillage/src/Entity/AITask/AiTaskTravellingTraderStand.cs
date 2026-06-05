@@ -39,7 +39,7 @@ public class AiTaskTravellingTraderStand : AiTaskBase
     public AiTaskTravellingTraderStand(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
         : base(entity, taskConfig, aiConfig)
     {
-        _pathfinder = new VillagerAStarNew(entity.World.GetCachingBlockAccessor(synchronize: false, relight: false));
+        _pathfinder = new VillagerAStarNew(entity.World.GetCachingBlockAccessor(synchronize: false, relight: false), entity.World, entity);
     }
 
     public override bool ShouldExecute()

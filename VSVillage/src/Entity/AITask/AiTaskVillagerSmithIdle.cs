@@ -41,7 +41,8 @@ public class AiTaskVillagerSmithIdle : AiTaskGotoAndInteract
         if (targetPos == null) return false;
         double dx = entity.Pos.X - targetPos.X;
         double dz = entity.Pos.Z - targetPos.Z;
-        return dx * dx + dz * dz < 49.0;
+        // 4.0 = 2 blocks horizontal. Prior 49.0 (7 blocks) lit the forge from across the room.
+        return dx * dx + dz * dz < 4.0;
     }
     protected override void ApplyInteractionEffect()
 	{

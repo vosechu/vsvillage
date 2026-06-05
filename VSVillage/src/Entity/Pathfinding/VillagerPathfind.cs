@@ -15,8 +15,8 @@ public class VillagerPathfind
 	{
 		// relight:false because pathfinding only reads blocks; the lighting machinery was dead overhead per villager.
 		ICachingBlockAccessor cachingBlockAccessor = sapi.World.GetCachingBlockAccessor(synchronize: true, relight: false);
-		villagerAStar = new VillagerAStarNew(cachingBlockAccessor);
-		waypointAStar = new WaypointAStar(cachingBlockAccessor);
+		villagerAStar = new VillagerAStarNew(cachingBlockAccessor, sapi.World);
+		waypointAStar = new WaypointAStar(cachingBlockAccessor, sapi.World);
 	}
 
 	public BlockPos GetStartPos(Vec3d startPos)

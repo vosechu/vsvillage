@@ -1,0 +1,53 @@
+// Makes vanilla microblocks count as room walls for heat retention.
+// Mirrors ChiseledBlockRetention by Rythillian. Disable via villageconfig.json
+// ChiseledBlocksCountAsWalls=false (handled in ChiseledBlockLeniencySystem.cs).
+[
+    {
+        "file": "game:blocktypes/chiseled/microblock.json",
+        "op": "remove",
+        "path": "/sidesolid/all",
+        "side": "server"
+    },
+    {
+        "file": "game:blocktypes/chiseled/microblock.json",
+        "op": "add",
+        "path": "/sidesolid/down",
+        "value": true,
+        "side": "server"
+    },
+    {
+        "file": "game:blocktypes/chiseled/microblock.json",
+        "op": "add",
+        "path": "/sidesolid/east",
+        "value": true,
+        "side": "server"
+    },
+    {
+        "file": "game:blocktypes/chiseled/microblock.json",
+        "op": "add",
+        "path": "/sidesolid/north",
+        "value": true,
+        "side": "server"
+    },
+    {
+        "file": "game:blocktypes/chiseled/microblock.json",
+        "op": "add",
+        "path": "/sidesolid/south",
+        "value": true,
+        "side": "server"
+    },
+    {
+        "file": "game:blocktypes/chiseled/microblock.json",
+        "op": "add",
+        "path": "/sidesolid/up",
+        "value": false,
+        "side": "server"
+    },
+    {
+        "file": "game:blocktypes/chiseled/microblock.json",
+        "op": "add",
+        "path": "/sidesolid/west",
+        "value": true,
+        "side": "server"
+    }
+]

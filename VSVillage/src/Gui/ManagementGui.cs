@@ -384,7 +384,9 @@ public class ManagementGui : GuiDialog
 
 	public static BlockPos BlockPosFromString(string pos)
 	{
-		List<int> list = new List<Match>(Regex.Matches(pos, "\\d+")).ConvertAll((Match match) => int.Parse(match.Value));
+		// Must accept leading minus sign - negative X/Z coords are common and the
+		// prior \d+ silently dropped them, breaking ghost-structure removal.
+		List<int> list = new List<Match>(Regex.Matches(pos, "-?\\d+")).ConvertAll((Match match) => int.Parse(match.Value));
 		return new BlockPos(list[0], list[1], list[2], (list.Count > 3) ? list[3] : 0);
 	}
 

@@ -42,6 +42,12 @@ public class AiTaskVillagerSmithHammer : AiTaskGotoAndInteract
     {
         if (!IsSmith()) return null;
 
+        // Far from workstation: walk there first. Once close, fall through to the
+        // anvil. ContinueExecute only hammers when targetReached AND anvilLookPos is
+        // set, so the redirect arrival is a no-op for the hammering branch.
+        Vec3d approach = GetWorkstationApproachPosOrNull();
+        if (approach != null) { anvilStandPos = null; anvilLookPos = null; return approach; }
+
         BlockPos ws = entity.GetBehavior<EntityBehaviorVillager>()?.Workstation;
         if (ws == null) return null;
 
@@ -62,7 +68,8 @@ public class AiTaskVillagerSmithHammer : AiTaskGotoAndInteract
         if (targetPos == null) return false;
         double dx = entity.Pos.X - targetPos.X;
         double dz = entity.Pos.Z - targetPos.Z;
-        return dx * dx + dz * dz < 49.0;
+        // 4.0 = 2 blocks horizontal. Prior 49.0 (7 blocks) hammered from across the room.
+        return dx * dx + dz * dz < 4.0;
     }
 
     public override void StartExecute()
@@ -75,6 +82,10 @@ public class AiTaskVillagerSmithHammer : AiTaskGotoAndInteract
     {
         // While we haven't reached the anvil yet, let the base walker run.
         if (!targetReached) return base.ContinueExecute(dt);
+
+        // anvilLookPos is null only when GetTargetPos redirected us to the workstation
+        // (out-of-range case). End the task immediately so the next firing targets the anvil.
+        if (anvilLookPos == null) return false;
 
         // First tick after arrival: record when hammering began.
         if (hammerStartedAtMs == 0L)

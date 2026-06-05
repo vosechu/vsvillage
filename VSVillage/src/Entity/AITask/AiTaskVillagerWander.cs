@@ -51,7 +51,7 @@ public class AiTaskVillagerWander : AiTaskBase
 		constrainToWorkstation = taskConfig["constrainToWorkstation"].AsBool();
 		workstationRadius   = taskConfig["workstationRadius"].AsFloat(10f);
 
-		pathfinder = new VillagerAStarNew(entity.World.GetCachingBlockAccessor(synchronize: false, relight: false));
+		pathfinder = new VillagerAStarNew(entity.World.GetCachingBlockAccessor(synchronize: false, relight: false), entity.World, entity);
 		lastPosition = null;
 		stuckCheckTime = 0L;
 		timesStuck = 0;
