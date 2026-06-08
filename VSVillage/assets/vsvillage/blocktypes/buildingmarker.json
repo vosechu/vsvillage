@@ -1,0 +1,32 @@
+{
+    "code": "buildingmarker",
+    "class": "BuildingMarker",
+    "entityClass": "BuildingMarker",
+    "shape": { "base": "building-marker" },
+    "textures": {
+        "back":  { "base": "game:block/wood/sign/back" },
+        "sign":  { "base": "game:block/wood/signpost/front" },
+        "paper": { "base": "game:item/lore/item-paper" }
+    },
+    "variantgroups": [
+        { "code": "size", "states": ["small", "medium", "large"] }
+    ],
+    "sidesolid": { "all": false },
+    "sideopaque": { "all": false },
+    "creativeinventory": {
+        "general": ["*"]
+    },
+    "blockmaterial": "Wood",
+    "sounds": {
+        "place": "game:block/planks",
+        "hit":   "game:block/planks",
+        "break": "game:block/planks",
+        "walk":  "game:walk/wood"
+    },
+    "lightAbsorption": 1,
+    "maxStackSize": 16,
+    "collisionBoxes": [],
+    "selectionBoxes": [
+        { "x1": 0.4375, "y1": 0, "z1": 0.4375, "x2": 0.5625, "y2": 0.875, "z2": 0.5625 }
+    ]
+}

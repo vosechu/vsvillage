@@ -569,6 +569,47 @@ public class VillageManager : ModSystem
 				EnumChatType.Notification);
 			break;
 		}
+		case EnumVillageManagementOperation.recoverFixtures:
+		{
+			Village rfv = GetVillage(message.Id);
+			if (rfv == null) { Api.Logger.Error("[VsVillage] recoverFixtures: village '" + message.Id + "' not found."); break; }
+
+			int recovered = 0;
+			int r = rfv.Radius;
+			int dim = rfv.Pos.dimension;
+			IBlockAccessor ba = api.World.BlockAccessor;
+			BlockPos minPos = new BlockPos(rfv.Pos.X - r, rfv.Pos.Y - r, rfv.Pos.Z - r, dim);
+			BlockPos maxPos = new BlockPos(rfv.Pos.X + r, rfv.Pos.Y + r, rfv.Pos.Z + r, dim);
+			BlockPos tmp = new BlockPos(0, 0, 0, dim);
+
+			ba.WalkBlocks(minPos, maxPos, (block, x, y, z) =>
+			{
+				tmp.Set(x, y, z);
+				BlockEntity be = ba.GetBlockEntity(tmp);
+				if (!(be is BlockEntityVillagerPOI poi)) return;
+
+				bool inData = (poi is BlockEntityVillagerWorkstation && rfv.Workstations.ContainsKey(tmp))
+					|| (poi is BlockEntityVillagerBed && rfv.Beds.ContainsKey(tmp))
+					|| (poi is BlockEntityVillagerBrazier && rfv.Gatherplaces.Contains(tmp))
+					|| (poi is BlockEntityVillagerWaypoint && rfv.Waypoints.Contains(tmp));
+				if (inData) return;
+
+				// Belongs to a different valid village - leave it alone.
+				if (!string.IsNullOrEmpty(poi.VillageId) && poi.VillageId != rfv.Id && GetVillage(poi.VillageId) != null) return;
+
+				poi.VillageId = rfv.Id;
+				poi.VillageName = rfv.Name;
+				poi.AddToVillage(rfv);
+				poi.MarkDirty();
+				recovered++;
+				Api.Logger.Notification("[VsVillage] recoverFixtures: re-registered " + be.GetType().Name + " at " + tmp + " into '" + rfv.Name + "'.");
+			});
+
+			fromPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
+				"[VsVillage] Recovered " + recovered + " fixture(s) into '" + rfv.Name + "'.",
+				EnumChatType.Notification);
+			break;
+		}
 		case EnumVillageManagementOperation.hireVillager:
 		{
 			Village village = GetVillage(message.Id);

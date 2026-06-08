@@ -193,6 +193,7 @@
                 { "value": "Tell me about Herbalists.",              "jumpTo": "jobsherbalist" },
                 { "value": "Tell me about Blacksmiths.",             "jumpTo": "jobsmith" },
                 { "value": "Tell me about Bakers.",                  "jumpTo": "jobbaker" },
+                { "value": "Tell me about Builders.",                "jumpTo": "jobsbuilder" },
                 { "value": "Tell me about Soldiers and Archers.",    "jumpTo": "jobsoldier" },
                 { "value": "What were those...errors?",              "jumpTo": "jobsother" },
                 { "value": "Let's go back.",                         "jumpTo": "adminmain" }
@@ -249,6 +250,15 @@
             "type": "talk",
             "text": [
                 { "value": "vsvillage:dialogue-mechadminjobsbaker" }
+            ],
+            "jumpTo": "jobsmain"
+        },
+        {
+            "code": "jobsbuilder",
+            "owner": "mechhelper",
+            "type": "talk",
+            "text": [
+                { "value": "vsvillage:dialogue-mechadminjobsbuilder" }
             ],
             "jumpTo": "jobsmain"
         },

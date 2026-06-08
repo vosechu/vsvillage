@@ -65,7 +65,7 @@ public class TravellingTraderManager : ModSystem
 
     private ICoreServerAPI _sapi;
 
-    private const int MarketStallScanRadius = 35;
+    private const int MarketStallScanRadius = 75;
 
     public override bool ShouldLoad(EnumAppSide forSide)
     {
@@ -351,19 +351,21 @@ public class TravellingTraderManager : ModSystem
 
     private BlockPos ScanForMarketStallBlock(Village village, IBlockAccessor ba)
     {
-        int r = Math.Min(village.Radius, 35);
+        int r = Math.Min(village.Radius, MarketStallScanRadius);
+        int dyMax = Math.Min(village.Radius, MarketStallScanRadius);
         int cy = village.Pos.Y;
         BlockPos tmp = new BlockPos(0);
-        // Y scan was +/-8 (17 layers), market stalls typically sit within +/-2 of village.Pos.Y. Tighter Y saves ~3x GetBlock calls per scan.
         for (int dx = -r; dx <= r; dx++)
         {
             for (int dz = -r; dz <= r; dz++)
             {
                 int wx = village.Pos.X + dx;
                 int wz = village.Pos.Z + dz;
-                for (int dy = 2; dy >= -2; dy--)
+                for (int dy = dyMax; dy >= -dyMax; dy--)
                 {
                     tmp.Set(wx, cy + dy, wz);
+                    // Skip unloaded chunks rather than reading bogus air from them.
+                    if (!ba.IsValidPos(tmp) || ba.GetChunkAtBlockPos(tmp) == null) continue;
                     Block b = ba.GetBlock(tmp);
                     if (b != null && b.Code?.Domain == "vsvillage" && b.Code?.Path?.StartsWith("marketstall") == true)
                     {

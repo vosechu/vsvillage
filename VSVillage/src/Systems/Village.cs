@@ -35,6 +35,9 @@ public class Village
     [ProtoMember(8)]
     public HashSet<BlockPos> Waypoints = new HashSet<BlockPos>();
 
+    [ProtoMember(9)]
+    public List<BlockPos> ConstructionQueue = new List<BlockPos>();
+
     public ICoreAPI Api;
 
     // Runtime-only flag - not persisted. True while a Gather is active.
@@ -74,6 +77,7 @@ public class Village
                 if (cfg != null) delayMs = Math.Max(8000, cfg.MaxChunkRadius * 1500);
             }
             catch { }
+            // BuildWaypointGraph disabled pending fix for the reload walk-in-place bug.
             api.World.RegisterCallback(delegate { ScrubGhostStructures(); }, delayMs);
         }
     }
@@ -257,6 +261,74 @@ public class Village
 
     public void RemoveWaypoint(BlockPos pos)
     {
+        // BuildWaypointGraph call removed - feature disabled pending bug fix.
         Waypoints.Remove(pos);
+    }
+
+    public void EnqueueConstruction(BlockPos markerPos)
+    {
+        if (markerPos == null) return;
+        if (ConstructionQueue.Contains(markerPos)) return;
+        ConstructionQueue.Add(markerPos);
+    }
+
+    public void DequeueConstruction(BlockPos markerPos)
+    {
+        if (markerPos == null) return;
+        ConstructionQueue.Remove(markerPos);
+    }
+
+    public BlockPos GetActiveConstruction()
+    {
+        if (ConstructionQueue.Count == 0) return null;
+        return ConstructionQueue[0];
+    }
+
+    // Transient - not persisted. Rebuilt from Waypoints on load and on any add/remove.
+    public Dictionary<BlockPos, VillageWaypoint> WaypointGraph = new Dictionary<BlockPos, VillageWaypoint>();
+
+    // Rebuilds the waypoint graph from the current Waypoints set.
+    // Runs short A* legs between nearby pairs to establish edges, then propagates
+    // transitive reachability. Called on load (delayed) and whenever a waypoint is placed or removed.
+    public void BuildWaypointGraph()
+    {
+        WaypointGraph.Clear();
+        if (Api == null || Waypoints.Count < 2) return;
+
+        int connectionRange = Math.Max(50, Radius / 4);
+
+        foreach (BlockPos pos in Waypoints)
+            WaypointGraph[pos] = new VillageWaypoint { Pos = pos.Copy() };
+
+        ICachingBlockAccessor bac = Api.World.GetCachingBlockAccessor(synchronize: true, relight: false);
+        var edgeTester = new WaypointAStar(bac, Api.World);
+
+        var nodes = new List<BlockPos>(WaypointGraph.Keys);
+        for (int i = 0; i < nodes.Count; i++)
+        {
+            for (int j = i + 1; j < nodes.Count; j++)
+            {
+                BlockPos a = nodes[i];
+                BlockPos b = nodes[j];
+                if (a.ManhattanDistance(b) > connectionRange) continue;
+
+                bac.Begin();
+                var path = edgeTester.FindPath(a, b, searchDepth: 3000);
+                bac.Commit();
+
+                if (path != null && path.Count > 1)
+                {
+                    int dist = path.Count;
+                    WaypointGraph[a].SetNeighbour(WaypointGraph[b], dist);
+                    WaypointGraph[b].SetNeighbour(WaypointGraph[a], dist);
+                }
+            }
+        }
+
+        // Bellman-Ford style propagation - repeat until reachability is fully transitive.
+        int passes = WaypointGraph.Count;
+        for (int pass = 0; pass < passes; pass++)
+            foreach (VillageWaypoint node in WaypointGraph.Values)
+                node.UpdateReachableNodes();
     }
 }

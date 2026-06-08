@@ -1,0 +1,34 @@
+{
+    "code": "buildingscaffold",
+    "class": "BuildingScaffold",
+    "shape": { "base": "game:block/wood/fence/roughfence/nesw1" },
+    "textures": {
+        "wattlefence":  { "base": "game:block/wood/roughfence/aged" },
+        "wattlefence2": { "base": "game:block/wood/roughfence/aged2" }
+    },
+    "attributes": {
+        "isFence": true,
+        "canStep": false
+    },
+    "sidesolid": { "all": false },
+    "sideopaque": { "all": false },
+    "creativeinventory": {},
+    "blockmaterial": "Wood",
+    "resistance": 12,
+    "lightAbsorption": 0,
+    "sounds": {
+        "place": "game:block/planks",
+        "hit":   "game:block/planks",
+        "break": "game:block/planks",
+        "walk":  "game:walk/wood"
+    },
+    "drops": [],
+    "selectionBoxes": [
+        { "x1": 0, "y1": 0, "z1": 0.375, "x2": 1, "y2": 1.0625, "z2": 0.625 },
+        { "x1": 0.375, "y1": 0, "z1": 0, "x2": 0.625, "y2": 1.0625, "z2": 1 }
+    ],
+    "collisionBoxes": [
+        { "x1": 0, "y1": 0, "z1": 0.375, "x2": 1, "y2": 1.3125, "z2": 0.625 },
+        { "x1": 0.375, "y1": 0, "z1": 0, "x2": 0.625, "y2": 1.3125, "z2": 1 }
+    ]
+}

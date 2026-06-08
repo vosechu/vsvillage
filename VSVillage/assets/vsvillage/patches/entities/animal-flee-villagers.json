@@ -63,7 +63,8 @@
             "villager-*-archer",
             "villager-*-herbalist",
             "villager-*-trader",
-            "villager-*-baker"
+            "villager-*-baker",
+            "villager-*-builder"
         ],
         "side": "server"
     },
@@ -84,7 +85,8 @@
             "villager-*-archer",
             "villager-*-herbalist",
             "villager-*-trader",
-            "villager-*-baker"
+            "villager-*-baker",
+            "villager-*-builder"
         ],
         "side": "server"
     },
@@ -100,7 +102,8 @@
             "villager-*-archer",
             "villager-*-herbalist",
             "villager-*-trader",
-            "villager-*-baker"
+            "villager-*-baker",
+            "villager-*-builder"
         ],
         "side": "server"
     },
@@ -116,7 +119,8 @@
             "villager-*-archer",
             "villager-*-herbalist",
             "villager-*-trader",
-            "villager-*-baker"
+            "villager-*-baker",
+            "villager-*-builder"
         ],
         "side": "server"
     },
@@ -137,7 +141,8 @@
             "villager-*-archer",
             "villager-*-herbalist",
             "villager-*-trader",
-            "villager-*-baker"
+            "villager-*-baker",
+            "villager-*-builder"
         ],
         "side": "server"
     },
@@ -153,7 +158,8 @@
             "villager-*-archer",
             "villager-*-herbalist",
             "villager-*-trader",
-            "villager-*-baker"
+            "villager-*-baker",
+            "villager-*-builder"
         ],
         "side": "server"
     }

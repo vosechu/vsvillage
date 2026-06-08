@@ -181,35 +181,20 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
         pathfinder.blockAccessor.Commit();
         if (currentPath != null && currentPath.Count > 0)
         {
-            currentPathIndex = 0;
-            stuck = false;
-            targetReached = false;
-            lastPosition = entity.Pos.XYZ.Clone();
-            stuckCheckTime = entity.World.ElapsedMilliseconds;
-            timesStuck = 0;
+            OnPathAcquired();
         }
+        // Tier-2 waypoint route disabled pending investigation of reload-stall bug.
+        // TryWaypointRoute kept but unreachable; restore the else-if when the underlying
+        // graph build is moved off the main thread and pathfinder reuse is proven safe.
         else if (TryRecoveryTeleportToMayor())
         {
-            // Tier-3 fallback fired: we teleported to the mayor station, try the
-            // pathfind once more from the new position. Most "lost villager" cases
-            // (flee aftermath, admin teleport, chunk-load jiggle) succeed from here.
+            // Tier-3 fallback: teleport to mayor and retry direct pathfind.
             pathfinder.blockAccessor.Begin();
             startPos = pathfinder.GetStartPos(entity.Pos.XYZ);
             currentPath = pathfinder.FindPath(startPos, asBlockPos);
             pathfinder.blockAccessor.Commit();
-            if (currentPath != null && currentPath.Count > 0)
-            {
-                currentPathIndex = 0;
-                stuck = false;
-                targetReached = false;
-                lastPosition = entity.Pos.XYZ.Clone();
-                stuckCheckTime = entity.World.ElapsedMilliseconds;
-                timesStuck = 0;
-            }
-            else
-            {
-                stuck = true;
-            }
+            if (currentPath != null && currentPath.Count > 0) OnPathAcquired();
+            else stuck = true;
         }
         else
         {
@@ -219,6 +204,69 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
         blockedRepathTried = false;
         crowdAvoidanceDisabledForThisPath = false;
         base.StartExecute();
+    }
+
+    private void OnPathAcquired()
+    {
+        currentPathIndex = 0;
+        stuck = false;
+        targetReached = false;
+        lastPosition = entity.Pos.XYZ.Clone();
+        stuckCheckTime = entity.World.ElapsedMilliseconds;
+        timesStuck = 0;
+    }
+
+    // Hard cap so we don't path leg-A* across half the map to reach a distant waypoint.
+    private const int MaxWaypointSeekRadius = 40;
+
+    // HPA*-style fallback: route via village waypoint graph, A* per leg, stitch into one path.
+    private bool TryWaypointRoute(BlockPos startPos, BlockPos endPos)
+    {
+        Village village = entity.GetBehavior<EntityBehaviorVillager>()?.Village;
+        if (village == null || village.WaypointGraph == null || village.WaypointGraph.Count < 2) return false;
+
+        BlockPos nearestStart = village.FindNearesWaypoint(startPos);
+        BlockPos nearestEnd = village.FindNearesWaypoint(endPos);
+        if (nearestStart == null || nearestEnd == null || nearestStart.Equals(nearestEnd)) return false;
+        if (nearestStart.ManhattanDistance(startPos) > MaxWaypointSeekRadius) return false;
+        if (nearestEnd.ManhattanDistance(endPos) > MaxWaypointSeekRadius) return false;
+        if (!village.WaypointGraph.TryGetValue(nearestStart, out VillageWaypoint startWp)) return false;
+        if (!village.WaypointGraph.TryGetValue(nearestEnd, out VillageWaypoint endWp)) return false;
+
+        List<VillageWaypoint> seq = startWp.FindPath(endWp, village.WaypointGraph.Count);
+        if (seq == null || seq.Count < 2) return false;
+        if (!seq[seq.Count - 1].Equals(endWp)) return false;
+
+        List<VillagerPathNode> combined = new List<VillagerPathNode>();
+        BlockPos legFrom = startPos;
+        pathfinder.blockAccessor.Begin();
+        try
+        {
+            for (int i = 0; i < seq.Count; i++)
+            {
+                BlockPos legTo = seq[i].Pos;
+                var leg = pathfinder.FindPath(legFrom, legTo);
+                if (leg == null || leg.Count == 0) return false;
+                AppendLeg(combined, leg);
+                legFrom = legTo;
+            }
+            var finalLeg = pathfinder.FindPath(legFrom, endPos);
+            if (finalLeg == null || finalLeg.Count == 0) return false;
+            AppendLeg(combined, finalLeg);
+        }
+        finally { pathfinder.blockAccessor.Commit(); }
+
+        if (combined.Count == 0) return false;
+        currentPath = combined;
+        OnPathAcquired();
+        return true;
+    }
+
+    // Skip leg start nodes except the first so seams don't duplicate the waypoint cell.
+    private static void AppendLeg(List<VillagerPathNode> combined, List<VillagerPathNode> leg)
+    {
+        int from = combined.Count == 0 ? 0 : 1;
+        for (int i = from; i < leg.Count; i++) combined.Add(leg[i]);
     }
 
     public override bool ContinueExecute(float dt)

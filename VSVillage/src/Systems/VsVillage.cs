@@ -20,10 +20,15 @@ public class VsVillage : ModSystem
 		api.RegisterBlockClass("MayorWorkstation",  typeof(BlockMayorWorkstation));
 		api.RegisterBlockClass("VsWorkstation",     typeof(BlockVsWorkstation));
 		api.RegisterBlockClass("VsBed",             typeof(BlockVsBed));
+		api.RegisterBlockClass("BuildingMarker",    typeof(BlockBuildingMarker));
+		api.RegisterBlockClass("BuildingScaffold",  typeof(BlockBuildingScaffold));
+		api.RegisterBlockEntityClass("BuildingMarker", typeof(BlockEntityBuildingMarker));
 		api.RegisterEntity("EntityTravellingTrader", typeof(EntityTravellingTrader));
 		api.RegisterEntity("EntityTravellingGuard", typeof(EntityTravellingGuard));
 		api.RegisterEntityBehaviorClass("TravellingTrader", typeof(EntityBehaviorTravellingTrader));
 		api.RegisterEntityBehaviorClass("TravellingGuard", typeof(EntityBehaviorTravellingGuard));
+		AiTaskRegistry.Register<AiTaskVillagerBuild>("villagerbuild");
+		AiTaskRegistry.Register<AiTaskVillagerBuilderMaintenance>("villagerbuildermaintenance");
 		AiTaskRegistry.Register<AiTaskVillagerFleeEntity>("villagerflee");
 		AiTaskRegistry.Register<AiTaskVillagerMeleeAttack>("villagermeleeattack");
 		AiTaskRegistry.Register<AiTaskVillagerSeekEntity>("villagerseekentity");

@@ -15,5 +15,6 @@ public enum EnumVillageManagementOperation
 	assignWorkstation,          // player assigns a villager to a specific workstation
 	assignBed,                  // player assigns a villager to a specific bed
 	recoverOrphanedVillagers,   // reassign stale-VillageId villagers within village radius
-	dismissMechhelper           // despawn the Settlement Keeper bound to this village
+	dismissMechhelper,          // despawn the Settlement Keeper bound to this village
+	recoverFixtures             // re-register beds/workstations/braziers/waypoints within village radius
 }

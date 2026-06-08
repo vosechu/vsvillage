@@ -54,6 +54,7 @@ public static class VillagerHireRequirementChecker
             EnumVillagerProfession.trader => CheckTrader(workstationPos, village, api),
             EnumVillagerProfession.soldier => CheckSoldier(workstationPos, village, api),
             EnumVillagerProfession.baker => CheckBaker(workstationPos, village, api),
+            EnumVillagerProfession.builder => CheckBuilder(workstationPos, village, api),
             _ => null,
         };
     }
@@ -69,6 +70,7 @@ public static class VillagerHireRequirementChecker
             EnumVillagerProfession.trader => CheckTrader(wsPos, village, api),
             EnumVillagerProfession.soldier => CheckSoldier(wsPos, village, api),
             EnumVillagerProfession.baker => CheckBaker(wsPos, village, api),
+            EnumVillagerProfession.builder => CheckBuilder(wsPos, village, api),
             _ => null
         };
     }
@@ -378,7 +380,9 @@ public static class VillagerHireRequirementChecker
 
         BlockPos center = village.Pos;
         int r = village.Radius;
-        int yPad = VillageScanYPad;
+        // Y-pad scales with village radius capped at 75. Matches marketstall scan.
+        // Prior hardcoded 10 missed terraced fields and mountain villages.
+        int yPad = Math.Min(village.Radius, 75);
         IBlockAccessor ba = api.World.BlockAccessor;
         BlockPos tmp = new BlockPos(0);
         BlockPos above = new BlockPos(0);
@@ -760,7 +764,9 @@ public static class VillagerHireRequirementChecker
 
         BlockPos center = village.Pos;
         int r = village.Radius;
-        int yPad = VillageScanYPad;
+        // Y-pad scales with village radius capped at 75. Matches marketstall scan.
+        // Prior hardcoded 10 missed terraced fields and mountain villages.
+        int yPad = Math.Min(village.Radius, 75);
         IBlockAccessor ba = world.BlockAccessor;
         BlockPos tmp = new BlockPos(0);
         int count = 0;
@@ -794,6 +800,68 @@ public static class VillagerHireRequirementChecker
     private static bool IsWorkstationOfProfession(Block b, string profession)
     {
         return b.Code?.Path?.Contains("workstation-" + profession) == true;
+    }
+
+    // === Builder ===
+
+    private static string CheckBuilder(BlockPos wsPos, Village village, ICoreAPI api)
+    {
+        Room room = GetRoom(wsPos, api);
+        if (room == null)
+            return "Builder workstation must be inside a building.";
+
+        List<Block> roomBlocks = GetBlocksInRoom(room, api.World);
+        foreach (Block b in roomBlocks)
+        {
+            if (IsVsWorkstation(b) && !IsWorkstationOfProfession(b, "builder"))
+                return "Builder room cannot contain workstations of other professions.";
+        }
+        if (!roomBlocks.Any(b => b.Code?.Path?.Contains("crate") == true))
+            return "Builder room requires a crate.";
+        if (!roomBlocks.Any(b => b.Code?.Path?.Contains("table") == true))
+            return "Builder room requires a table.";
+
+        (bool hasHammer, bool hasSaw) = ScanBuilderToolrack(room, api.World);
+        if (!hasHammer)
+            return "Builder room requires a tool rack loaded with a hammer.";
+        if (!hasSaw)
+            return "Builder room requires a tool rack loaded with a saw.";
+
+        return null;
+    }
+
+    // Scans all tool racks in the room. Returns whether any rack holds a hammer and any holds a saw.
+    private static (bool hasHammer, bool hasSaw) ScanBuilderToolrack(Room room, IWorldAccessor world)
+    {
+        bool hasHammer = false;
+        bool hasSaw = false;
+        IBlockAccessor ba = world.BlockAccessor;
+        Cuboidi loc = room.Location;
+        int x1 = loc.X1, x2 = Math.Min(loc.X2, x1 + RoomScanCap);
+        int y1 = loc.Y1, y2 = Math.Min(loc.Y2, y1 + RoomHeightCap);
+        int z1 = loc.Z1, z2 = Math.Min(loc.Z2, z1 + RoomScanCap);
+        BlockPos tmp = new BlockPos(0);
+        for (int i = x1; i <= x2; i++)
+            for (int j = y1; j <= y2; j++)
+                for (int k = z1; k <= z2; k++)
+                {
+                    tmp.Set(i, j, k);
+                    Block b = ba.GetBlock(tmp);
+                    string path = b?.Code?.Path;
+                    if (string.IsNullOrEmpty(path)) continue;
+                    if (!path.Contains("toolrack") && !path.Contains("tool-rack")) continue;
+                    BlockEntityToolrack rack = ba.GetBlockEntity<BlockEntityToolrack>(tmp);
+                    if (rack?.inventory == null) continue;
+                    for (int s = 0; s < rack.inventory.Count; s++)
+                    {
+                        string itemPath = rack.inventory[s]?.Itemstack?.Collectible?.Code?.Path;
+                        if (string.IsNullOrEmpty(itemPath)) continue;
+                        if (itemPath.StartsWith("hammer-")) hasHammer = true;
+                        if (itemPath.StartsWith("saw-")) hasSaw = true;
+                    }
+                    if (hasHammer && hasSaw) return (true, true);
+                }
+        return (hasHammer, hasSaw);
     }
 
     private static int CountWorkstationsOfProfessionInRoom(Room room, EnumVillagerProfession profession, Village village)

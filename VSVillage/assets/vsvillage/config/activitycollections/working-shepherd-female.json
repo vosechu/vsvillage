@@ -54,7 +54,7 @@
         "Conditions": {
           "$type": "Vintagestory.GameContent.IActionCondition[], VSSurvivalMod",
           "$values": [
-            { "$type": "Vintagestory.GameContent.TimeOfDayCondition, VSSurvivalMod", "minHour": 7.5, "maxHour": 16.0, "Invert": false },
+            { "$type": "Vintagestory.GameContent.TimeOfDayCondition, VSSurvivalMod", "minHour": 7.5, "maxHour": 17.0, "Invert": false },
             { "$type": "Vintagestory.GameContent.MountedCondition, VSSurvivalMod", "mountCode": "*", "Invert": true },
             { "$type": "Vintagestory.GameContent.HeldCondition, VSSurvivalMod", "Code": "game:shears-copper", "Invert": true }
           ]
@@ -75,7 +75,7 @@
         "Conditions": {
           "$type": "Vintagestory.GameContent.IActionCondition[], VSSurvivalMod",
           "$values": [
-            { "$type": "Vintagestory.GameContent.TimeOfDayCondition, VSSurvivalMod", "minHour": 16.0, "maxHour": 7.5, "Invert": false },
+            { "$type": "Vintagestory.GameContent.TimeOfDayCondition, VSSurvivalMod", "minHour": 17.0, "maxHour": 7.5, "Invert": false },
             { "$type": "Vintagestory.GameContent.HeldCondition, VSSurvivalMod", "Code": "game:shears-copper", "Invert": false },
             { "$type": "Vintagestory.GameContent.MountedCondition, VSSurvivalMod", "mountCode": "*", "Invert": true }
           ]

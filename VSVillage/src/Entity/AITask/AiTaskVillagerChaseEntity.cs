@@ -34,8 +34,7 @@ public class AiTaskVillagerChaseEntity : AiTaskGotoAndInteract
     // Vertical detection cap. Ignores threats beyond this Y delta so guards don't chase cave drifters with no path.
     private const float MaxVertDetection = 5f;
 
-    // Separate throttles: contact-report (10s gate, BroadcastContactReport) and call-for-help (5s gate, OnEntityHurt).
-    private long lastContactReportMs;
+    // Call-for-help throttle: 5s gate, OnEntityHurt.
     private long lastCallForHelpMs;
 
     // Alarm-rally state: when true, this task is pathing to an allied soldier's position rather than a hostile.

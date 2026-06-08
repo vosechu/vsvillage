@@ -102,8 +102,6 @@ public class EntityBehaviorVillager : EntityBehavior
     public override void Initialize(EntityProperties properties, JsonObject attributes)
     {
         LastBusyAtMs = entity.World.ElapsedMilliseconds;
-        // Bypass Synergy mod's Entity Activation Range skip beyond 48 blocks of any player. No effect without Synergy.
-        entity.AlwaysActive = true;
         if (!Enum.TryParse(attributes["profession"].AsString(), ignoreCase: true, out EnumVillagerProfession parsedProfession))
         {
             entity.World.Logger.Warning("[VsVillage] Unknown profession '" + attributes["profession"].AsString() + "' on entity " + entity.EntityId + ", defaulting to villager.");

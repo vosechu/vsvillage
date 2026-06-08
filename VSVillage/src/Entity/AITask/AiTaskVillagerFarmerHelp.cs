@@ -25,16 +25,18 @@ public class AiTaskVillagerFarmerHelp : AiTaskGotoAndInteract
             ? wsPos.ToVec3d().Add(0.5, 0.0, 0.5)
             : entity.Pos.XYZ;
 
-        // If any farmland near the workstation has a crop, farming tasks should fire instead.
-        bool hasCrops = false;
+        // If any farmland near the workstation has a live crop or dead crop, farming tasks should fire instead.
+        bool hasFarmingWork = false;
         entity.Api.ModLoader.GetModSystem<POIRegistry>().GetNearestPoi(searchAnchor, maxDistance, poi =>
         {
-            if (!hasCrops && poi is BlockEntityFarmland bef && bef.GetCrop() != null)
-                hasCrops = true;
+            if (hasFarmingWork || !(poi is BlockEntityFarmland bef)) return false;
+            if (bef.GetCrop() != null) { hasFarmingWork = true; return false; }
+            Block above = entity.World.BlockAccessor.GetBlock(bef.Pos.UpCopy());
+            if (above?.Code?.Path?.StartsWith("deadcrop") == true) hasFarmingWork = true;
             return false;
         });
 
-        if (hasCrops) return null;
+        if (hasFarmingWork) return null;
 
         Village village = entity.GetBehavior<EntityBehaviorVillager>()?.Village;
         if (village == null) return null;

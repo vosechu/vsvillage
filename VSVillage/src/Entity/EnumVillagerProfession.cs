@@ -9,5 +9,6 @@ public enum EnumVillagerProfession
 	soldier,
 	herbalist,
 	trader,
-	baker
+	baker,
+	builder
 }

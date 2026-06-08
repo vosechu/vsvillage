@@ -10,7 +10,8 @@
 			"*-trader": "vsvillage:config/tradelists/villager-trader",
 			"*-herbalist": "vsvillage:config/tradelists/villager-herbalist",
 			"*-smith": "vsvillage:config/tradelists/villager-smith",
-			"*-baker": "vsvillage:config/tradelists/villager-baker"
+			"*-baker": "vsvillage:config/tradelists/villager-baker",
+			"*-builder": "vsvillage:config/tradelists/villager-builder"
         },
 		"voiceSoundsByType": {
 			"*-male-*":
@@ -92,7 +93,8 @@
 				"*-herbalist": [{"Code": "arm-armlet-teeth"}, {"Code": "arm-barber-pouch"}],
 				"*-mayor": [{"Code": "arm-copper-lapis-bracelet"}, {"Code": "arm-coral-bracelet"}, {"Code": "arm-seashell-bracelet"}],
 				"*-trader": [{"Code": "arm-copper-lapis-bracelet"}, {"Code": "arm-coral-bracelet"}, {"Code": "arm-seashell-bracelet"}],
-				"*-baker": [{"Code": "nothing"}, {"Code": "arm-peasant-bracer"}]
+				"*-baker": [{"Code": "nothing"}, {"Code": "arm-peasant-bracer"}],
+				"*-builder": [{"Code": "arm-copper-armlet"}, {"Code": "arm-peasant-bracer"}]
 			},
 			"faceByType":
 			{
@@ -104,7 +106,8 @@
 				"*-herbalist": [],
 				"*-mayor": [],
 				"*-trader": [],
-				"*-baker": []
+				"*-baker": [],
+				"*-builder": []
 			},
 			"footByType":
 			{
@@ -116,7 +119,8 @@
 				"*-herbalist": [{"Code": "foot-alchemist"}],
 				"*-mayor": [{"Code": "foot-innkeeper"}],
 				"*-trader": [{"Code": "foot-tailor"}],
-				"*-baker": [{"Code": "foot-innkeeper"}]
+				"*-baker": [{"Code": "foot-innkeeper"}],
+				"*-builder": [{"Code": "foot-peasant1"}, {"Code": "foot-peasant2"}]
 			},
 			"handByType":
 			{
@@ -128,7 +132,8 @@
 				"*-herbalist": [{"Code": "hand-alchemist"}],
 				"*-mayor": [],
 				"*-trader": [],
-				"*-baker": []
+				"*-baker": [],
+				"*-builder": [{"Code": "hand-blacksmith"}]
 			},
 			"headByType":
 			{
@@ -140,7 +145,8 @@
 				"*-herbalist": [{"Code": "head-alchemist"}],
 				"*-mayor": [],
 				"*-trader": [{"Code": "head-tailor"}],
-				"*-baker": [{"Code": "nothing"}, {"Code": "head-innkeeper"}, {"Code": "peasantwhite"}]
+				"*-baker": [{"Code": "nothing"}, {"Code": "head-innkeeper"}, {"Code": "peasantwhite"}],
+				"*-builder": [{"Code": "nothing"}, {"Code": "head-peasant1"}, {"Code": "head-peasant2"}]
 			},
 			"lowerbodyByType":
 			{
@@ -154,7 +160,9 @@
 				"*-mayor": [{"Code": "lowerbody-pants-innkeeper"}],
 				"*-trader": [{"Code": "lowerbody-pants-innkeeper"}],
 				"*-male-baker": [{"Code": "lowerbody-pants-innkeeper"}],
-				"*-female-baker": [{"Code": "lowerbody-skirt-peasant-skirt1"},{"Code": "lowerbody-skirt-peasant-skirt2"}]
+				"*-female-baker": [{"Code": "lowerbody-skirt-peasant-skirt1"},{"Code": "lowerbody-skirt-peasant-skirt2"}],
+				"*-male-builder": [{"Code": "lowerbody-pants-peasant1"}, {"Code": "lowerbody-pants-peasant2"}],
+				"*-female-builder": [{"Code": "lowerbody-pants-peasant1"}, {"Code": "lowerbody-pants-peasant2"}]
 			},
 			"neckByType":
 			{
@@ -166,7 +174,8 @@
 				"*-herbalist": [{"Code": "neck-acacia-amulet"}, {"Code": "neck-bamboo-seed-amulet"}, {"Code": "neck-birch-amulet"}, {"Code": "neck-cattail-root-amulet"}, {"Code": "neck-ebony-amulet"}, {"Code": "neck-feather-amulet"}, {"Code": "neck-flint-amulet"}],
 				"*-mayor": [{"Code": "neck-papyrus-root-amulet"}, {"Code": "neck-purpleheart-amulet"}, {"Code": "neck-tule-root-amulet"}],
 				"*-trader": [],
-				"*-baker": []
+				"*-baker": [],
+				"*-builder": []
 			},
 			"shoulderByType":
 			{
@@ -178,7 +187,8 @@
 				"*-herbalist": [],
 				"*-mayor": [{"Code": "shoulder-{sex}-innkeeper-apron-innkeeper"}],
 				"*-trader": [{"Code": "shoulder-{sex}-innkeeper-apron-innkeeper"}],
-				"*-baker": [{"Code": "shoulder-{sex}-innkeeper-apron-innkeeper"}]
+				"*-baker": [{"Code": "shoulder-{sex}-innkeeper-apron-innkeeper"}],
+				"*-builder": [{"Code": "shoulder-{sex}-blacksmith-apron-blacksmith"}]
 			},
 			"upperbodyByType":
 			{
@@ -190,7 +200,8 @@
 				"*-herbalist": [{"Code": "upperbody-{sex}-longsleeve-extended-alchemist"}],
 				"*-mayor": [{"Code": "upperbody-{sex}-longsleeve-beekeeper"}],
 				"*-trader": [{"Code": "upperbody-{sex}-longsleeve-beekeeper"}],
-				"*-baker": [{"Code": "upperbody-{sex}-longsleeve-beekeeper"}]
+				"*-baker": [{"Code": "upperbody-{sex}-longsleeve-beekeeper"}],
+				"*-builder": [{"Code": "upperbody-{sex}-shortsleeve-peasant1"}, {"Code": "upperbody-{sex}-shortsleeve-peasant3"}]
 			},
 			"upperbodyoverByType":
 			{
@@ -202,7 +213,8 @@
 				"*-herbalist": [{"Code": "nothing"}, {"Code": "upperbodyover-{sex}-capelet-alchemist"}],
 				"*-mayor": [],
 				"*-trader": [{"Code": "nothing"},{"Code": "upperbodyover-{sex}-longsleeve-extended-coat-verylong"},{"Code": "upperbodyover-{sex}-longsleeve-coat-long"},{"Code": "upperbodyover-{sex}-shortsleeve-coat-short"}],
-				"*-baker": [{"Code": "nothing"}]
+				"*-baker": [{"Code": "nothing"}],
+				"*-builder": [{"Code": "nothing"}]
 			},
 			"waistByType":
 			{
@@ -218,7 +230,7 @@
 			}
 		}
 	},
-	"variantGroups": [{"code": "sex", "states": ["male", "female"]}, {"code": "profession", "states": ["soldier", "smith", "farmer", "shepherd", "herbalist", "mayor", "archer", "trader", "baker"]}],
+	"variantGroups": [{"code": "sex", "states": ["male", "female"]}, {"code": "profession", "states": ["soldier", "smith", "farmer", "shepherd", "herbalist", "mayor", "archer", "trader", "baker", "builder"]}],
 	"client": {
 		"renderer": "Shape",
 		"shape": { "base": "vsvillage:entity/humanoid/villager-{sex}" },
@@ -242,6 +254,7 @@
 					"*-herbalist": "vsvillage:config/dialogue/trader",
 					"*-smith": "vsvillage:config/dialogue/trader",
 					"*-baker": "vsvillage:config/dialogue/trader",
+					"*-builder": "vsvillage:config/dialogue/trader",
 					"*": "vsvillage:config/dialogue/other"
 				}
             }
@@ -981,6 +994,7 @@
 					"*-archer":           "vsvillage:config/activitycollections/working-archer",
 					"*-farmer":           "vsvillage:config/activitycollections/working-farmer",
 					"*-smith":            "vsvillage:config/activitycollections/working-smith",
+					"*-builder":          "vsvillage:config/activitycollections/working-builder",
 					"*-male-shepherd":    "vsvillage:config/activitycollections/working-shepherd-male",
 					"*-female-shepherd":  "vsvillage:config/activitycollections/working-shepherd-female",
 					"*-male-*":           "vsvillage:config/activitycollections/working-villager-male",
@@ -1237,8 +1251,8 @@
 			"maxcooldown": 10000,
 			"duringDayTimeFrames": [
 				{
-					"fromHour": 16.5,
-					"toHour": 17.0
+					"fromHour": 17.0,
+					"toHour": 17.2
 				}
 			],
 			"maxdistance": 80
@@ -1338,8 +1352,8 @@
 			"code": "villagerremovedeadcrops",
 			"minduration": 1000,
 			"maxduration": 2000,
-			"mincooldown": 60000,
-			"maxcooldown": 120000,
+			"mincooldown": 10000,
+			"maxcooldown": 20000,
 			"maxdistance": 40,
 			"animation": "walk",
 			"animationSpeed": 1,
@@ -1521,6 +1535,43 @@
 				}
 			]
 		},
+		// === BUILDER ===
+		{
+			"code": "villagerbuild",
+			"onlyForEntitySuffix": "-builder",
+			"priority": 6.0,
+			"movespeed": 0.012,
+			"animation": "walk",
+			"animationSpeed": 1,
+			"maxdistance": 60,
+			"hammerDurationSeconds": 10,
+			"mincooldown": 1500,
+			"maxcooldown": 4000,
+			"duringDayTimeFrames": [
+				{
+					"fromHour": 8,
+					"toHour": 17
+				}
+			]
+		},
+		// === BUILDER MAINTENANCE ===
+		{
+			"code": "villagerbuildermaintenance",
+			"priority": 3.5,
+			"movespeed": 0.012,
+			"animation": "walk",
+			"animationSpeed": 1,
+			"maxdistance": 20,
+			"hammerDurationSeconds": 6,
+			"mincooldown": 30000,
+			"maxcooldown": 90000,
+			"duringDayTimeFrames": [
+				{
+					"fromHour": 8,
+					"toHour": 17
+				}
+			]
+		},
 		// === PROFESSION IDLE ===
 		{
 			"code": "villagerprofessionidle",
@@ -1666,7 +1717,7 @@
 		{
 			"code": "villagerstormshelter",
 			"priority": 15.0,
-			"movespeed": 0.020,
+			"movespeed": 0.035,
 			"animation": "Run",
 			"mincooldown": 5000,
 			"maxcooldown": 10000
@@ -1684,7 +1735,7 @@
 			"excludeEntitySuffixes": [ "-soldier", "-archer" ],
 			"duringDayTimeFrames": [
 				{
-					"fromHour": 17.5,
+					"fromHour": 17.2,
 					"toHour": 21
 				}
 			],
@@ -1986,6 +2037,7 @@
 					"*-herbalist": "vsvillage:config/dialogue/trader",
 					"*-smith": "vsvillage:config/dialogue/trader",
 					"*-baker": "vsvillage:config/dialogue/trader",
+					"*-builder": "vsvillage:config/dialogue/trader",
 					"*": "vsvillage:config/dialogue/other"
 				}
             }

@@ -236,6 +236,7 @@ public class VillagerAStarNew
 
 		// Substring fallback for blocks that don't set the attribute (modded content).
 		return path.Contains("fence")
+			|| path.Contains("palisade")
 			|| path.Contains("glasspane")
 			|| path.Contains("handrail");
 	}

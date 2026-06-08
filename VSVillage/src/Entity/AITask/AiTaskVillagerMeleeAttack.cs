@@ -20,8 +20,8 @@ public class AiTaskVillagerMeleeAttack : AiTaskMeleeAttack
 
 	// -ReportCooldownMs so the first engagement always fires (long.MinValue would underflow the cooldown subtraction).
 	private long _lastReportedAtMs = -ReportCooldownMs;
-	private const long ReportCooldownMs  = 60_000L;  // only report once per minute per soldier
-	private const double ReportRadiusSq  = 200.0 * 200.0; // broadcast radius (blocks²)
+	private const long ReportCooldownMs  = 60_000L;  // per-soldier minimum gap; per-village throttle is via VillageAlarms below
+	private const double ReportRadiusSq  = 50.0 * 50.0; // broadcast radius (blocks²); 50 = "close enough to engage", not player chunk-load distance
 
 
 	public AnimationMetaData baseAnimMeta { get; set; }
@@ -173,8 +173,16 @@ public class AiTaskVillagerMeleeAttack : AiTaskMeleeAttack
 		if (village == null) return;
 
 		_lastReportedAtMs = now;
+
+		// Rally state always updates so allies see the latest engager.
+		// Chat broadcast only fires for the first soldier of the village in any 60s window.
+		bool firstReportInWindow = !VillageAlarms.TryGetValue(village.Id, out long lastAlarmMs)
+			|| (now - lastAlarmMs > ReportCooldownMs);
+
 		VillageAlarms[village.Id] = now;
 		VillageAlarmEngagers[village.Id] = entity.EntityId;
+
+		if (!firstReportInWindow) return;
 
 		// Compose the message.
 		string soldierName = entity.WatchedAttributes.GetString("nametag");

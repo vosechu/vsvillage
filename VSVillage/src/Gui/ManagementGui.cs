@@ -130,7 +130,8 @@ public class ManagementGui : GuiDialog
 			.AddButton(Lang.Get("vsvillage:management-gather-villagers"), () => gatherVillagers(capi), ElementBounds.Fixed(470.0, 140.0, 200.0, 30.0))
 			.AddButton(Lang.Get("vsvillage:management-clear-gather"), () => clearGather(capi), ElementBounds.Fixed(470.0, 180.0, 200.0, 30.0))
 			.AddButton(Lang.Get("vsvillage:management-validate-structures"), () => validateStructures(capi), ElementBounds.Fixed(470.0, 220.0, 200.0, 30.0))
-			.AddButton(Lang.Get("vsvillage:management-recover-villagers"), () => recoverOrphanedVillagers(capi), ElementBounds.Fixed(470.0, 260.0, 200.0, 30.0));
+			.AddButton(Lang.Get("vsvillage:management-recover-villagers"), () => recoverOrphanedVillagers(capi), ElementBounds.Fixed(470.0, 260.0, 200.0, 30.0))
+			.AddButton(Lang.Get("vsvillage:management-recover-fixtures"), () => recoverFixtures(capi), ElementBounds.Fixed(470.0, 300.0, 200.0, 30.0));
 
 			// Dismiss-Settlement-Keeper button only shows when one is actually present
 			// within the village. If there's no mechhelper to dismiss, the button is
@@ -140,7 +141,7 @@ public class ManagementGui : GuiDialog
 				base.SingleComposer.AddButton(
 					Lang.Get("vsvillage:management-dismiss-mechhelper"),
 					() => dismissMechhelper(capi, village, dialogBounds, bgBounds),
-					ElementBounds.Fixed(470.0, 300.0, 200.0, 30.0));
+					ElementBounds.Fixed(470.0, 340.0, 200.0, 30.0));
 			}
 			break;
 		}
@@ -152,7 +153,8 @@ public class ManagementGui : GuiDialog
 				.AddButton(Lang.Get("vsvillage:management-hire-soldier"), () => hireVillager(capi, "soldier"), ElementBounds.Fixed(0.0, 100.0, 200.0, 30.0))
 				.AddButton(Lang.Get("vsvillage:management-hire-herbalist"), () => hireVillager(capi, "herbalist"), ElementBounds.Fixed(220.0, 100.0, 200.0, 30.0))
 				.AddButton(Lang.Get("vsvillage:management-hire-archer"), () => hireVillager(capi, "archer", EnumVillagerProfession.soldier), ElementBounds.Fixed(0.0, 140.0, 200.0, 30.0))
-				.AddButton(Lang.Get("vsvillage:management-hire-baker"), () => hireVillager(capi, "baker"), ElementBounds.Fixed(220.0, 140.0, 200.0, 30.0));
+				.AddButton(Lang.Get("vsvillage:management-hire-baker"), () => hireVillager(capi, "baker"), ElementBounds.Fixed(220.0, 140.0, 200.0, 30.0))
+				.AddButton(Lang.Get("vsvillage:management-hire-builder"), () => hireVillager(capi, "builder"), ElementBounds.Fixed(0.0, 180.0, 200.0, 30.0));
 			break;
 		case 2:
 		{
@@ -329,6 +331,13 @@ public class ManagementGui : GuiDialog
 		return true;
 	}
 
+	private bool recoverFixtures(ICoreClientAPI capi)
+	{
+		managementMessage.Operation = EnumVillageManagementOperation.recoverFixtures;
+		capi.Network.GetChannel("villagemanagementnetwork").SendPacket(managementMessage);
+		return true;
+	}
+
 	// === Removal (mechhelper / villager) ===
 
 	private bool dismissMechhelper(ICoreClientAPI capi, Village village, ElementBounds dialogBounds, ElementBounds bgBounds)
@@ -409,7 +418,9 @@ public class ManagementGui : GuiDialog
 			return false;
 		}
 		IBlockAccessor ba = capi.World.BlockAccessor;
-		int r = Math.Min(village.Radius, 35);
+		// Must match TravellingTraderManager.ScanForMarketStallBlock or the GUI lies about placement.
+		int r = Math.Min(village.Radius, 75);
+		int dyMax = Math.Min(village.Radius, 75);
 		int cy = village.Pos.Y;
 		BlockPos tmp = new BlockPos(0);
 		for (int dx = -r; dx <= r; dx++)
@@ -418,9 +429,10 @@ public class ManagementGui : GuiDialog
 			{
 				int wx = village.Pos.X + dx;
 				int wz = village.Pos.Z + dz;
-				for (int dy = 8; dy >= -8; dy--)
+				for (int dy = dyMax; dy >= -dyMax; dy--)
 				{
 					tmp.Set(wx, cy + dy, wz);
+					if (!ba.IsValidPos(tmp) || ba.GetChunkAtBlockPos(tmp) == null) continue;
 					Block b = ba.GetBlock(tmp);
 					if (b != null && b.Code?.Domain == "vsvillage" && b.Code?.Path?.StartsWith("marketstall") == true)
 					{

@@ -175,7 +175,7 @@
                 {
                   "code": "villagerstormshelter",
                   "priority": 15.0,
-                  "movespeed": 0.014,
+                  "movespeed": 0.035,
                   "animation": "Run",
                   "mincooldown": 5000,
                   "maxcooldown": 10000
