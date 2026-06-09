@@ -98,6 +98,6 @@ public class AiTaskVillagerBuilderMaintenance : AiTaskGotoAndInteract
         string path = b?.Code?.Path;
         if (path == null) return false;
         return path.Contains("fence") || path.Contains("gate") || path.Contains("door")
-            || path.StartsWith("wall") || path.StartsWith("stonewall") || path.StartsWith("workstation-");
+            || path.Contains("planks") || path.StartsWith("workstation-");
     }
 }

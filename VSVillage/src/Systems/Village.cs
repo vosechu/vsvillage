@@ -77,8 +77,7 @@ public class Village
                 if (cfg != null) delayMs = Math.Max(8000, cfg.MaxChunkRadius * 1500);
             }
             catch { }
-            // BuildWaypointGraph disabled pending fix for the reload walk-in-place bug.
-            api.World.RegisterCallback(delegate { ScrubGhostStructures(); }, delayMs);
+            api.World.RegisterCallback(delegate { ScrubGhostStructures(); BuildWaypointGraph(); }, delayMs);
         }
     }
 
@@ -261,8 +260,7 @@ public class Village
 
     public void RemoveWaypoint(BlockPos pos)
     {
-        // BuildWaypointGraph call removed - feature disabled pending bug fix.
-        Waypoints.Remove(pos);
+        if (Waypoints.Remove(pos)) BuildWaypointGraph();
     }
 
     public void EnqueueConstruction(BlockPos markerPos)

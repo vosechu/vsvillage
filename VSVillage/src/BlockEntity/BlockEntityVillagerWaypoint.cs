@@ -9,7 +9,7 @@ public class BlockEntityVillagerWaypoint : BlockEntityVillagerPOI
 		if (village != null && Api.Side == EnumAppSide.Server)
 		{
 			village.Waypoints.Add(Pos);
-			// BuildWaypointGraph call removed - feature disabled pending bug fix.
+			village.BuildWaypointGraph();
 		}
 	}
 

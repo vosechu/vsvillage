@@ -183,9 +183,10 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
         {
             OnPathAcquired();
         }
-        // Tier-2 waypoint route disabled pending investigation of reload-stall bug.
-        // TryWaypointRoute kept but unreachable; restore the else-if when the underlying
-        // graph build is moved off the main thread and pathfinder reuse is proven safe.
+        else if (TryWaypointRoute(startPos, asBlockPos))
+        {
+            // Tier-2 waypoint route succeeded; state set inside.
+        }
         else if (TryRecoveryTeleportToMayor())
         {
             // Tier-3 fallback: teleport to mayor and retry direct pathfind.

@@ -1561,10 +1561,28 @@
 			"movespeed": 0.012,
 			"animation": "walk",
 			"animationSpeed": 1,
-			"maxdistance": 20,
+			"maxdistance": 50,
 			"hammerDurationSeconds": 6,
 			"mincooldown": 30000,
 			"maxcooldown": 90000,
+			"duringDayTimeFrames": [
+				{
+					"fromHour": 8,
+					"toHour": 17
+				}
+			]
+		},
+		// === BUILDER IDLE WANDER (no active build) ===
+		{
+			"code": "villagerwander",
+			"entitySuffix": "-builder",
+			"priority": 2.0,
+			"moveSpeed": 0.012,
+			"animation": "walk",
+			"animationSpeed": 1,
+			"wanderRange": 15,
+			"wanderCooldownSeconds": 20,
+			"constrainToWorkstation": false,
 			"duringDayTimeFrames": [
 				{
 					"fromHour": 8,
