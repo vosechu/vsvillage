@@ -1590,6 +1590,30 @@
 				}
 			]
 		},
+		// === INVENTORY (Spec #1 foundation — generic fetch/hold/return; professions override the predicate later) ===
+		{
+			"code": "villagergotoandtransact",
+			"priority": 5.4,
+			"movespeed": 0.013,
+			"animation": "walk",
+			"animationSpeed": 1,
+			"mincooldown": 5000,
+			"maxcooldown": 10000,
+			"maxdistance": 20,
+			"searchRadius": 12
+		},
+		{
+			"code": "villagerreturncarry",
+			"priority": 5.2,
+			"movespeed": 0.013,
+			"animation": "walk",
+			"animationSpeed": 1,
+			"mincooldown": 10000,
+			"maxcooldown": 20000,
+			"maxdistance": 20,
+			"searchRadius": 12,
+			"orphanSeconds": 30
+		},
 		// === PROFESSION IDLE ===
 		{
 			"code": "villagerprofessionidle",

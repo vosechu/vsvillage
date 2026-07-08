@@ -67,6 +67,37 @@ public class EntityBehaviorVillager : EntityBehavior
         }
     }
 
+    // Single-stack carry slot: real items a villager is ferrying between a container and its
+    // work. Mirrors the Workstation/Bed WatchedAttributes idiom so it persists and auto-syncs.
+    // State-only in v1 (no in-hand rendering). A stack loaded from disk needs its Collectible
+    // re-resolved, or it is inert — hence the ResolveBlockOrItem on read.
+    public ItemStack CarrySlot
+    {
+        get
+        {
+            ItemStack stack = entity.WatchedAttributes.GetItemstack("carryslot");
+            stack?.ResolveBlockOrItem(entity.World);
+            return stack?.Collectible == null ? null : stack;
+        }
+        set
+        {
+            if (value != null)
+            {
+                entity.WatchedAttributes.SetItemstack("carryslot", value);
+            }
+            else
+            {
+                entity.WatchedAttributes.RemoveAttribute("carryslot");
+            }
+            entity.WatchedAttributes.SetLong("carryslotChangedMs", entity.World.ElapsedMilliseconds);
+            entity.WatchedAttributes.MarkPathDirty("carryslot");
+        }
+    }
+
+    public bool IsCarryEmpty => CarrySlot == null;
+
+    public long CarryChangedMs => entity.WatchedAttributes.GetLong("carryslotChangedMs", 0);
+
     public Village Village
     {
         get
@@ -111,6 +142,14 @@ public class EntityBehaviorVillager : EntityBehavior
         if (entity.Api is ICoreServerAPI)
         {
             Pathfind = new VillagerPathfind(entity.Api as ICoreServerAPI);
+            // The carry orphan timer stamps ElapsedMilliseconds, which is per-session and resets
+            // on load — a stamp persisted from a prior session is "in the future" relative to the
+            // new clock, so return-carry would never fire for a villager carrying across a reload.
+            // Re-stamp to now on load so the 30 s window restarts from load.
+            if (entity.WatchedAttributes.HasAttribute("carryslot"))
+            {
+                entity.WatchedAttributes.SetLong("carryslotChangedMs", entity.World.ElapsedMilliseconds);
+            }
             _initCallbackId = entity.World.RegisterCallback(delegate
             {
                 _initCallbackId = -1;
@@ -213,6 +252,14 @@ public class EntityBehaviorVillager : EntityBehavior
     public override void OnEntityDeath(DamageSource damageSourceForDeath)
     {
         Village?.RemoveVillager(entity.EntityId);
+        // Drop any carried stack as a world item so death conserves items instead of
+        // destroying them. Server-side only (world mutation).
+        if (entity.Api is ICoreServerAPI && CarrySlot != null)
+        {
+            ItemStack dropped = CarrySlot;
+            CarrySlot = null;
+            entity.World.SpawnItemEntity(dropped, entity.ServerPos.XYZ.AddCopy(0.0, 0.5, 0.0));
+        }
         // Schedule corpse despawn - 60 s gives the player time to see what happened.
         if (entity.Api is ICoreServerAPI sapi)
         {
