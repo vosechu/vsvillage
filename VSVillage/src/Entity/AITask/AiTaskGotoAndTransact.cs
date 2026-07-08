@@ -7,10 +7,12 @@ using Vintagestory.GameContent;
 namespace VsVillage;
 
 /// <summary>
-/// One leg of a real-resource job: walk to the nearest container holding what's wanted, claim
-/// it, and pull one stack into the villager's carry slot. Withdraw-only in v1; profession specs
-/// supply the "what to fetch" predicate and the deliver/use leg. Behavior is verified in-game.
+/// One leg of a real-resource job: walk to the nearest container holding what's wanted, claim it,
+/// and pull one stack into the villager's carry slot.
 /// </summary>
+// FIXME: withdraw-only. Profession specs still need to supply (a) a real "what to fetch" predicate
+// in place of the any-item placeholder in GetTargetPos, and (b) the deliver/use leg that consumes
+// the carried stack into actual work.
 public class AiTaskGotoAndTransact : AiTaskGotoAndInteract
 {
     private int searchRadius = 12;
@@ -32,7 +34,11 @@ public class AiTaskGotoAndTransact : AiTaskGotoAndInteract
 
     protected override Vec3d GetTargetPos()
     {
-        // v1 predicate: any container holding at least one item. Profession specs override this.
+        // Drop any prior target's claim before choosing a new one, so re-evaluating the target
+        // never leaks a claim on a container we're no longer heading to. Single-threaded AI, so
+        // this release + reclaim is atomic relative to other villagers.
+        ReleaseClaim();
+        // Placeholder predicate: any container holding at least one item. Profession specs override this.
         BlockPos found = VillagerContainerFinder.FindNearestContainer(
             entity.World, entity.ServerPos.AsBlockPos, searchRadius, HasAnyItem);
         if (found == null) return null;
@@ -76,6 +82,15 @@ public class AiTaskGotoAndTransact : AiTaskGotoAndInteract
     public override void FinishExecute(bool cancelled)
     {
         base.FinishExecute(cancelled);
-        if (claimedPos != null) { VsVillage.ContainerClaims.Release(claimedPos, entity.EntityId); claimedPos = null; }
+        ReleaseClaim();
+    }
+
+    private void ReleaseClaim()
+    {
+        if (claimedPos != null)
+        {
+            VsVillage.ContainerClaims.Release(claimedPos, entity.EntityId);
+            claimedPos = null;
+        }
     }
 }
