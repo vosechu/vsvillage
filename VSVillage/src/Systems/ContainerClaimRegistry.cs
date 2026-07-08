@@ -12,10 +12,11 @@ namespace VsVillage;
 /// bounded (old snapshots are GC'd) and stale claims never accumulate. There is no overwrite path
 /// to hide a bug in, and value semantics make the whole thing trivially reasoned about.
 ///
-/// Thread-affinity: every caller runs on the single main server tick thread
-/// (ServerSystemEntitySimulation.TickEntities → AI task OnGameTick, verified serial in VS 1.22.3),
-/// so the read-modify-write on <c>claims</c> in <see cref="TryClaim"/> needs no lock. This is
-/// <b>not</b> thread-safe — do not call it from a physics or async path.
+/// Not thread-safe: <see cref="TryClaim"/> reads <c>claims</c>, decides, then writes it back, and
+/// that sequence is not atomic, so two concurrent callers could both be granted the same position.
+/// It needs no lock only because every caller runs on the single server tick thread, where entity
+/// AI is serial. If entity ticking is ever parallelized, guard the check-then-set with a lock; a
+/// ConcurrentDictionary would not fix it, since the claim still spans a separate get and set.
 ///
 /// Pure logic — no world/entity references — so it is unit-tested off-engine.
 /// </summary>
