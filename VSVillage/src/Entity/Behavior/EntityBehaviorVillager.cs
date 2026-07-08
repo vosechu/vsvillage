@@ -330,5 +330,14 @@ public class EntityBehaviorVillager : EntityBehavior
             }
         }
         infotext.AppendLine(Lang.Get("vsvillage:management-profession", Lang.Get("vsvillage:management-profession-" + Profession)));
+        // .edi (the `edi` client command) toggles ClientSettings.ExtendedDebugInfo, whose
+        // settings key is "extendedDebugInfo" — NOT "showEntityDebugInfo" (a different debug mode).
+        if (entity.Api is ICoreClientAPI debugApi && debugApi.Settings.Bool["extendedDebugInfo"])
+        {
+            ItemStack carried = CarrySlot;
+            infotext.AppendLine(Lang.Get("vsvillage:carrying", carried != null
+                ? carried.StackSize + "x " + carried.GetName()
+                : Lang.Get("vsvillage:nothing")));
+        }
     }
 }
