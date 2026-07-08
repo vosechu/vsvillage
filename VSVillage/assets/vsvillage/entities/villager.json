@@ -1594,25 +1594,37 @@
 		{
 			"code": "villagergotoandtransact",
 			"priority": 5.4,
-			"movespeed": 0.013,
+			"movespeed": 0.012,
 			"animation": "walk",
 			"animationSpeed": 1,
 			"mincooldown": 5000,
 			"maxcooldown": 10000,
 			"maxdistance": 20,
-			"searchRadius": 12
+			"searchRadius": 12,
+			"duringDayTimeFrames": [
+				{
+					"fromHour": 8,
+					"toHour": 17
+				}
+			]
 		},
 		{
 			"code": "villagerreturncarry",
 			"priority": 5.2,
-			"movespeed": 0.013,
+			"movespeed": 0.012,
 			"animation": "walk",
 			"animationSpeed": 1,
 			"mincooldown": 10000,
 			"maxcooldown": 20000,
 			"maxdistance": 20,
 			"searchRadius": 12,
-			"orphanSeconds": 30
+			"orphanSeconds": 30,
+			"duringDayTimeFrames": [
+				{
+					"fromHour": 8,
+					"toHour": 17
+				}
+			]
 		},
 		// === PROFESSION IDLE ===
 		{

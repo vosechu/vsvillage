@@ -34,6 +34,8 @@ public class AiTaskVillagerReturnCarry : AiTaskGotoAndInteract
 
     protected override Vec3d GetTargetPos()
     {
+        // Release any prior target's claim before re-evaluating (see AiTaskGotoAndTransact).
+        ReleaseClaim();
         EntityBehaviorVillager bh = entity.GetBehavior<EntityBehaviorVillager>();
         if (bh == null || bh.IsCarryEmpty) return null;
         BlockPos found = VillagerContainerFinder.FindNearestContainer(
@@ -82,6 +84,15 @@ public class AiTaskVillagerReturnCarry : AiTaskGotoAndInteract
     public override void FinishExecute(bool cancelled)
     {
         base.FinishExecute(cancelled);
-        if (claimedPos != null) { VsVillage.ContainerClaims.Release(claimedPos, entity.EntityId); claimedPos = null; }
+        ReleaseClaim();
+    }
+
+    private void ReleaseClaim()
+    {
+        if (claimedPos != null)
+        {
+            VsVillage.ContainerClaims.Release(claimedPos, entity.EntityId);
+            claimedPos = null;
+        }
     }
 }
