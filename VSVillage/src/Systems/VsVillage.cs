@@ -6,6 +6,10 @@ namespace VsVillage;
 
 public class VsVillage : ModSystem
 {
+	// Process-wide container reservations shared by every transact/return-carry task, so two
+	// villagers never target the same chest. Transient — empty after a restart, which is correct.
+	public static readonly ContainerClaimRegistry ContainerClaims = new ContainerClaimRegistry();
+
 	public override void Start(ICoreAPI api)
 	{
 		base.Start(api);
@@ -40,6 +44,8 @@ public class VsVillage : ModSystem
 		AiTaskRegistry.Register<AiTaskVillagerGotoGatherspot>("villagergotogather");
 		AiTaskRegistry.Register<AiTaskVillagerGotoMayor>("villagergotomayor");
 		AiTaskRegistry.Register<AiTaskVillagerFillTrough>("villagerfilltrough");
+		AiTaskRegistry.Register<AiTaskGotoAndTransact>("villagergotoandtransact");
+		AiTaskRegistry.Register<AiTaskVillagerReturnCarry>("villagerreturncarry");
 		AiTaskRegistry.Register<AiTaskVillagerCultivateCrops>("villagercultivatecrops");
 		AiTaskRegistry.Register<AiTaskVillagerRemoveDeadCrops>("villagerremovedeadcrops");
 		AiTaskRegistry.Register<AiTaskVillagerFlipWeapon>("villagerflipweapon");
