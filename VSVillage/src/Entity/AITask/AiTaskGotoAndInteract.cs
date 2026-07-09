@@ -207,6 +207,19 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
         base.StartExecute();
     }
 
+    // Returns whether the villager can currently path to approachTarget within searchDepth nodes.
+    // Used to probe a candidate before committing, so an unreachable target never trips the
+    // teleport-to-mayor recovery in StartExecute. Reuses the same pathfinder dance as StartExecute.
+    protected bool CanReach(Vec3d approachTarget, int searchDepth)
+    {
+        pathfinder.blockAccessor.Begin();
+        pathfinder.SetEntityCollisionBox(entity);
+        BlockPos startPos = pathfinder.GetStartPos(entity.Pos.XYZ);
+        List<VillagerPathNode> path = pathfinder.FindPath(startPos, approachTarget.AsBlockPos, searchDepth);
+        pathfinder.blockAccessor.Commit();
+        return path != null && path.Count > 0;
+    }
+
     private void OnPathAcquired()
     {
         currentPathIndex = 0;
