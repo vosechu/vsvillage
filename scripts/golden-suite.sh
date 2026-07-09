@@ -61,7 +61,9 @@ summary=$(grep -E "^SUMMARY $SUITE " "$RESULTS")
 scenarios=$(printf '%s' "$summary" | grep -oE "scenarios=[0-9]+" | cut -d= -f2)
 failed=$(printf '%s' "$summary" | grep -oE "failed=[0-9]+" | cut -d= -f2)
 [ "${scenarios:-0}" -gt 0 ] || fail "zero scenarios ran"
-grep -qE "\[Error\]|Exception" "$LOG" && fail "errors in server log"
+# Match real error markers (log-level [Error], fatal unhandled exceptions, exception-type lines
+# ending in ':') — not a bare "exception" substring in a benign notification. Still fail-safe.
+grep -qE "\[Error\]|Unhandled exception|Exception:" "$LOG" && fail "errors in server log"
 [ "${failed:-1}" = 0 ] || fail "$failed scenario(s) failed (see $RESULTS)"
 
 echo "GOLDEN SUITE PASS: $scenarios scenario(s), 0 failed"

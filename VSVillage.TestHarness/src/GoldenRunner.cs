@@ -105,7 +105,10 @@ public class GoldenRunner : ModSystem
         foreach (ScenarioReport r in results)
         {
             foreach ((string desc, bool pass) c in r.Checks)
-                sb.AppendLine("CHECK " + (c.pass ? "PASS" : "FAIL") + " " + suiteName + " " + r.ScenarioName + " " + c.desc);
+                // Flatten any newline (e.g. from an exception .Message) so one CHECK stays one line —
+                // the results file is a one-record-per-line contract the runner greps.
+                sb.AppendLine("CHECK " + (c.pass ? "PASS" : "FAIL") + " " + suiteName + " " + r.ScenarioName + " "
+                    + c.desc.Replace('\r', ' ').Replace('\n', ' '));
             sb.AppendLine("SCENARIO " + (r.Passed ? "PASS" : "FAIL") + " " + suiteName + " " + r.ScenarioName);
         }
         sb.AppendLine("SUMMARY " + suiteName + " scenarios=" + total + " passed=" + passed + " failed=" + failed);
