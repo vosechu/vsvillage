@@ -13,6 +13,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\VSVillage\VSVillage.csproj" />
+    <ProjectReference Include="..\VSVillage.TestHarness\VSVillage.TestHarness.csproj" />
     <!-- Value types only (e.g. BlockPos). Copy-local so they load at test runtime,
          UNLIKE the mod project which sets Private=false to keep game DLLs out of the zip. -->
     <Reference Include="VintagestoryAPI">
