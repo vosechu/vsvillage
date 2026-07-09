@@ -38,8 +38,7 @@ public class GoldenRunner : ModSystem
 
     private void RegisterSuites()
     {
-        // golden is populated in Task 4. selftest proves the pipeline can go green and red.
-        suites["golden"] = new List<IGoldenScenario>();
+        suites["golden"] = new List<IGoldenScenario> { new ContainerFetchScenario() };
         suites["selftest"] = new List<IGoldenScenario>
         {
             new AlwaysPassScenario(),
