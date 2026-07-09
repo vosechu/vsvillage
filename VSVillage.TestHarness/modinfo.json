@@ -1,0 +1,12 @@
+{
+    "type": "code",
+    "modid": "vsvillagetestharness",
+    "name": "VS Village Test Harness",
+    "side": "server",
+    "authors": ["vosechu"],
+    "description": "Fork-only headless behavioral golden-test harness for VS Village. Never shipped.",
+    "version": "1.0.0",
+    "dependencies": {
+        "vsvillage": "*"
+    }
+}
