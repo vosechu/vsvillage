@@ -21,7 +21,16 @@ public static class TestScene
     {
         IBlockAccessor ba = api.World.BlockAccessor;
         int floorY = ba.GetTerrainMapheightAt(center);
-        int floorId = ba.GetBlock(new BlockPos(center.X, floorY, center.Z)).BlockId; // a valid solid block
+        // A NON-gravity solid block: reusing the spawn column's own surface block would drop the
+        // floor if that block is sand/gravel over a terrain dip (seed-dependent flake). Cobblestone
+        // has no falling behaviour. Fall back to the surface block only if none of these resolve.
+        int floorId = 0;
+        foreach (string code in new[] { "game:cobblestone-granite", "game:rock-granite", "game:cobblestone-andesite" })
+        {
+            Block b = api.World.GetBlock(new AssetLocation(code));
+            if (b != null) { floorId = b.BlockId; break; }
+        }
+        if (floorId == 0) floorId = ba.GetBlock(new BlockPos(center.X, floorY, center.Z)).BlockId;
         for (int x = center.X - halfX; x <= center.X + halfX; x++)
         {
             for (int z = center.Z - halfZ; z <= center.Z + halfZ; z++)
