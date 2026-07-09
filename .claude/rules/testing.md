@@ -1,13 +1,14 @@
 ---
-description: How to write and run unit tests for VS Village. Applies when editing anything under VSVillage.Tests/.
-globs: VSVillage.Tests/**
+description: How to write and run tests for VS Village — the pure-logic unit suite and the behavioral golden harness. Applies when editing anything under VSVillage.Tests/ or VSVillage.TestHarness/.
+globs: "{VSVillage.Tests,VSVillage.TestHarness}/**"
 ---
 
 # VS Village testing convention
 
-VS mods have no integration-test harness — behavior is verified by loading the mod
-in-game and reading the logs. `VSVillage.Tests` (xUnit, net10.0) covers **only pure
-decision logic** extracted into plain classes.
+Two suites, both fork-only. `VSVillage.Tests` (xUnit, net10.0) covers **only pure decision
+logic** extracted into plain classes — this is the default. `VSVillage.TestHarness` is a
+separate mod that runs **behavioral golden tests** on a headless dedicated server (see the
+tier-discipline section below for when each applies).
 
 ## The boundary (the one rule that matters)
 
@@ -37,3 +38,26 @@ from it. On macOS the install is `/Applications/Vintage Story.app`.
 The test project references `VintagestoryAPI.dll` **copy-local** (no `<Private>false>`),
 unlike the mod project. Tests load VS value types at runtime; the test assembly is never
 packaged, so copying is correct. Do not "fix" this to match the mod's `Private=false`.
+
+## Behavioral golden tests (VSVillage.TestHarness) — the bar
+
+Headless behavioral scenarios (spawn villagers on a dedicated server, assert on game state)
+are the most expensive and most flake-prone tests here. The framework working is not a licence
+to default to it. Prefer, in order:
+
+1. A pure unit test in `VSVillage.Tests` (fast, deterministic, no server) — the default.
+2. One more assertion on an existing scenario — it rides a run that already paid the settle
+   window, so ~zero extra wall-clock and flake surface. Pack scenarios densely.
+3. A new scenario — only with a written `IGoldenScenario.Justification`: why a unit test can't
+   cover it, the 3am-page-worthy behavior it protects, and why it's durable.
+
+Authoring rules (a scenario that breaks one does not belong in the suite):
+- Never depend on random-world terrain — call `TestScene.BuildFlatArea` for a flat, loaded
+  floor and place everything coplanar on it.
+- Assert order-independent invariants (never "villager A took chest X").
+- Villagers run overlapping tasks (fetch AND return-carry) so state oscillates — sample across
+  the settle window and assert accumulated invariants, not an end-of-run snapshot.
+- Pair every negative with a positive — a parked/dead villager passes all negatives vacuously.
+
+Run the suite: `scripts/golden-suite.sh golden` (exit 0 = pass). Gate it on push:
+`git config core.hooksPath scripts/hooks`. See `VSVillage.TestHarness/README.md`.
