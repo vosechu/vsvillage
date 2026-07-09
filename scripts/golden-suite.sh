@@ -33,13 +33,16 @@ for i in $(seq 1 120); do
   sleep 1
 done
 
-cleanup() { echo "/stop" > "$PIPE" 2>/dev/null; for i in $(seq 1 30); do kill -0 "$SRV" 2>/dev/null || break; sleep 1; done; kill "$HOLDER" 2>/dev/null; pkill -f VintagestoryServer 2>/dev/null; rm -f "$PIPE"; }
+# Only write to the pipe while the server (its sole reader) is alive — otherwise the open-for-write
+# blocks forever. A crashed server must yield a clean exit 1, never a wedged job.
+send() { kill -0 "$SRV" 2>/dev/null && printf '%s\n' "$1" > "$PIPE" 2>/dev/null; }
+cleanup() { send "/stop"; for i in $(seq 1 30); do kill -0 "$SRV" 2>/dev/null || break; sleep 1; done; kill "$HOLDER" 2>/dev/null; pkill -f VintagestoryServer 2>/dev/null; rm -f "$PIPE"; }
 
 [ "$booted" = 1 ] || { cleanup; fail "server never reached the Port line"; }
 
 echo "== run suite '$SUITE' =="
-echo "/time set day" > "$PIPE"; sleep 2
-echo "/vsvillage:test run $SUITE" > "$PIPE"
+send "/time set day"; sleep 2
+send "/vsvillage:test run $SUITE"
 
 seen=0
 for i in $(seq 1 $((SETTLE + 60))); do
@@ -51,9 +54,12 @@ cleanup
 # --- fail-closed evaluation ---
 [ "$seen" = 1 ] || fail "no completion sentinel (server hang/crash)"
 [ -s "$RESULTS" ] || fail "results file missing or empty"
-grep -qE "^SUMMARY $SUITE " "$RESULTS" || fail "no SUMMARY line for '$SUITE'"
-scenarios=$(grep -oE "scenarios=[0-9]+" "$RESULTS" | head -1 | cut -d= -f2)
-failed=$(grep -oE "failed=[0-9]+" "$RESULTS" | head -1 | cut -d= -f2)
+# Scope the counts to the matched SUMMARY line, not any line in the file — a future check
+# description containing "failed=0" must not be able to feed the gate a false green.
+summary=$(grep -E "^SUMMARY $SUITE " "$RESULTS")
+[ -n "$summary" ] || fail "no SUMMARY line for '$SUITE'"
+scenarios=$(printf '%s' "$summary" | grep -oE "scenarios=[0-9]+" | cut -d= -f2)
+failed=$(printf '%s' "$summary" | grep -oE "failed=[0-9]+" | cut -d= -f2)
 [ "${scenarios:-0}" -gt 0 ] || fail "zero scenarios ran"
 grep -qE "\[Error\]|Exception" "$LOG" && fail "errors in server log"
 [ "${failed:-1}" = 0 ] || fail "$failed scenario(s) failed (see $RESULTS)"
