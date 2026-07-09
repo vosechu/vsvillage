@@ -60,6 +60,15 @@ public class ContainerClaimRegistry
         }
     }
 
+    /// <summary>True when a live claim on <paramref name="pos"/> is held by someone other than
+    /// <paramref name="ownerId"/>. Read-only; lets a finder skip contested containers before probing.</summary>
+    public bool IsClaimedByOther(BlockPos pos, long ownerId, long nowMs)
+    {
+        if (!claims.TryGetValue(pos, out Claim existing)) return false;   // unclaimed
+        if (nowMs - existing.ClaimedAtMs > ClaimExpiryMs) return false;   // expired (strict >, matches TryClaim)
+        return existing.OwnerId != ownerId;
+    }
+
     /// <summary>Returns the map with every expired claim dropped (strict <c>&gt;</c> — a claim exactly
     /// at the threshold is still live), or the same instance if nothing expired.</summary>
     private static ImmutableDictionary<BlockPos, Claim> WithoutExpired(ImmutableDictionary<BlockPos, Claim> map, long nowMs)
