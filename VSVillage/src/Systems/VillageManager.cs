@@ -39,6 +39,9 @@ public class VillageManager : ModSystem
 		{
 			OnSave(api);
 		};
+		api.Event.DidPlaceBlock += OnDidPlaceBlock;
+		api.Event.DidBreakBlock += OnDidBreakBlock;
+		api.Event.RegisterGameTickListener(OnContainerScanTick, ContainerScanIntervalMs);
 		api.Network.RegisterChannel("villagemanagementnetwork")
 			.RegisterMessageType<Village>()
 			.RegisterMessageType<VillageManagementMessage>()
@@ -48,6 +51,31 @@ public class VillageManager : ModSystem
 				OnManagementMessage(fromPlayer, message, api);
 			});
 		RegisterAdminCommands(api);
+	}
+
+	// Backstop cadence for the container re-scan. Instant player placements come through the
+	// DidPlaceBlock/DidBreakBlock events; this pass only needs to catch what events cannot see
+	// (worldgen, explosions, other mods, chests placed in unloaded chunks), so it can be slow.
+	private const int ContainerScanIntervalMs = 60000;
+
+	private void OnDidPlaceBlock(IServerPlayer byPlayer, int oldblockId, BlockSelection blockSel, ItemStack withItemStack)
+	{
+		if (blockSel?.Position == null) return;
+		if (Api.World.BlockAccessor.GetBlockEntity(blockSel.Position) is BlockEntityContainer)
+			GetVillage(blockSel.Position)?.RegisterContainer(blockSel.Position);
+	}
+
+	private void OnDidBreakBlock(IServerPlayer byPlayer, int oldblockId, BlockSelection blockSel)
+	{
+		// The block is already gone at DidBreakBlock time, so do not inspect the BE - just drop the
+		// position from whatever village owns it (no-op if it was never a container).
+		if (blockSel?.Position == null) return;
+		GetVillage(blockSel.Position)?.UnregisterContainer(blockSel.Position);
+	}
+
+	private void OnContainerScanTick(float dt)
+	{
+		foreach (Village v in Villages.Values) v.ScanContainers();
 	}
 
 	private void RegisterAdminCommands(ICoreServerAPI api)
