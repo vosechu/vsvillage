@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
@@ -17,6 +19,8 @@ public class AiTaskGotoAndTransact : AiTaskGotoAndInteract
 {
     private int searchRadius = 12;
     private BlockPos claimedPos;
+    private readonly ContainerCooldownTracker cooldown = new ContainerCooldownTracker(60000); // 60s, per FillTrough
+    private const int ReachSearchDepth = 3000; // modest cap: a chest needing a longer path is too far
 
     public AiTaskGotoAndTransact(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
         : base(entity, taskConfig, aiConfig)
@@ -34,19 +38,28 @@ public class AiTaskGotoAndTransact : AiTaskGotoAndInteract
 
     protected override Vec3d GetTargetPos()
     {
-        // Drop any prior target's claim before choosing a new one, so re-evaluating the target
-        // never leaks a claim on a container we're no longer heading to. Single-threaded AI, so
-        // this release + reclaim is atomic relative to other villagers.
-        ReleaseClaim();
+        ReleaseClaim(); // drop any prior claim before re-choosing (single-threaded AI, so atomic)
+        EntityBehaviorVillager bh = entity.GetBehavior<EntityBehaviorVillager>();
+        Village village = bh?.Village;
+        if (village == null) return null;
+
+        long now = entity.World.ElapsedMilliseconds;
+        Vec3d from = entity.ServerPos.XYZ;
         // Placeholder predicate: any container holding at least one item. Profession specs override this.
-        BlockPos found = VillagerContainerFinder.FindNearestContainer(
-            entity.World, entity.ServerPos.AsBlockPos, searchRadius, HasAnyItem);
-        if (found == null) return null;
-        if (!VsVillage.ContainerClaims.TryClaim(found, entity.EntityId, entity.World.ElapsedMilliseconds))
-            return null; // someone else holds it
-        claimedPos = found;
-        entity.Api.Logger.Notification("[vsvillage] transact: villager {0} heading to container at {1}", entity.EntityId, found);
-        return found.ToVec3d().Add(0.5, 0.0, 0.5);
+        List<BlockPos> ranked = VillagerContainerFinder.RankContainers(
+            entity.World, village, from, entity.EntityId, cooldown, now, HasAnyItem);
+
+        foreach (BlockPos candidate in ranked.Take(5)) // probe only the nearest few
+        {
+            Vec3d approach = VillagerContainerFinder.ApproachPos(entity.World, candidate, from);
+            if (approach == null) { cooldown.Mark(candidate, now); continue; }
+            if (!CanReach(approach, ReachSearchDepth)) { cooldown.Mark(candidate, now); continue; }
+            if (!VsVillage.ContainerClaims.TryClaim(candidate, entity.EntityId, now)) continue; // held by another
+            claimedPos = candidate;
+            entity.Api.Logger.Notification("[vsvillage] transact: villager {0} heading to container at {1}", entity.EntityId, candidate);
+            return approach;
+        }
+        return null;
     }
 
     private static bool HasAnyItem(BlockEntityContainer be)
@@ -74,8 +87,11 @@ public class AiTaskGotoAndTransact : AiTaskGotoAndInteract
                 bh.CarrySlot = carried;
                 entity.Api.Logger.Notification("[vsvillage] transact: villager {0} withdrew {1}x {2} into carry from {3}",
                     entity.EntityId, carried.StackSize, carried.Collectible?.Code, claimedPos);
-                break; // single-stack carry
+                return; // single-stack carry, done
             }
+            // Reached only if the chest was empty on arrival (race): cool it so we don't re-pick it.
+            cooldown.Mark(claimedPos, entity.World.ElapsedMilliseconds);
+            entity.Api.Logger.Notification("[vsvillage] transact: villager {0} found container at {1} empty on arrival", entity.EntityId, claimedPos);
         }
     }
 
