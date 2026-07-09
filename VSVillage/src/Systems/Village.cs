@@ -38,6 +38,61 @@ public class Village
     [ProtoMember(9)]
     public List<BlockPos> ConstructionQueue = new List<BlockPos>();
 
+    // Transient — not persisted. Rebuilt by ScanContainers (first scan after load) and kept live by
+    // DidPlaceBlock/DidBreakBlock events. Mirrors WaypointGraph's transient-rebuilt lifecycle and
+    // Gatherplaces' shape. Auto-derived from the world, so the world is the source of truth; nothing
+    // to serialize.
+    private readonly HashSet<BlockPos> containers = new HashSet<BlockPos>();
+    public IReadOnlyCollection<BlockPos> Containers => containers;
+
+    public void RegisterContainer(BlockPos pos)
+    {
+        containers.Add(pos.Copy());
+    }
+
+    public void UnregisterContainer(BlockPos pos)
+    {
+        containers.Remove(pos);
+    }
+
+    // Reconcile the set against the world within this village's bounds. Adds every loaded
+    // BlockEntityContainer inside the radius; removes an entry only when its chunk is loaded and no
+    // longer holds a container (loaded-chunks-only, exactly like the ghost-sweep at Village.cs:97, so
+    // an entry in an unloaded chunk is never wrongly dropped). Enumerates chunk BlockEntities rather
+    // than walking blocks (see ManagementGui.cs:28 for the same idiom).
+    public void ScanContainers()
+    {
+        if (Api == null) return;
+        IBlockAccessor ba = Api.World.BlockAccessor;
+
+        // 1. Prune: drop entries whose (loaded) chunk no longer has a container there.
+        List<BlockPos> dead = null;
+        foreach (BlockPos pos in containers)
+        {
+            if (ba.GetChunkAtBlockPos(pos) == null) continue; // unloaded — leave it, cannot confirm
+            if (!(ba.GetBlockEntity(pos) is BlockEntityContainer))
+                (dead ??= new List<BlockPos>()).Add(pos);
+        }
+        if (dead != null) foreach (BlockPos pos in dead) containers.Remove(pos);
+
+        // 2. Add: every container in a loaded chunk within the radius.
+        for (int cx = (Pos.X - Radius) / 32; cx <= (Pos.X + Radius) / 32; cx++)
+        {
+            for (int cz = (Pos.Z - Radius) / 32; cz <= (Pos.Z + Radius) / 32; cz++)
+            {
+                IWorldChunk chunk = ba.GetChunkAtBlockPos(new BlockPos(cx * 32, Pos.Y, cz * 32));
+                if (chunk?.BlockEntities == null) continue; // unloaded
+                foreach (KeyValuePair<BlockPos, BlockEntity> entry in chunk.BlockEntities)
+                {
+                    if (!(entry.Value is BlockEntityContainer)) continue;
+                    BlockPos p = entry.Key;
+                    if (VillagerContainerMath.IsWithinRadius(p.X - Pos.X, p.Y - Pos.Y, p.Z - Pos.Z, Radius))
+                        containers.Add(p.Copy());
+                }
+            }
+        }
+    }
+
     public ICoreAPI Api;
 
     // Runtime-only flag - not persisted. True while a Gather is active.
