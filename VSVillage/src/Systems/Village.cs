@@ -47,19 +47,22 @@ public class Village
 
     public void RegisterContainer(BlockPos pos)
     {
+        if (pos == null) return;
         containers.Add(pos.Copy());
     }
 
     public void UnregisterContainer(BlockPos pos)
     {
+        if (pos == null) return;
         containers.Remove(pos);
     }
 
     // Reconcile the set against the world within this village's bounds. Adds every loaded
     // BlockEntityContainer inside the radius; removes an entry only when its chunk is loaded and no
-    // longer holds a container (loaded-chunks-only, exactly like the ghost-sweep at Village.cs:97, so
-    // an entry in an unloaded chunk is never wrongly dropped). Enumerates chunk BlockEntities rather
-    // than walking blocks (see ManagementGui.cs:28 for the same idiom).
+    // longer holds a container (loaded-chunks-only — the same rule the ghost-sweep
+    // (ScrubGhostStructures) follows, so an entry in an unloaded chunk is never wrongly dropped).
+    // Enumerates chunk BlockEntities rather than walking blocks (see ManagementGui.cs:28 for the
+    // same idiom).
     public void ScanContainers()
     {
         if (Api == null) return;
@@ -75,19 +78,26 @@ public class Village
         }
         if (dead != null) foreach (BlockPos pos in dead) containers.Remove(pos);
 
-        // 2. Add: every container in a loaded chunk within the radius.
-        for (int cx = (Pos.X - Radius) / 32; cx <= (Pos.X + Radius) / 32; cx++)
+        // 2. Add: every container in a loaded chunk within the radius. Chunks are 32^3 cubes, so
+        // iterate vertically (cy) as well as horizontally.
+        int cxMin = (int)Math.Floor((Pos.X - Radius) / 32.0), cxMax = (int)Math.Floor((Pos.X + Radius) / 32.0);
+        int cyMin = (int)Math.Floor((Pos.Y - Radius) / 32.0), cyMax = (int)Math.Floor((Pos.Y + Radius) / 32.0);
+        int czMin = (int)Math.Floor((Pos.Z - Radius) / 32.0), czMax = (int)Math.Floor((Pos.Z + Radius) / 32.0);
+        for (int cx = cxMin; cx <= cxMax; cx++)
         {
-            for (int cz = (Pos.Z - Radius) / 32; cz <= (Pos.Z + Radius) / 32; cz++)
+            for (int cy = cyMin; cy <= cyMax; cy++)
             {
-                IWorldChunk chunk = ba.GetChunkAtBlockPos(new BlockPos(cx * 32, Pos.Y, cz * 32));
-                if (chunk?.BlockEntities == null) continue; // unloaded
-                foreach (KeyValuePair<BlockPos, BlockEntity> entry in chunk.BlockEntities)
+                for (int cz = czMin; cz <= czMax; cz++)
                 {
-                    if (!(entry.Value is BlockEntityContainer)) continue;
-                    BlockPos p = entry.Key;
-                    if (VillagerContainerMath.IsWithinRadius(p.X - Pos.X, p.Y - Pos.Y, p.Z - Pos.Z, Radius))
-                        containers.Add(p.Copy());
+                    IWorldChunk chunk = ba.GetChunkAtBlockPos(new BlockPos(cx * 32, cy * 32, cz * 32));
+                    if (chunk?.BlockEntities == null) continue; // unloaded / out of world
+                    foreach (KeyValuePair<BlockPos, BlockEntity> entry in chunk.BlockEntities)
+                    {
+                        if (!(entry.Value is BlockEntityContainer)) continue;
+                        BlockPos p = entry.Key;
+                        if (VillagerContainerMath.IsWithinRadius(p.X - Pos.X, p.Y - Pos.Y, p.Z - Pos.Z, Radius))
+                            containers.Add(p.Copy());
+                    }
                 }
             }
         }
