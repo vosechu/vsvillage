@@ -39,4 +39,16 @@ public class ScenarioReport_When_evaluating_pass_state
         Assert.Single(report.Checks);
         Assert.False(report.Checks[0].pass);
     }
+
+    [Fact]
+    public void It_appends_the_exception_message_when_Fail_is_given_an_exception()
+    {
+        var report = new ScenarioReport("s");
+        report.Fail("setup threw", new System.InvalidOperationException("nope"));
+        Assert.False(report.Passed);
+        Assert.Single(report.Checks);
+        Assert.False(report.Checks[0].pass);
+        Assert.Contains("setup threw", report.Checks[0].desc);
+        Assert.Contains("nope", report.Checks[0].desc);
+    }
 }
