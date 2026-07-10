@@ -82,17 +82,24 @@ public class ContainerFetchScenario : IGoldenScenario
         }
 
         sampleTickId = api.Event.RegisterGameTickListener(_ => Sample(), 1000);
+
+        Note("━━━━━ GOLDEN TEST: container-fetch ━━━━━");
+        Note("Arena: flat cobblestone platform at spawn. Chests A & B are IN the village (grain-filled); chest C is 20 blocks out — the CONTROL.");
+        Note("Cast: 2 villagers (AlwaysActive), assigned to this village.");
+        Note("WATCH: they should path to A & B and carry grain-flax home — and NEVER touch the far control C. Auto-teardown in " + SettleSeconds + "s.");
     }
 
-    // One observation of the world state, folded into the accumulators.
+    // One observation of the world state, folded into the accumulators. Each accumulator only ever
+    // flips false->true, so guarding on its current value fires the watch-note exactly once (on the
+    // transition) while leaving the final accumulator value identical to the un-narrated version.
     private void Sample()
     {
-        if (GrainIn(inA) == 0) sawADrained = true;
-        if (GrainIn(inB) == 0) sawBDrained = true;
-        if (GrainIn(outC) != GrainPerChest) controlEverTouched = true;
+        if (!sawADrained && GrainIn(inA) == 0) { sawADrained = true; Note("✅ In-bounds chest A emptied — a villager reached it and withdrew grain."); }
+        if (!sawBDrained && GrainIn(inB) == 0) { sawBDrained = true; Note("✅ In-bounds chest B emptied — the fetch loop reached the second chest too."); }
+        if (!controlEverTouched && GrainIn(outC) != GrainPerChest) { controlEverTouched = true; Note("❌ Out-of-bounds control C was touched — bounds filter LEAKED."); }
         if (!sawVillagerCarry && villagerIds.Any(id =>
                 api.World.GetEntityById(id)?.GetBehavior<EntityBehaviorVillager>()?.CarrySlot?.Collectible?.Code?.Path == "grain-flax"))
-            sawVillagerCarry = true;
+        { sawVillagerCarry = true; Note("🌾 A villager is now carrying grain-flax — withdraw-into-carry works."); }
     }
 
     public void Assert(ScenarioReport report)
@@ -101,6 +108,11 @@ public class ContainerFetchScenario : IGoldenScenario
         report.Check("in-bounds chest B was fetched from (emptied at least once)", sawBDrained);
         report.Check("a villager carried grain-flax at some point", sawVillagerCarry);
         report.Check("out-of-bounds control was never touched (bounds filter)", !controlEverTouched);
+
+        Note("━━━━━ RESULT ━━━━━");
+        Note((sawADrained ? "✅" : "❌") + " chest A fetched     " + (sawBDrained ? "✅" : "❌") + " chest B fetched");
+        Note((sawVillagerCarry ? "✅" : "❌") + " villager carried grain     " + (!controlEverTouched ? "✅" : "❌") + " control untouched");
+        Note(report.Passed ? "PASS — every invariant held." : "FAIL — see the ❌ above.");
     }
 
     public void Teardown()
@@ -117,6 +129,16 @@ public class ContainerFetchScenario : IGoldenScenario
         }
         if (village != null)
             api.ModLoader.GetModSystem<VillageManager>()?.Villages.TryRemove(village.Id, out _);
+        Note("🧹 Scene torn down — villagers despawned, chests removed, village unregistered.");
+    }
+
+    // Interactive-only narration. Broadcasts a beat to any connected players so a human watching in
+    // the client sees what each moment proves. No-op when nobody is connected (the headless golden
+    // suite has zero players), so it never affects suite output — a pure watch-mode affordance.
+    private void Note(string msg)
+    {
+        if (api.World.AllOnlinePlayers.Length == 0) return;
+        api.BroadcastMessageToAllGroups("[golden] " + msg, EnumChatType.Notification);
     }
 
     // Places a chest coplanar on the flat floor at center.Y (not each column's own surface), fills slot 0.
