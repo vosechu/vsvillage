@@ -62,6 +62,19 @@ Authoring rules (a scenario that breaks one does not belong in the suite):
   intermittently returns null for seconds at a time. So a point-in-time full-world census (e.g.
   total-item conservation) is not assertable, and even a monotonic read-based check can false-fire;
   gate any read on the BE/entity actually being loaded (see `ContainerFetchScenario.IsChestReadable`).
+- Sharper: chunks NEIGHBOURING spawn decay to permanently-unreadable a minute or two into a headless
+  run — only spawn's own 32³ chunk stays reliably loaded (a spawn can sit exactly on a chunk corner,
+  so even `dx=-2` may cross into a dying chunk). Place every read-critical block entity INSIDE the
+  spawn chunk (see `ShepherdFeedHaulScenario`'s dirX/dirZ anchoring), and pair every negative
+  assertion with a liveness check ("this BE was observed readable at least once") so an unreadable
+  window can't pass it vacuously.
+- Headless locomotion is TELEPORT-ONLY: with no player connected the server does not simulate entity
+  locomotion physics at all (a commanded walk vector yields zero displacement; entities don't even
+  settle under gravity). Villagers advance because `AiTaskGotoAndInteract`'s stuck-recovery teleports
+  them ~2 path nodes at a time along the A* route. Scenarios therefore validate decision logic and
+  A*-route existence, NOT physical walking — and a path cell a teleport can't land in (e.g. a closed
+  door's collision box) can never be crossed headless. Verify locomotion-dependent behavior in a
+  live client (`VSVILLAGE_GOLDEN_ALLOW=1` + watch mode).
 
 Run the suite: `scripts/golden-suite.sh golden` (exit 0 = pass). Gate it on push:
 `git config core.hooksPath scripts/hooks`. See `VSVillage.TestHarness/README.md`.

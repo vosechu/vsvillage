@@ -4,7 +4,11 @@
 # Usage: scripts/golden-suite.sh [suite]   (env: SETTLE overrides the AI settle window)
 set -u
 SUITE="${1:-golden}"
-SETTLE="${SETTLE:-35}"
+# Outer wait budget (seconds) for the completion sentinel, NOT the per-scenario settle window
+# (each scenario hardcodes its own SettleSeconds). The golden suite runs scenarios sequentially,
+# so this must exceed the SUM of their settle windows plus boot/teardown overhead.
+# golden = container-fetch (40s) + shepherd-feed-haul (70s) => 110s of settle; default gives margin.
+SETTLE="${SETTLE:-140}"
 GAME="${VINTAGE_STORY:-/Applications/Vintage Story.app}"
 SERVER="$GAME/VintagestoryServer"
 DATA="${VSTEST_DATA:-/tmp/vsgolden}"

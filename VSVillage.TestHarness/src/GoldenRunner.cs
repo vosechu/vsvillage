@@ -38,7 +38,23 @@ public class GoldenRunner : ModSystem
 
     private void RegisterSuites()
     {
-        suites["golden"] = new List<IGoldenScenario> { new ContainerFetchScenario() };
+        suites["golden"] = new List<IGoldenScenario> { new ContainerFetchScenario(), new ShepherdFeedHaulScenario() };
+        // Aspirational navigation exploration — one obstacle-course arena per obstacle. Separate suite,
+        // NOT the push gate. Headless locomotion is TELEPORT-ONLY (no entity physics without a player —
+        // see ShepherdObstacleNavScenario's header), so these validate A* routes + decisions, not real
+        // walking. Door is excluded from the default suite: a teleport can't land in a door cell, so the
+        // door course can never be crossed headless — kept re-runnable as the nav-door probe below.
+        suites["nav"] = new List<IGoldenScenario>
+        {
+            new ShepherdObstacleNavScenario(NavObstacle.FenceGate),
+            new ShepherdObstacleNavScenario(NavObstacle.Moat),
+        };
+        // Direct-FindPath diagnostic matrix for the door/gate pathing question (no AI, runs in seconds).
+        suites["nav-probe"] = new List<IGoldenScenario> { new PathfinderProbeScenario() };
+        // Single-obstacle probes (nav-door = known-fail; see ShepherdObstacleNavScenario header).
+        suites["nav-door"] = new List<IGoldenScenario> { new ShepherdObstacleNavScenario(NavObstacle.Door) };
+        suites["nav-gate"] = new List<IGoldenScenario> { new ShepherdObstacleNavScenario(NavObstacle.FenceGate) };
+        suites["nav-moat"] = new List<IGoldenScenario> { new ShepherdObstacleNavScenario(NavObstacle.Moat) };
         suites["selftest"] = new List<IGoldenScenario>
         {
             new AlwaysPassScenario(),
