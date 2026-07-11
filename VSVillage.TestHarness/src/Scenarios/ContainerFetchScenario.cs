@@ -24,6 +24,10 @@ namespace VsVillageTest.Scenarios;
 //    assert order-independent, oscillation-robust invariants: each in-bounds chest was emptied at
 //    least once (the loop reached it), the out-of-bounds control was NEVER touched (bounds filter),
 //    and a villager carried grain at some point (withdraw-into-carry works).
+//  - Reads are unreliable headless: a chest's block entity intermittently reads as absent for
+//    seconds at a time (GetBlockEntity returns null), so GrainIn returns 0. That is why the control
+//    check only fires when C's block entity is actually readable — an unguarded read would
+//    false-flag the untouched control.
 public class ContainerFetchScenario : IGoldenScenario
 {
     public string Name => "container-fetch";
@@ -96,7 +100,9 @@ public class ContainerFetchScenario : IGoldenScenario
     {
         if (!sawADrained && GrainIn(inA) == 0) { sawADrained = true; Note("✅ In-bounds chest A emptied — a villager reached it and withdrew grain."); }
         if (!sawBDrained && GrainIn(inB) == 0) { sawBDrained = true; Note("✅ In-bounds chest B emptied — the fetch loop reached the second chest too."); }
-        if (!controlEverTouched && GrainIn(outC) != GrainPerChest) { controlEverTouched = true; Note("❌ Out-of-bounds control C was touched — bounds filter LEAKED."); }
+        // Gate on C being readable: a transient no-BE read makes GrainIn(outC) return 0, which would
+        // false-flag the untouched control. Only trust a "changed" reading when the BE is actually loaded.
+        if (!controlEverTouched && IsChestReadable(outC) && GrainIn(outC) != GrainPerChest) { controlEverTouched = true; Note("❌ Out-of-bounds control C was touched — bounds filter LEAKED."); }
         if (!sawVillagerCarry && villagerIds.Any(id =>
                 api.World.GetEntityById(id)?.GetBehavior<EntityBehaviorVillager>()?.CarrySlot?.Collectible?.Code?.Path == "grain-flax"))
         { sawVillagerCarry = true; Note("🌾 A villager is now carrying grain-flax — withdraw-into-carry works."); }
@@ -155,6 +161,12 @@ public class ContainerFetchScenario : IGoldenScenario
         }
         return cp;
     }
+
+    // True only when the chest's container block entity is currently loaded and queryable. Guards
+    // window-sampled checks against transient no-BE reads (the BE reads as absent for seconds at a
+    // time in this headless server, which would otherwise make GrainIn's 0 look like real movement).
+    private bool IsChestReadable(BlockPos pos)
+        => api.World.BlockAccessor.GetBlockEntity(pos) is BlockEntityContainer be && be.Inventory != null;
 
     private int GrainIn(BlockPos pos)
     {

@@ -25,7 +25,8 @@ pkill -f VintagestoryServer 2>/dev/null; sleep 3
 mkdir -p "$DATA"; rm -f "$LOG" "$RESULTS" "$PIPE"; mkfifo "$PIPE"
 sleep 900 > "$PIPE" & HOLDER=$!
 # --addModPath is a sequence option: ONE flag, space-separated paths (repeating the flag NREs the server).
-VINTAGE_STORY="$GAME" "$SERVER" --dataPath "$DATA" --addModPath "$MODS_MAIN" "$MODS_HARNESS" --tracelog < "$PIPE" > "$DATA/console.out" 2>&1 & SRV=$!
+# VSVILLAGE_GOLDEN_ALLOW opts this throwaway server in to the destructive scenarios (GoldenRunner gates on it).
+VINTAGE_STORY="$GAME" VSVILLAGE_GOLDEN_ALLOW=1 "$SERVER" --dataPath "$DATA" --addModPath "$MODS_MAIN" "$MODS_HARNESS" --tracelog < "$PIPE" > "$DATA/console.out" 2>&1 & SRV=$!
 
 booted=0
 for i in $(seq 1 120); do
