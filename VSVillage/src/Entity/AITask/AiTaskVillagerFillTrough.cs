@@ -95,18 +95,9 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 	// Returns true for any block entity that represents a creature trough,
 	// regardless of whether it is the large (BlockEntityTrough) or small
 	// (BlockEntityTroughMiniBowl / any other VS variant) trough type.
-	private static bool IsTroughPoi(IPointOfInterest poi)
-	{
-		if (poi is BlockEntityTrough) return true;
-		if (poi is BlockEntity be)
-			return be.Block?.Code?.Path?.Contains("trough") == true;
-		return false;
-	}
+	private static bool IsTroughPoi(IPointOfInterest poi) => ShepherdTroughs.IsTroughPoi(poi);
 
-	private static BlockPos GetTroughPos(IPointOfInterest poi)
-	{
-		return (poi as BlockEntity)?.Pos;
-	}
+	private static BlockPos GetTroughPos(IPointOfInterest poi) => ShepherdTroughs.GetTroughPos(poi);
 
 	private Vec3d GetTroughApproachPos(BlockEntityTrough trough)
 	{
@@ -275,14 +266,7 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		{
 			return false;
 		}
-		ItemSlot itemSlot = blockEntityTrough.Inventory[0];
-		if (itemSlot == null || itemSlot.Empty)
-		{
-			return true;
-		}
-		int stackSize = itemSlot.StackSize;
-		int maxStackSize = itemSlot.Itemstack.Collectible.MaxStackSize;
-		return stackSize < maxStackSize;
+		return ShepherdTroughs.NeedsFeed(blockEntityTrough);
 	}
 
 	// === Claim helpers ===
