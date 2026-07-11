@@ -1592,6 +1592,24 @@
 		},
 		// === INVENTORY (Spec #1 foundation — generic fetch/hold/return; professions override the predicate later) ===
 		{
+			"code": "villagershepherdfetchfeed",
+			"priority": 5.4,
+			"movespeed": 0.012,
+			"animation": "walk",
+			"animationSpeed": 1,
+			"mincooldown": 5000,
+			"maxcooldown": 10000,
+			"maxdistance": 20,
+			"searchRadius": 12,
+			"onlyForEntitySuffix": "-shepherd",
+			"duringDayTimeFrames": [
+				{
+					"fromHour": 8,
+					"toHour": 17
+				}
+			]
+		},
+		{
 			"code": "villagergotoandtransact",
 			"priority": 5.4,
 			"movespeed": 0.012,
@@ -1601,6 +1619,7 @@
 			"maxcooldown": 10000,
 			"maxdistance": 20,
 			"searchRadius": 12,
+			"excludeEntitySuffix": "-shepherd",
 			"duringDayTimeFrames": [
 				{
 					"fromHour": 8,

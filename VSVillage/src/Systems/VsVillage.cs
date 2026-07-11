@@ -44,6 +44,7 @@ public class VsVillage : ModSystem
 		AiTaskRegistry.Register<AiTaskVillagerGotoGatherspot>("villagergotogather");
 		AiTaskRegistry.Register<AiTaskVillagerGotoMayor>("villagergotomayor");
 		AiTaskRegistry.Register<AiTaskVillagerFillTrough>("villagerfilltrough");
+		AiTaskRegistry.Register<AiTaskVillagerShepherdFetchFeed>("villagershepherdfetchfeed");
 		AiTaskRegistry.Register<AiTaskGotoAndTransact>("villagergotoandtransact");
 		AiTaskRegistry.Register<AiTaskVillagerReturnCarry>("villagerreturncarry");
 		AiTaskRegistry.Register<AiTaskVillagerCultivateCrops>("villagercultivatecrops");
