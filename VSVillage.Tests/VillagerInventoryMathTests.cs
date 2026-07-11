@@ -42,11 +42,11 @@ public class VillagerInventoryMath_When_checking_orphaned_carry
 public class VillagerInventoryMath_When_computing_trough_capacity
 {
     [Theory]
-    [InlineData(0, 4, 16, 64)]    // empty large trough: 4*16 free
-    [InlineData(64, 4, 16, 0)]    // full: no room
-    [InlineData(16, 4, 16, 48)]   // one level in: 48 free
-    [InlineData(100, 4, 16, 0)]   // over capacity (shouldn't happen): clamp to 0, never negative
-    [InlineData(0, 1, 16, 16)]    // small trough: 1 level
+    [InlineData(0, 8, 2, 16)]    // empty grain large trough: 8 levels * 2 = 16 free
+    [InlineData(16, 8, 2, 0)]    // full: no room
+    [InlineData(2, 8, 2, 14)]    // one fill level in: 14 free
+    [InlineData(20, 8, 2, 0)]    // over capacity (shouldn't happen): clamp to 0, never negative
+    [InlineData(0, 4, 4, 16)]    // a different config: 4 levels * 4
     public void TroughFreeCapacity_When_partiallyFilled_It_returns_room_clamped_nonnegative(
         int current, int maxLevels, int perLevel, int expected)
     {
