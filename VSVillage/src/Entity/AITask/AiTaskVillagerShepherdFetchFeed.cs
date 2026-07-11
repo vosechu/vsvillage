@@ -44,7 +44,7 @@ public class AiTaskVillagerShepherdFetchFeed : AiTaskGotoAndTransact
         foreach (ItemSlot slot in be.Inventory)
         {
             if (slot.Empty) continue;
-            if (ShepherdTroughs.AcceptsItem(entity.World, refTrough, slot.Itemstack)) return true;
+            if (ShepherdTroughs.AcceptsItem(refTrough, slot.Itemstack)) return true;
         }
         return false;
     }
@@ -53,6 +53,7 @@ public class AiTaskVillagerShepherdFetchFeed : AiTaskGotoAndTransact
     protected override int WithdrawNeed(ItemSlot src)
     {
         if (refTrough == null) return src.StackSize;
+        if (!ShepherdTroughs.AcceptsItem(refTrough, src.Itemstack)) return 0;
         ItemSlot troughSlot = refTrough.Inventory?[0];
         ContentConfig cfg = ItemSlotTrough.getContentConfig(entity.World, refTrough.contentConfigs, src);
         if (cfg == null) return 0;   // this source isn't feed for the trough

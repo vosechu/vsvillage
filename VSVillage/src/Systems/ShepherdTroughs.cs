@@ -21,18 +21,22 @@ public static class ShepherdTroughs
 
     public static BlockPos GetTroughPos(IPointOfInterest poi) => (poi as BlockEntity)?.Pos;
 
-    // Empty, or the feed slot is below the stack cap (room for more). Mirrors the old isValidTrough.
+    // Empty, or the current feed is below the trough's real capacity (MaxFillLevels*QuantityPerFillLevel).
+    // NOT the collectible's MaxStackSize — a full trough (e.g. grain 16/16) must not read as needy.
     public static bool NeedsFeed(BlockEntityTrough trough)
     {
         ItemSlot slot = trough?.Inventory?[0];
         if (slot == null || slot.Empty) return true;
-        return slot.StackSize < slot.Itemstack.Collectible.MaxStackSize;
+        ContentConfig cfg = ItemSlotTrough.getContentConfig(trough.Api.World, trough.contentConfigs, slot);
+        return cfg != null && slot.StackSize < cfg.MaxFillLevels * cfg.QuantityPerFillLevel;
     }
 
-    // Does this trough's content config accept this item type? (Fetch-time "is this feed" filter.)
-    public static bool AcceptsItem(IWorldAccessor world, BlockEntityTrough trough, ItemStack stack)
+    // Can this trough take this item RIGHT NOW? Delegates to ItemSlotTrough.CanTakeFrom -> troughable,
+    // which enforces: valid feed type, same-food-or-empty (single-food troughs), and capacity remaining.
+    public static bool AcceptsItem(BlockEntityTrough trough, ItemStack stack)
     {
         if (trough == null || stack == null) return false;
-        return ItemSlotTrough.getContentConfig(world, trough.contentConfigs, new DummySlot(stack)) != null;
+        ItemSlot slot = trough.Inventory?[0];
+        return slot != null && slot.CanTakeFrom(new DummySlot(stack));
     }
 }

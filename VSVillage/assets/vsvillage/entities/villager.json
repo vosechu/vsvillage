@@ -1599,7 +1599,7 @@
 			"animationSpeed": 1,
 			"mincooldown": 5000,
 			"maxcooldown": 10000,
-			"maxdistance": 20,
+			"maxdistance": 40,
 			"searchRadius": 12,
 			"onlyForEntitySuffix": "-shepherd",
 			"duringDayTimeFrames": [

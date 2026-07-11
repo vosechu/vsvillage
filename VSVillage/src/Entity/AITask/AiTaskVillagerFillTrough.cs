@@ -164,7 +164,7 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		{
 			return false;
 		}
-		if (carriedFeed == null || !ShepherdTroughs.AcceptsItem(entity.World, blockEntityTrough, carriedFeed)) return false;
+		if (carriedFeed == null || !ShepherdTroughs.AcceptsItem(blockEntityTrough, carriedFeed)) return false;
 		return blockEntityTrough.Inventory[0]?.Empty ?? true;
 	}
 
@@ -271,7 +271,7 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		{
 			return false;
 		}
-		if (carriedFeed == null || !ShepherdTroughs.AcceptsItem(entity.World, blockEntityTrough, carriedFeed)) return false;
+		if (carriedFeed == null || !ShepherdTroughs.AcceptsItem(blockEntityTrough, carriedFeed)) return false;
 		return ShepherdTroughs.NeedsFeed(blockEntityTrough);
 	}
 
