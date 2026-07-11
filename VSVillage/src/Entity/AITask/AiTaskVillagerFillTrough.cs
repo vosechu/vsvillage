@@ -13,6 +13,8 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 
 	private BlockPos lastTroughPos;
 
+	private ItemStack carriedFeed;
+
 	private Dictionary<BlockPos, long> recentlyFilledTroughs;
 
 	private long troughCooldownMs = 60000L;
@@ -45,7 +47,7 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 
 		EntityBehaviorVillager bh = entity.GetBehavior<EntityBehaviorVillager>();
 		if (bh == null || bh.IsCarryEmpty) return null;
-		ItemStack carried = bh.CarrySlot;
+		carriedFeed = bh.CarrySlot;
 
 		// Release our previous claim and evict globally-stale entries so they
 		// don't permanently prevent other shepherds from accessing those troughs.
@@ -162,6 +164,7 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		{
 			return false;
 		}
+		if (carriedFeed == null || !ShepherdTroughs.AcceptsItem(entity.World, blockEntityTrough, carriedFeed)) return false;
 		return blockEntityTrough.Inventory[0]?.Empty ?? true;
 	}
 
@@ -186,7 +189,12 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		BlockPos claimPos = nearestTrough.Pos.Copy();
 		entity.World.RegisterCallback(delegate
 		{
-			PerformFilling(source, contentConfig, bh);
+			// Re-read the carry fresh: the villager may have died (dropping the carry) during the
+			// 1.5s animation, and depositing a captured reference would duplicate the dropped stack.
+			if (!entity.Alive || bh.IsCarryEmpty) { ReleaseClaim(claimPos); return; }
+			ItemSlot freshSource = new DummySlot(bh.CarrySlot);
+			ContentConfig freshCfg = ItemSlotTrough.getContentConfig(entity.Api.World, nearestTrough.contentConfigs, freshSource);
+			if (freshCfg != null) PerformFilling(freshSource, freshCfg, bh);
 			ReleaseClaim(claimPos);
 		}, 1500);
 	}
@@ -263,6 +271,7 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		{
 			return false;
 		}
+		if (carriedFeed == null || !ShepherdTroughs.AcceptsItem(entity.World, blockEntityTrough, carriedFeed)) return false;
 		return ShepherdTroughs.NeedsFeed(blockEntityTrough);
 	}
 
