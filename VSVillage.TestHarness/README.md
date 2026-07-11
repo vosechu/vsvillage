@@ -11,13 +11,21 @@ server (no player needed) and asserts on live game state.
 Under the hood: build both mods -> boot one headless server -> `/vsvillage:test run golden`
 -> read `<dataPath>/golden-results.txt` fail-closed -> stop.
 
-Dev iteration on one command (interactive, not fail-closed):
-
-    scripts/dev-run.sh 40 "/time set day" "/vsvillage:test run golden"
-    # then read /tmp/vsgolden/Logs/server-main.log and /tmp/vsgolden/golden-results.txt
-
 `$VINTAGE_STORY` must point at the game install; `$VSTEST_DATA` overrides the throwaway data
 dir (default `/tmp/vsgolden`). Set it per-invocation if two suites might run on one host.
+
+## Safety: scenarios permanently edit terrain
+
+Scenarios call `TestScene.BuildFlatArea`, which **permanently** replaces blocks (teardown removes
+the spawned chests/villagers but does not restore terrain). So a run is only safe against a
+throwaway world. Two guards keep it there:
+
+- The runner scripts use an isolated `--dataPath` (a fresh generated world), never a real save.
+- `GoldenRunner` refuses `/vsvillage:test run` unless the server env has `VSVILLAGE_GOLDEN_ALLOW=1`.
+  `golden-suite.sh` sets it; a normal game launch never does — so even if the harness mod is
+  accidentally left loaded in a real game, the command is inert (it prints how to opt in rather
+  than carving up spawn). To watch a scenario live in the client, set the same var on the client
+  launch.
 
 ## Gate it on every push
 

@@ -55,6 +55,17 @@ public class GoldenRunner : ModSystem
 
     private TextCommandResult OnRun(TextCommandCallingArgs args)
     {
+        // Safety gate: scenarios PERMANENTLY edit terrain (they flatten an arena at spawn) and
+        // teardown does not restore it. Refuse unless a sanctioned test entry point opted in via
+        // the environment. golden-suite.sh sets this; a real game launch never does,
+        // so an accidentally-loaded harness mod can't blow away a real save even with gamemode.
+        if (Environment.GetEnvironmentVariable("VSVILLAGE_GOLDEN_ALLOW") != "1")
+            return TextCommandResult.Error(
+                "Refusing to run: golden scenarios permanently edit terrain (they flatten an arena "
+                + "at spawn) and are for throwaway test worlds only. Set VSVILLAGE_GOLDEN_ALLOW=1 in "
+                + "the server environment to allow — scripts/golden-suite.sh does this. "
+                + "This guard protects real saves from an accidentally-loaded harness mod.");
+
         string suiteName = (string)args[0];
         if (!suites.TryGetValue(suiteName, out var scenarios))
             return TextCommandResult.Error("unknown suite '" + suiteName + "'");
