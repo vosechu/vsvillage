@@ -22,4 +22,11 @@ public static class VillagerInventoryMath
     /// </summary>
     public static bool IsCarryOrphaned(long lastChangeMs, long nowMs, long thresholdMs)
         => nowMs - lastChangeMs >= thresholdMs;
+
+    /// <summary>
+    /// Free room in a trough. Total capacity is <c>maxFillLevels * quantityPerFillLevel</c>
+    /// (VS ItemSlotTrough.troughable model). Over-capacity or negative inputs clamp to 0.
+    /// </summary>
+    public static int TroughFreeCapacity(int currentStackSize, int maxFillLevels, int quantityPerFillLevel)
+        => Math.Max(0, maxFillLevels * quantityPerFillLevel - currentStackSize);
 }
