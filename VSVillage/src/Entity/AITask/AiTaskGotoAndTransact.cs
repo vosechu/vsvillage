@@ -47,7 +47,7 @@ public class AiTaskGotoAndTransact : AiTaskGotoAndInteract
         Vec3d from = entity.ServerPos.XYZ;
         // Placeholder predicate: any container holding at least one item. Profession specs override this.
         List<BlockPos> ranked = VillagerContainerFinder.RankContainers(
-            entity.World, village, from, entity.EntityId, cooldown, now, HasAnyItem);
+            entity.World, village, from, entity.EntityId, cooldown, now, WantsItem);
 
         foreach (BlockPos candidate in ranked.Take(5)) // probe only the nearest few
         {
@@ -62,12 +62,16 @@ public class AiTaskGotoAndTransact : AiTaskGotoAndInteract
         return null;
     }
 
-    private static bool HasAnyItem(BlockEntityContainer be)
+    // Which containers hold something worth fetching. Profession subclasses override.
+    protected virtual bool WantsItem(BlockEntityContainer be)
     {
         if (be.Inventory == null) return false;
         foreach (ItemSlot slot in be.Inventory) if (!slot.Empty) return true;
         return false;
     }
+
+    // How many of a matched stack to withdraw. Default: the whole source stack. Subclasses cap it.
+    protected virtual int WithdrawNeed(ItemSlot src) => src.StackSize;
 
     protected override void ApplyInteractionEffect()
     {
@@ -80,7 +84,7 @@ public class AiTaskGotoAndTransact : AiTaskGotoAndInteract
             {
                 if (src.Empty) continue;
                 int move = VillagerInventoryMath.MovableQuantity(
-                    src.StackSize, src.StackSize, src.Itemstack.Collectible.MaxStackSize, src.StackSize);
+                    WithdrawNeed(src), src.StackSize, src.Itemstack.Collectible.MaxStackSize, src.StackSize);
                 if (move <= 0) continue;
                 ItemStack carried = src.TakeOut(move);
                 src.MarkDirty();
