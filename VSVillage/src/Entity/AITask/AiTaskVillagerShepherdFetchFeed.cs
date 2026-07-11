@@ -37,7 +37,8 @@ public class AiTaskVillagerShepherdFetchFeed : AiTaskGotoAndTransact
                 && poi is BlockEntityTrough t && ShepherdTroughs.NeedsFeed(t)) as BlockEntityTrough;
     }
 
-    // Fetch only items the representative trough accepts.
+    // Fetch only items the representative trough accepts. (Troughs themselves never appear here as
+    // sources: Village.ScanContainers / OnDidPlaceBlock exclude them from the storage container set.)
     protected override bool WantsItem(BlockEntityContainer be)
     {
         if (be.Inventory == null || refTrough == null) return false;

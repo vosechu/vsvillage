@@ -73,7 +73,10 @@ public class Village
         foreach (BlockPos pos in containers)
         {
             if (ba.GetChunkAtBlockPos(pos) == null) continue; // unloaded — leave it, cannot confirm
-            if (!(ba.GetBlockEntity(pos) is BlockEntityContainer))
+            BlockEntity be = ba.GetBlockEntity(pos);
+            // Prune anything that is no longer a storage container — including a trough, which is a
+            // feed SINK, not storage (see the add-loop below), in case one was enrolled before this rule.
+            if (!(be is BlockEntityContainer) || ShepherdTroughs.IsTrough(be))
                 (dead ??= new List<BlockPos>()).Add(pos);
         }
         if (dead != null) foreach (BlockPos pos in dead) containers.Remove(pos);
@@ -93,7 +96,10 @@ public class Village
                     if (chunk?.BlockEntities == null) continue; // unloaded / out of world
                     foreach (KeyValuePair<BlockPos, BlockEntity> entry in chunk.BlockEntities)
                     {
-                        if (!(entry.Value is BlockEntityContainer)) continue;
+                        // Troughs are BlockEntityContainers too, but they are feed SINKS, not storage:
+                        // enrolling one lets a shepherd fetch feed OUT of it and lets ReturnCarry dump
+                        // carry INTO it. Shepherds reach troughs via the POI registry, never this index.
+                        if (!(entry.Value is BlockEntityContainer) || ShepherdTroughs.IsTrough(entry.Value)) continue;
                         BlockPos p = entry.Key;
                         if (VillagerContainerMath.IsWithinRadius(p.X - Pos.X, p.Y - Pos.Y, p.Z - Pos.Z, Radius))
                             containers.Add(p.Copy());

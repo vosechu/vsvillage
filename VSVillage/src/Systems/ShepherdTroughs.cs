@@ -12,12 +12,14 @@ namespace VsVillage;
 public static class ShepherdTroughs
 {
     // Large BlockEntityTrough, or any BE whose block code path contains "trough" (mini bowl, variants).
-    public static bool IsTroughPoi(IPointOfInterest poi)
-    {
-        if (poi is BlockEntityTrough) return true;
-        if (poi is BlockEntity be) return be.Block?.Code?.Path?.Contains("trough") == true;
-        return false;
-    }
+    public static bool IsTroughPoi(IPointOfInterest poi) => poi is BlockEntity be && IsTrough(be);
+
+    // A trough of any size (large BlockEntityTrough or a variant whose block code path contains
+    // "trough"). A trough is a feed SINK, not storage — the shepherd fills it but must never fetch
+    // FROM one, even though a trough is itself a BlockEntityContainer and would otherwise be enrolled
+    // as a village source container by Village.ScanContainers.
+    public static bool IsTrough(BlockEntity be) =>
+        be is BlockEntityTrough || be?.Block?.Code?.Path?.Contains("trough") == true;
 
     public static BlockPos GetTroughPos(IPointOfInterest poi) => (poi as BlockEntity)?.Pos;
 
