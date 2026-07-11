@@ -43,6 +43,10 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 			return null;
 		}
 
+		EntityBehaviorVillager bh = entity.GetBehavior<EntityBehaviorVillager>();
+		if (bh == null || bh.IsCarryEmpty) return null;
+		ItemStack carried = bh.CarrySlot;
+
 		// Release our previous claim and evict globally-stale entries so they
 		// don't permanently prevent other shepherds from accessing those troughs.
 		ReleaseClaim(lastTroughPos);
@@ -163,42 +167,28 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 
 	protected override void ApplyInteractionEffect()
 	{
-		if (!IsShepherd() || nearestTrough == null)
+		if (!IsShepherd() || nearestTrough == null) return;
+		EntityBehaviorVillager bh = entity.GetBehavior<EntityBehaviorVillager>();
+		if (bh == null || bh.IsCarryEmpty) return;
+
+		ItemSlot source = new DummySlot(bh.CarrySlot);
+		ContentConfig contentConfig = ItemSlotTrough.getContentConfig(entity.Api.World, nearestTrough.contentConfigs, source);
+		if (contentConfig == null)
 		{
+			ReleaseClaim(nearestTrough.Pos);   // carried item isn't feed for this trough; return leg reclaims
 			return;
 		}
-		Item item = (nearestTrough.Inventory[0].Empty ? entity.World.GetItem(new AssetLocation("grain-flax")) : nearestTrough.Inventory[0].Itemstack.Item);
-		if (item == null)
+		entity.AnimManager.StartAnimation(new AnimationMetaData
 		{
-			return;
-		}
-		ItemSlot itemSlot = new DummySlot(new ItemStack(item, 16));
-		ContentConfig contentConfig = ItemSlotTrough.getContentConfig(entity.Api.World, nearestTrough.contentConfigs, itemSlot);
-		if (contentConfig != null)
+			Animation = "hoe-till", Code = "hoe-till", AnimationSpeed = 1f,
+			BlendMode = EnumAnimationBlendMode.Average
+		}.Init());
+		BlockPos claimPos = nearestTrough.Pos.Copy();
+		entity.World.RegisterCallback(delegate
 		{
-			entity.AnimManager.StartAnimation(new AnimationMetaData
-			{
-				Animation = "hoe-till",
-				Code = "hoe-till",
-				AnimationSpeed = 1f,
-				BlendMode = EnumAnimationBlendMode.Average
-			}.Init());
-			// Capture the trough position for the delayed claim release.
-			BlockPos claimPos = nearestTrough.Pos.Copy();
-			entity.World.RegisterCallback(delegate
-			{
-				PerformFilling(itemSlot, contentConfig);
-				// Release claim here, AFTER filling, so no other shepherd swoops
-				// in during the 1500 ms animation window before food is placed.
-				ReleaseClaim(claimPos);
-			}, 1500);
-		}
-		else
-		{
-			// No valid content config - release the claim immediately so another
-			// shepherd can try a different item or the trough isn't locked forever.
-			ReleaseClaim(nearestTrough.Pos);
-		}
+			PerformFilling(source, contentConfig, bh);
+			ReleaseClaim(claimPos);
+		}, 1500);
 	}
 
 	public override void FinishExecute(bool cancelled)
@@ -243,16 +233,23 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		recentlyFilledTroughs[pos.Copy()] = entity.World.ElapsedMilliseconds;
 	}
 
-	private void PerformFilling(ItemSlot itemSlot, ContentConfig contentConfig)
+	private void PerformFilling(ItemSlot source, ContentConfig contentConfig, EntityBehaviorVillager bh)
 	{
 		if (nearestTrough == null) return;
 
-		int transferred = itemSlot.TryPutInto(entity.World, nearestTrough.Inventory[0], contentConfig.QuantityPerFillLevel);
-		if (transferred > 0)
+		int totalMoved = 0, moved;
+		do
 		{
-			// Only mark filled and show particles when food was actually placed.
+			moved = source.TryPutInto(entity.World, nearestTrough.Inventory[0], contentConfig.QuantityPerFillLevel);
+			totalMoved += moved;
+		}
+		while (moved > 0 && !source.Empty);
+
+		if (totalMoved > 0)
+		{
 			nearestTrough.Inventory[0].MarkDirty();
 			MarkTroughFilled(nearestTrough.Pos);
+			bh.CarrySlot = source.Empty ? null : source.Itemstack;
 			SimpleParticleProperties simpleParticleProperties = new SimpleParticleProperties(10f, 15f, ColorUtil.ToRgba(255, 255, 233, 83), nearestTrough.Position.AddCopy(-0.4, 0.8, -0.4), nearestTrough.Position.AddCopy(-0.6, 0.8, -0.6), new Vec3f(-0.25f, 0f, -0.25f), new Vec3f(0.25f, 0f, 0.25f), 2f, 1f, 0.2f);
 			simpleParticleProperties.MinPos = nearestTrough.Position.AddCopy(0.5, 1.0, 0.5);
 			entity.World.SpawnParticles(simpleParticleProperties);
