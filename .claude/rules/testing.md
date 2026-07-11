@@ -58,6 +58,10 @@ Authoring rules (a scenario that breaks one does not belong in the suite):
 - Villagers run overlapping tasks (fetch AND return-carry) so state oscillates — sample across
   the settle window and assert accumulated invariants, not an end-of-run snapshot.
 - Pair every negative with a positive — a parked/dead villager passes all negatives vacuously.
+- Reads are unreliable headless — a chest's `GetBlockEntity` or a villager's `GetEntityById`
+  intermittently returns null for seconds at a time. So a point-in-time full-world census (e.g.
+  total-item conservation) is not assertable, and even a monotonic read-based check can false-fire;
+  gate any read on the BE/entity actually being loaded (see `ContainerFetchScenario.IsChestReadable`).
 
 Run the suite: `scripts/golden-suite.sh golden` (exit 0 = pass). Gate it on push:
 `git config core.hooksPath scripts/hooks`. See `VSVillage.TestHarness/README.md`.
