@@ -51,6 +51,15 @@ to default to it. Prefer, in order:
 3. A new scenario — only with a written `IGoldenScenario.Justification`: why a unit test can't
    cover it, the 3am-page-worthy behavior it protects, and why it's durable.
 
+Denser still: run independent behaviors CONCURRENTLY in one settle window rather than as serial
+scenarios — the window is the dominant cost, so N behaviors in one window cost ~max, not sum. The
+push gate does this (`HaulGateScenario` = container-fetch + shepherd-feed-haul in disjoint villages
+inside spawn's chunk). The trade-off is per-run localization: a red merged gate doesn't say WHICH
+behavior broke, so keep each behavior available as a standalone suite (`golden-suite.sh container`,
+`... feedhaul`) to re-run in isolation. Behaviors that touch the same item/village WILL cross-
+contaminate if merged naively (a farmer draining the shepherd's feed chest) — give each its own
+village, sized so neither's `ScanContainers` reaches the other's containers.
+
 Authoring rules (a scenario that breaks one does not belong in the suite):
 - Never depend on random-world terrain — call `TestScene.BuildFlatArea` for a flat, loaded
   floor and place everything coplanar on it.

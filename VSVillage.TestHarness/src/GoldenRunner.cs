@@ -38,7 +38,12 @@ public class GoldenRunner : ModSystem
 
     private void RegisterSuites()
     {
-        suites["golden"] = new List<IGoldenScenario> { new ContainerFetchScenario(), new ShepherdFeedHaulScenario() };
+        // The push gate: the two inventory behaviours merged into ONE settle window (fetch + haul run
+        // concurrently in disjoint villages), so the gate costs ~max(fetch, haul) instead of fetch + haul serial.
+        suites["golden"] = new List<IGoldenScenario> { new HaulGateScenario() };
+        // Standalone single-behaviour suites — run these to LOCALISE a red gate (which behaviour broke).
+        suites["container"] = new List<IGoldenScenario> { new ContainerFetchScenario() };
+        suites["feedhaul"] = new List<IGoldenScenario> { new ShepherdFeedHaulScenario() };
         // Navigation exploration — one obstacle-course arena per obstacle, with real locomotion via
         // HeadlessPhysicsDriver. Separate suite, NOT the push gate: it exists to characterise villager
         // navigation (and catch regressions in it) without coupling the haul gate to pathfinding depth.
