@@ -1619,7 +1619,7 @@
 			"maxcooldown": 10000,
 			"maxdistance": 20,
 			"searchRadius": 12,
-			"excludeEntitySuffixes": ["-shepherd", "-baker"],
+			"onlyForEntitySuffix": "-farmer",
 			"duringDayTimeFrames": [
 				{
 					"fromHour": 8,

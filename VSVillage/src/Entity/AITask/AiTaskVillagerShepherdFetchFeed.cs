@@ -29,15 +29,26 @@ public class AiTaskVillagerShepherdFetchFeed : AiTaskGotoAndTransact
     // onlyForEntitySuffix "-shepherd". The base refuses unless the carry slot is empty.
     protected override Vec3d GetTargetPos()
     {
+        // Free any claim from a prior attempt before re-choosing — symmetric to the base container claim
+        // (AiTaskGotoAndTransact.GetTargetPos) and the fill leg. Without this, a query that re-targets or
+        // fails below would orphan the pen's claim under our id until the 120s expiry, blocking the other
+        // shepherd. Safe for the hold-through-fill path: a successful fetch already nulled this field.
+        ReleaseTroughClaim();
+
         refTrough = FindNeedyServableTrough();
         if (refTrough == null) return null;                        // no needy trough with a consumer → no fetch
-        served = ShepherdFeeding.FindServed(entity.World, refTrough, PenRadius);
+        POIRegistry poiReg = entity.Api.ModLoader.GetModSystem<POIRegistry>();
+        served = ShepherdFeeding.FindServed(entity.World, poiReg, refTrough, PenRadius);
         if (served == null) return null;                           // consumer vanished between filter and here
+
         // Claim the trough we're provisioning and HOLD it through the fill leg, so a second shepherd
         // fetches for a different pen instead of piling onto this one (and mis-routing its feed).
         claimedTroughPos = refTrough.Pos.Copy();
         VsVillage.TroughClaims.TryClaim(claimedTroughPos, entity.EntityId, entity.World.ElapsedMilliseconds);
-        return base.GetTargetPos();                                // ranks containers via WantsItem, claims, approach
+
+        Vec3d approach = base.GetTargetPos();                      // ranks containers via WantsItem, claims, approach
+        if (approach == null) ReleaseTroughClaim();                // no reachable feed container → don't hold the pen
+        return approach;
     }
 
     // Nearest trough that needs feed, has a suitable served animal, AND isn't already held by another
@@ -52,19 +63,27 @@ public class AiTaskVillagerShepherdFetchFeed : AiTaskGotoAndTransact
             poi => ShepherdTroughs.IsTroughPoi(poi)
                 && poi is BlockEntityTrough t && ShepherdTroughs.NeedsFeed(t)
                 && !VsVillage.TroughClaims.IsClaimedByOther(t.Pos, entity.EntityId, now)
-                && ShepherdFeeding.FindServed(entity.World, t, PenRadius) != null) as BlockEntityTrough;
+                && ShepherdFeeding.FindServed(entity.World, poiReg, t, PenRadius) != null) as BlockEntityTrough;
     }
 
     public override void FinishExecute(bool cancelled)
     {
         base.FinishExecute(cancelled);
-        // Keep the trough claim if we actually picked up feed — the fill leg needs it and will release it.
-        // Otherwise (cancelled, or arrived to an empty chest) free it so another shepherd can take the pen.
+        // Keep the registry claim if we actually picked up feed — the fill leg needs it and will release it
+        // (we just drop our local handle). Otherwise (cancelled, or arrived to an empty chest) free the pen.
         if (claimedTroughPos != null)
         {
             EntityBehaviorVillager bh = entity.GetBehavior<EntityBehaviorVillager>();
-            if (cancelled || bh == null || bh.IsCarryEmpty)
-                VsVillage.TroughClaims.Release(claimedTroughPos, entity.EntityId);
+            if (cancelled || bh == null || bh.IsCarryEmpty) ReleaseTroughClaim();
+            else claimedTroughPos = null;
+        }
+    }
+
+    private void ReleaseTroughClaim()
+    {
+        if (claimedTroughPos != null)
+        {
+            VsVillage.TroughClaims.Release(claimedTroughPos, entity.EntityId);
             claimedTroughPos = null;
         }
     }

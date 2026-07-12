@@ -170,7 +170,8 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 	private bool ServedAnimalEats(BlockEntityTrough trough)
 	{
 		if (carriedFeed == null) return false;
-		ShepherdFeeding.ServedAnimal served = ShepherdFeeding.FindServed(entity.World, trough, PenRadius);
+		POIRegistry poiReg = entity.Api.ModLoader.GetModSystem<POIRegistry>();
+		ShepherdFeeding.ServedAnimal served = ShepherdFeeding.FindServed(entity.World, poiReg, trough, PenRadius);
 		return served != null && ShepherdFeeding.WillEat(trough, served.CodePath, served.Diet, carriedFeed);
 	}
 

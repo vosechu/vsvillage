@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
@@ -44,33 +45,53 @@ public static class ShepherdFeeding
         public CreatureDiet Diet;
     }
 
-    /// <summary>Nearest LIVING livestock the trough can actually serve (passes the block's
-    /// <c>unsuitableFor</c> gate) within <paramref name="radius"/>. A wrong-species bystander (e.g. a
-    /// chicken by a goat's large trough) is filtered out so it can't null the trough.</summary>
-    public static Entity FindServedAnimal(IWorldAccessor world, BlockEntityTrough trough, float radius)
+    // Diet is a property of the entity TYPE (its JSON attributes), identical for every animal of a code,
+    // so cache by full code to avoid re-deserialising on every trough/animal probe. Server-tick-thread
+    // only, like the claim registries — a plain dictionary is safe.
+    private static readonly Dictionary<string, CreatureDiet> DietCache = new Dictionary<string, CreatureDiet>();
+
+    /// <summary>The LIVING livestock a trough serves: the nearest suitable-for-this-trough animal for which
+    /// THIS trough is that animal's OWN nearest suitable trough. The mutual-nearest requirement stops a
+    /// neighbouring pen's animal from being mistaken for the consumer — critical because pigs and goats/sheep
+    /// all share the large trough, so plain "nearest" could hand a pig trough a goat (→ hay → the pig starves).
+    /// A wrong-species bystander (a chicken by a large trough) is already excluded by the block's unsuitableFor.</summary>
+    public static Entity FindServedAnimal(IWorldAccessor world, POIRegistry poiReg, BlockEntityTrough trough, float radius)
     {
         if (world == null || trough == null || trough.Block is not BlockTroughBase btb) return null;
         Vec3d c = trough.Pos.ToVec3d().Add(0.5, 0.5, 0.5);
         Entity[] cands = world.GetEntitiesAround(c, radius, radius,
             e => e != null && e.Alive && IsLivestock(e) && e.Code != null && !btb.UnsuitableForEntity(e.Code.Path));
-        Entity best = null;
-        double bestSq = double.MaxValue;
-        foreach (Entity e in cands)
-        {
-            double dsq = e.Pos.XYZ.SquareDistanceTo(c);
-            if (dsq < bestSq) { bestSq = dsq; best = e; }
-        }
-        return best;
+        foreach (Entity e in cands.OrderBy(e => e.Pos.XYZ.SquareDistanceTo(c)))
+            if (poiReg == null || IsNearestSuitableTrough(poiReg, e, trough, radius))
+                return e;
+        return null;
+    }
+
+    // True when `trough` is `animal`'s own nearest suitable trough (nothing suitable is closer to it).
+    private static bool IsNearestSuitableTrough(POIRegistry poiReg, Entity animal, BlockEntityTrough trough, float radius)
+    {
+        string code = animal.Code?.Path;
+        if (code == null) return false;
+        BlockEntityTrough nearest = poiReg.GetNearestPoi(animal.Pos.XYZ, radius,
+            poi => poi is BlockEntityTrough t && t.Block is BlockTroughBase b && !b.UnsuitableForEntity(code)) as BlockEntityTrough;
+        return nearest == null || nearest.Pos.Equals(trough.Pos);
     }
 
     public static CreatureDiet GetDiet(Entity animal)
-        => animal?.Properties?.Attributes?["creatureDiet"]?.AsObject<CreatureDiet>(null);
+    {
+        string code = animal?.Code?.ToString();
+        if (code == null) return null;
+        if (DietCache.TryGetValue(code, out CreatureDiet cached)) return cached;
+        CreatureDiet d = animal.Properties?.Attributes?["creatureDiet"]?.AsObject<CreatureDiet>(null);
+        DietCache[code] = d;   // cache even null (this entity type simply has no diet)
+        return d;
+    }
 
     /// <summary>Resolve the trough's consumer to the static (code, diet) the selection needs. Null when
     /// no suitable animal is nearby OR its diet is missing (M4: null diet → don't feed, never "any feed").</summary>
-    public static ServedAnimal FindServed(IWorldAccessor world, BlockEntityTrough trough, float radius)
+    public static ServedAnimal FindServed(IWorldAccessor world, POIRegistry poiReg, BlockEntityTrough trough, float radius)
     {
-        Entity a = FindServedAnimal(world, trough, radius);
+        Entity a = FindServedAnimal(world, poiReg, trough, radius);
         if (a?.Code == null) return null;
         CreatureDiet d = GetDiet(a);
         if (d == null) return null;
@@ -105,14 +126,20 @@ public static class ShepherdFeeding
     public static ItemSlot ChooseFeedSlot(IWorldAccessor world, BlockEntityContainer be, BlockEntityTrough trough, ServedAnimal served)
     {
         if (be?.Inventory == null || trough == null || served == null) return null;
-        ItemSlot best = null;
-        int bestRank = int.MaxValue;
+        // Classify each source slot (code + whether it's appropriate) and let the UNIT-TESTED pure cascade
+        // pick the winning code, so production runs the same rank/cascade logic AnimalFeedPriorityTests cover.
+        var candidates = new List<FeedCandidate>();
+        var firstEdibleSlotByCode = new Dictionary<string, ItemSlot>();
         foreach (ItemSlot slot in be.Inventory)
         {
-            if (!IsAppropriateFeed(world, trough, served, slot)) continue;
-            int r = AnimalFeedPriority.FeedRank(slot.Itemstack.Collectible?.Code?.Path);
-            if (r < bestRank) { bestRank = r; best = slot; }
+            if (slot.Empty) continue;
+            string code = slot.Itemstack.Collectible?.Code?.Path;
+            if (code == null) continue;
+            bool edible = IsAppropriateFeed(world, trough, served, slot);
+            candidates.Add(new FeedCandidate(code, edible));
+            if (edible && !firstEdibleSlotByCode.ContainsKey(code)) firstEdibleSlotByCode[code] = slot;
         }
-        return best;
+        string bestCode = AnimalFeedPriority.ChooseBestFeed(candidates);
+        return bestCode != null && firstEdibleSlotByCode.TryGetValue(bestCode, out ItemSlot best) ? best : null;
     }
 }
