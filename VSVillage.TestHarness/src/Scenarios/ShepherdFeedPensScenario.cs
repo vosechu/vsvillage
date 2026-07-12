@@ -9,21 +9,23 @@ using VsVillage;
 
 namespace VsVillageTest.Scenarios;
 
-// Behavioral: proves the shepherd feeds EACH pen animal the highest-priority feed it will actually eat,
-// cascading when the best feed isn't stocked, and that a housed baker never raids the feed chest.
+// Behavioral: proves the shepherd feeds EACH pen animal the feed it LIKES BEST among the ones it will eat
+// (the game's own per-animal preference weights), cascading to its next-favourite when the best is out of
+// stock, and that a housed baker never raids the feed chest.
 //
-// One chest holds hay (drygrass), vegetables (carrot) and grain (grain-flax). Three pens, each with two
-// animals and the correct trough for that species:
-//   - chicken pen: SMALL trough (chickens can't use the large one). Chickens eat grain only → grain.
-//   - pig pen:     LARGE trough. Pigs don't graze (hay inedible) → cascade to vegetables.
-//   - goat pen:    LARGE trough. Goats graze → hay (top priority) when stocked; else cascade to vegetables.
-// So the three pens get three DIFFERENT feeds, and the goat's outcome flips hay→veg when hay is absent —
-// that is priority + per-animal edibility + availability cascade, all observable.
+// The chest always holds hay (drygrass) as a tempting but LEAST-liked option the shepherd should skip.
+// Three pens, each with two animals and the correct trough for that species:
+//   - chicken pen: SMALL trough. Chickens eat grain only → grain.
+//   - pig pen:     LARGE trough. Prefers vegetables; never grass/hay.
+//   - goat pen:    LARGE trough. Grazes, but weighs vegetables (1.0) far above hay (0.1) → prefers vegetables.
+// Priority mode (veg stocked): chicken→grain, pig→veg, goat→veg — and NO animal touches the hay.
+// Cascade mode (veg removed): pig & goat fall to grain (0.5), still NOT hay (0.1) — proving it's the weight
+// order, not mere edibility, that drives the choice.
 //
 // Justification: the whole loop is runtime-only (AI tick + pathfinder + live chest/troughs + live animals'
 // CreatureDiet); no unit test can exercise decision→path→withdraw→deposit against real diets. The pure
-// rank/cascade is unit-tested (AnimalFeedPriorityTests); this proves the integrated, animal-aware behavior
-// and the baker exclusion. Animals do NOT eat on a playerless server, so we assert what the shepherd FILLS.
+// preference/pick-best is unit-tested (AnimalFeedPriorityTests); this proves the integrated, animal-aware
+// behavior and the baker exclusion. Animals do NOT eat on a playerless server, so we assert what the shepherd FILLS.
 //
 // Durability: flat floor; every read-critical BE (chest, all troughs incl. the large trough's head) inside
 // spawn's own chunk; window-accumulated order-independent invariants; a full PORTION asserted (a sub-portion
@@ -36,7 +38,7 @@ public class ShepherdFeedPensScenario : IGoldenScenario
     private readonly Mode mode;
     public ShepherdFeedPensScenario(Mode mode) { this.mode = mode; }
 
-    private bool HayStocked => mode != Mode.Cascade;              // cascade case removes hay from the chest
+    private bool VegStocked => mode != Mode.Cascade;             // cascade case removes VEG — forcing grazers off their favourite
     private int ShepherdCount => mode == Mode.TwoShepherds ? 2 : 1;
 
     public string Name => mode switch
@@ -57,7 +59,7 @@ public class ShepherdFeedPensScenario : IGoldenScenario
     private const string Hay = "drygrass";                 // grass — goats/sheep only; large trough, 8 / portion
     private const string Veg = "vegetable-carrot";         // pig/goat/sheep; large trough, 2 / portion
     private const string Grain = "grain-flax";             // all incl. chicken; small trough, 1 / portion
-    private const int HayPortion = 8, VegPortion = 2, GrainPortion = 1;
+    private const int VegPortion = 2, GrainPortion = 1, MammalPortion = 2;   // large-trough veg & grain are 2/portion; the chicken's small-trough grain is 1
     private const int Stock = 64;                           // ≥ one portion of each so gate-4 (portion) is satisfiable
     private const int VillageRadius = 14;
     private const float PenRadius = 8f;
@@ -74,9 +76,9 @@ public class ShepherdFeedPensScenario : IGoldenScenario
 
     private int sampleCount;
     // Positive fills (content == expected feed AND ≥ one portion), accumulated across the window.
-    private bool chickenFedGrain, pigFedVeg, goatFedExpected;
-    // Negatives: a trough ever held a feed its animal refuses.
-    private bool pigGotHay, chickenGotVegOrHay;
+    private bool chickenFedGrain, pigFedExpected, goatFedExpected;
+    // Negatives: a trough ever held a feed its animal refuses OR (for grazers) the least-liked hay.
+    private bool pigGotHay, goatGotHay, chickenGotVegOrHay;
     // Liveness so negatives aren't vacuous.
     private bool chickenReadable, pigReadable, goatReadable, bakerLive;
     // Baker must never carry feed (the raid signal — chest census is unreliable headless).
@@ -87,12 +89,13 @@ public class ShepherdFeedPensScenario : IGoldenScenario
     private bool sawConcurrentDifferentFeeds;
     private long sampleTickId = -1;
 
-    private string ExpectedGoatFeed => HayStocked ? Hay : Veg;
-    private int ExpectedGoatPortion => HayStocked ? HayPortion : VegPortion;
+    // Grazers (pig/goat) most-like vegetables; with veg absent they fall to grain (0.5) — never the hay (0.1).
+    private string ExpectedMammalFeed => VegStocked ? Veg : Grain;
+    private string MammalFeedLabel => VegStocked ? "vegetables (its favourite)" : "grain (cascade — veg gone, still not hay)";
 
     public bool IsSettled =>
         sampleCount >= 50
-        && chickenFedGrain && pigFedVeg && goatFedExpected
+        && chickenFedGrain && pigFedExpected && goatFedExpected
         && chickenReadable && pigReadable && goatReadable && bakerLive
         && (mode != Mode.TwoShepherds || (shepherdsThatCarried.Count >= 2 && sawConcurrentDifferentFeeds));
 
@@ -118,8 +121,8 @@ public class ShepherdFeedPensScenario : IGoldenScenario
         if (api.World.BlockAccessor.GetBlockEntity(feedChest) is BlockEntityContainer be && be.Inventory != null)
         {
             int slot = 0;
-            if (HayStocked) SeedSlot(be, slot++, Hay, Stock);
-            SeedSlot(be, slot++, Veg, Stock);
+            SeedSlot(be, slot++, Hay, Stock);              // always stocked — the tempting LEAST-liked feed the shepherd should skip
+            if (VegStocked) SeedSlot(be, slot++, Veg, Stock);
             SeedSlot(be, slot++, Grain, Stock);
             be.MarkDirty(true);
         }
@@ -149,8 +152,8 @@ public class ShepherdFeedPensScenario : IGoldenScenario
 
         sampleTickId = api.Event.RegisterGameTickListener(_ => Sample(), 1000);
 
-        api.Logger.Notification("[feed-diag] {0}: chest={1} chickenTrough={2} pigTrough={3} goatTrough={4} hay={5} shepherds={6}",
-            Name, feedChest, chickenTrough, pigTrough, goatTrough, HayStocked, ShepherdCount);
+        api.Logger.Notification("[feed-diag] {0}: chest={1} chickenTrough={2} pigTrough={3} goatTrough={4} veg={5} shepherds={6}",
+            Name, feedChest, chickenTrough, pigTrough, goatTrough, VegStocked, ShepherdCount);
         api.Logger.Notification("[feed-diag] trough readable at setup: chicken={0} pig={1} goat={2}",
             IsReadable(chickenTrough), IsReadable(pigTrough), IsReadable(goatTrough));
     }
@@ -165,16 +168,17 @@ public class ShepherdFeedPensScenario : IGoldenScenario
         if (ct == Grain && TroughStack(chickenTrough) >= GrainPortion) chickenFedGrain = true;
         if (ct == Veg || ct == Hay) chickenGotVegOrHay = true;
 
-        // Pig pen — vegetables (hay filtered out).
+        // Pig pen — its favourite available (veg, else grain); NEVER hay (pigs can't eat grass).
         if (IsReadable(pigTrough)) pigReadable = true;
         string pt = TroughContent(pigTrough);
-        if (pt == Veg && TroughStack(pigTrough) >= VegPortion) pigFedVeg = true;
+        if (pt == ExpectedMammalFeed && TroughStack(pigTrough) >= MammalPortion) pigFedExpected = true;
         if (pt == Hay) pigGotHay = true;
 
-        // Goat pen — hay when stocked, else vegetables.
+        // Goat pen — its favourite available (veg, else grain); NEVER hay (grazes, but likes hay LEAST).
         if (IsReadable(goatTrough)) goatReadable = true;
         string gt = TroughContent(goatTrough);
-        if (gt == ExpectedGoatFeed && TroughStack(goatTrough) >= ExpectedGoatPortion) goatFedExpected = true;
+        if (gt == ExpectedMammalFeed && TroughStack(goatTrough) >= MammalPortion) goatFedExpected = true;
+        if (gt == Hay) goatGotHay = true;
 
         // Baker must never carry feed.
         Entity baker = api.World.GetEntityById(bakerId);
@@ -197,14 +201,15 @@ public class ShepherdFeedPensScenario : IGoldenScenario
     public void Assert(ScenarioReport report)
     {
         report.Check("chicken trough was filled with grain (≥1 portion)", chickenFedGrain);
-        report.Check("pig trough was filled with vegetables (≥1 portion)", pigFedVeg);
-        report.Check("goat trough was filled with " + (HayStocked ? "hay (top priority)" : "vegetables (cascade, hay absent)") + " (≥1 portion)", goatFedExpected);
+        report.Check("pig trough was filled with " + MammalFeedLabel + " (≥1 portion)", pigFedExpected);
+        report.Check("goat trough was filled with " + MammalFeedLabel + " (≥1 portion)", goatFedExpected);
 
         report.Check("chicken trough was observed readable (negatives non-vacuous)", chickenReadable);
         report.Check("pig trough was observed readable (negatives non-vacuous)", pigReadable);
         report.Check("goat trough was observed readable", goatReadable);
 
         report.Check("pig trough never received hay (pigs don't graze)", !pigGotHay);
+        report.Check("goat trough never received hay (goats like hay LEAST — they prefer " + (VegStocked ? "veg" : "grain") + ")", !goatGotHay);
         report.Check("chicken trough never received veg or hay (chickens are grain-only)", !chickenGotVegOrHay);
 
         report.Check("a baker was observed live beside the chest (control non-vacuous)", bakerLive);
