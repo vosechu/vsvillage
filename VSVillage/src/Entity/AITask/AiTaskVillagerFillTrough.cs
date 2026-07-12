@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
@@ -22,14 +21,9 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 	// Trough↔animal proximity: an animal within this range of the trough is "in the pen" it serves.
 	private const float PenRadius = 8f;
 
-	// Trough claiming so multiple shepherds don't converge on the same one. Owner dict + separate timestamp dict for stale-claim expiry.
-	private static readonly ConcurrentDictionary<BlockPos, long> TroughClaimOwner =
-		new ConcurrentDictionary<BlockPos, long>();
-	private static readonly ConcurrentDictionary<BlockPos, long> TroughClaimTime =
-		new ConcurrentDictionary<BlockPos, long>();
-
-	// How long a claim is valid before being treated as stale (ms).
-	private const long TroughClaimExpiryMs = 120_000L;
+	// Trough claiming so multiple shepherds don't converge on the same one. Shared with the fetch leg
+	// via VsVillage.TroughClaims (a shepherd claims a trough at fetch and holds it through fill), so two
+	// shepherds provision different pens instead of both piling onto the nearest one.
 
 	public AiTaskVillagerFillTrough(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
 		: base(entity, taskConfig, aiConfig)
@@ -52,10 +46,8 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		if (bh == null || bh.IsCarryEmpty) return null;
 		carriedFeed = bh.CarrySlot;
 
-		// Release our previous claim and evict globally-stale entries so they
-		// don't permanently prevent other shepherds from accessing those troughs.
+		// Release our previous claim (the registry evicts globally-stale entries itself on each claim).
 		ReleaseClaim(lastTroughPos);
-		PurgeExpiredClaims(entity.World.ElapsedMilliseconds);
 
 		POIRegistry poiReg = entity.Api.ModLoader.GetModSystem<POIRegistry>();
 		Vec3d myPos = entity.Pos.XYZ;
@@ -290,48 +282,18 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		return ShepherdTroughs.NeedsFeed(blockEntityTrough);
 	}
 
-	// === Claim helpers ===
+	// === Claim helpers (delegate to the shared VsVillage.TroughClaims registry) ===
 
 	private bool IsClaimedByOther(BlockPos pos)
-	{
-		if (pos == null) return false;
-		if (!TroughClaimOwner.TryGetValue(pos, out long owner)) return false;
-		if (owner == entity.EntityId) return false; // our own claim
-		// Treat the claim as void if it has expired.
-		if (TroughClaimTime.TryGetValue(pos, out long claimedAt)
-		    && entity.World.ElapsedMilliseconds - claimedAt > TroughClaimExpiryMs)
-		{
-			TroughClaimOwner.TryRemove(pos, out _);
-			TroughClaimTime.TryRemove(pos, out _);
-			return false;
-		}
-		return true;
-	}
+		=> pos != null && VsVillage.TroughClaims.IsClaimedByOther(pos, entity.EntityId, entity.World.ElapsedMilliseconds);
 
 	private void ClaimTrough(BlockPos pos)
 	{
-		if (pos == null) return;
-		TroughClaimOwner[pos] = entity.EntityId;
-		TroughClaimTime[pos]  = entity.World.ElapsedMilliseconds;
+		if (pos != null) VsVillage.TroughClaims.TryClaim(pos, entity.EntityId, entity.World.ElapsedMilliseconds);
 	}
 
-	private static void ReleaseClaim(BlockPos pos)
+	private void ReleaseClaim(BlockPos pos)
 	{
-		if (pos == null) return;
-		TroughClaimOwner.TryRemove(pos, out _);
-		TroughClaimTime.TryRemove(pos, out _);
-	}
-
-	// Caller passes world tick time (entity.World.ElapsedMilliseconds) so the clock matches the other claim methods.
-	private static void PurgeExpiredClaims(long now)
-	{
-		foreach (BlockPos pos in TroughClaimTime.Keys)
-		{
-			if (TroughClaimTime.TryGetValue(pos, out long t) && now - t > TroughClaimExpiryMs)
-			{
-				TroughClaimOwner.TryRemove(pos, out _);
-				TroughClaimTime.TryRemove(pos, out _);
-			}
-		}
+		if (pos != null) VsVillage.TroughClaims.Release(pos, entity.EntityId);
 	}
 }

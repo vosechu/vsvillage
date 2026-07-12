@@ -10,6 +10,11 @@ public class VsVillage : ModSystem
 	// villagers never target the same chest. Transient — empty after a restart, which is correct.
 	public static readonly ContainerClaimRegistry ContainerClaims = new ContainerClaimRegistry();
 
+	// Process-wide TROUGH reservations shared by the shepherd's fetch AND fill legs, so two shepherds
+	// provision different pens: fetch claims the trough it's fetching feed for and holds the claim
+	// through fill, and both legs skip troughs another shepherd already holds. Transient like the above.
+	public static readonly ContainerClaimRegistry TroughClaims = new ContainerClaimRegistry();
+
 	public override void Start(ICoreAPI api)
 	{
 		base.Start(api);

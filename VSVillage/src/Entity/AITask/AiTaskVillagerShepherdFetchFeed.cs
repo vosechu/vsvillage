@@ -16,6 +16,7 @@ public class AiTaskVillagerShepherdFetchFeed : AiTaskGotoAndTransact
 {
     private BlockEntityTrough refTrough;                 // representative needy pen trough
     private ShepherdFeeding.ServedAnimal served;         // its consumer's static (code, diet)
+    private BlockPos claimedTroughPos;                   // held through the fill leg so 2 shepherds split pens
 
     // Trough↔animal proximity: an animal within this range of the trough is "in the pen" it serves.
     private const float PenRadius = 8f;
@@ -32,19 +33,40 @@ public class AiTaskVillagerShepherdFetchFeed : AiTaskGotoAndTransact
         if (refTrough == null) return null;                        // no needy trough with a consumer → no fetch
         served = ShepherdFeeding.FindServed(entity.World, refTrough, PenRadius);
         if (served == null) return null;                           // consumer vanished between filter and here
+        // Claim the trough we're provisioning and HOLD it through the fill leg, so a second shepherd
+        // fetches for a different pen instead of piling onto this one (and mis-routing its feed).
+        claimedTroughPos = refTrough.Pos.Copy();
+        VsVillage.TroughClaims.TryClaim(claimedTroughPos, entity.EntityId, entity.World.ElapsedMilliseconds);
         return base.GetTargetPos();                                // ranks containers via WantsItem, claims, approach
     }
 
-    // Nearest trough that BOTH needs feed AND has a suitable served animal. Excluding consumerless
-    // troughs is the fix for the "fill a pen nobody lives in → permanent brick" path (no need = don't fetch).
+    // Nearest trough that needs feed, has a suitable served animal, AND isn't already held by another
+    // shepherd. Excluding consumerless troughs prevents the "fill a pen nobody lives in → brick" path;
+    // excluding other-held troughs is the 2-shepherd conflict resolution (each provisions its own pen).
     private BlockEntityTrough FindNeedyServableTrough()
     {
         POIRegistry poiReg = entity.Api.ModLoader.GetModSystem<POIRegistry>();
         if (poiReg == null) return null;
+        long now = entity.World.ElapsedMilliseconds;
         return poiReg.GetNearestPoi(entity.Pos.XYZ, maxDistance,
             poi => ShepherdTroughs.IsTroughPoi(poi)
                 && poi is BlockEntityTrough t && ShepherdTroughs.NeedsFeed(t)
+                && !VsVillage.TroughClaims.IsClaimedByOther(t.Pos, entity.EntityId, now)
                 && ShepherdFeeding.FindServed(entity.World, t, PenRadius) != null) as BlockEntityTrough;
+    }
+
+    public override void FinishExecute(bool cancelled)
+    {
+        base.FinishExecute(cancelled);
+        // Keep the trough claim if we actually picked up feed — the fill leg needs it and will release it.
+        // Otherwise (cancelled, or arrived to an empty chest) free it so another shepherd can take the pen.
+        if (claimedTroughPos != null)
+        {
+            EntityBehaviorVillager bh = entity.GetBehavior<EntityBehaviorVillager>();
+            if (cancelled || bh == null || bh.IsCarryEmpty)
+                VsVillage.TroughClaims.Release(claimedTroughPos, entity.EntityId);
+            claimedTroughPos = null;
+        }
     }
 
     // A container is worth visiting only if it holds a feed that is APPROPRIATE (all four gates) and
