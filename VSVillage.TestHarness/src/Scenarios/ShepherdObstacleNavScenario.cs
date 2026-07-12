@@ -71,6 +71,7 @@ public class ShepherdObstacleNavScenario : IGoldenScenario
     private Village village;
     private long shepherdId = -1;
     private BlockPos feedChest, needyTrough, center;
+    private long chickenId = -1;      // consumer by the trough (feed feature refuses a trough with no animal)
     private bool sawCrossed, sawShepherdCarry, sawTroughFilled;
     private long sampleTickId = -1;
 
@@ -97,6 +98,9 @@ public class ShepherdObstacleNavScenario : IGoldenScenario
 
         feedChest  = PlaceChestWith(0, ChestZ, chestB, new ItemStack(grain, ChestFlax));
         needyTrough = PlaceTroughAt(0, TroughZ, troughB);
+        // Consumer for the trough past the obstacle: the feed feature refuses to fill a trough with no
+        // animal nearby. Small trough + grain-flax = chicken. Placed on the far side, beside the trough.
+        chickenId = TestScene.SpawnStationaryAnimal(api, "game:chicken-hen", needyTrough.AddCopy(1, 0, 0));
         village.RegisterContainer(feedChest);
         village.ScanContainers();
 
@@ -204,6 +208,7 @@ public class ShepherdObstacleNavScenario : IGoldenScenario
     {
         if (sampleTickId >= 0) { api.Event.UnregisterGameTickListener(sampleTickId); sampleTickId = -1; }
         api.World.GetEntityById(shepherdId)?.Die(EnumDespawnReason.Removed);
+        if (chickenId >= 0) { api.World.GetEntityById(chickenId)?.Die(EnumDespawnReason.Removed); chickenId = -1; }
         // Clear the whole arena volume (incl. one below, for the moat trench) back to air; floor is rebuilt.
         int floor = BlockId("game:" + WallBlock);
         for (int dx = MinX; dx <= MaxX; dx++)

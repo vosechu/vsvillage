@@ -69,6 +69,7 @@ public class ShepherdFeedHaulScenario : IGoldenScenario
     private ICoreServerAPI api;
     private Village village;
     private readonly List<long> shepherdIds = new List<long>();
+    private long chickenId = -1;      // consumer by the empty trough (feed feature refuses a trough with no animal)
     private BlockPos feedChest, decoyChest, emptyTrough, fullTrough, center;
     private int dirX = 1, dirZ = 1;   // which way the arena extends so every BE stays in spawn's chunk
 
@@ -114,6 +115,10 @@ public class ShepherdFeedHaulScenario : IGoldenScenario
         feedChest   = PlaceChestWith(3, 0, chest.Id, new ItemStack(grain, ChestFlax));    // real source (dist 3)
         emptyTrough = PlaceTrough(6, 0, troughBlock.Id, grain, 0);                        // needy target, FARTHEST (dist 6)
         BuildWallRing(decoyChest, wall.BlockId, 2);   // wrap the decoy: a naive shepherd that tries for it gets walled out
+
+        // A stationary hen gives the empty trough a real consumer — the feed feature now refuses to fill a
+        // trough with no animal nearby (no consumer = no need). Small trough + grain-flax = chicken feed.
+        chickenId = TestScene.SpawnStationaryAnimal(api, "game:chicken-hen", At(6, 1));
 
         // Register only the feed chest by hand; the scan enrols every in-radius storage container. It
         // must NOT enrol the troughs (source fix) — if it does, the shepherd robs the full control trough.
@@ -187,6 +192,7 @@ public class ShepherdFeedHaulScenario : IGoldenScenario
         foreach (long id in shepherdIds)
             api.World.GetEntityById(id)?.Die(EnumDespawnReason.Removed);
         shepherdIds.Clear();
+        if (chickenId >= 0) { api.World.GetEntityById(chickenId)?.Die(EnumDespawnReason.Removed); chickenId = -1; }
         foreach (BlockPos p in new[] { feedChest, decoyChest, emptyTrough, fullTrough }.Where(p => p != null))
         {
             if (api.World.BlockAccessor.GetBlockEntity(p) is BlockEntityContainer be && be.Inventory != null)

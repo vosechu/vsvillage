@@ -1,4 +1,5 @@
 using Vintagestory.API.Common;
+using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 
@@ -45,5 +46,22 @@ public static class TestScene
         }
         api.Logger.Notification("[harness] BuildFlatArea: floor y={0} at {1} ({2}x{3})", floorY, center, halfX * 2 + 1, halfZ * 2 + 1);
         return floorY + 1;
+    }
+
+    // Spawn a livestock entity as a STATIONARY diet source for the shepherd's feed selection. Deliberately
+    // NOT AlwaysActive: its AI never ticks, so it can't wander out of its pen (deterministic), and in
+    // daytime (the golden suite sets /time set day) its despawn behaviour — gated on belowLightLevel — never
+    // fires within a scenario window. Returns the entity id, or -1 if the code doesn't resolve.
+    // NOTE: on a playerless server these animals do NOT eat (AiTaskSeekFoodAndEat is hunger/AlwaysActive
+    // gated), so scenarios assert what the SHEPHERD fills, never what the animal consumes.
+    public static long SpawnStationaryAnimal(ICoreServerAPI api, string code, BlockPos pos)
+    {
+        EntityProperties etype = api.World.GetEntityType(new AssetLocation(code));
+        if (etype == null) { api.Logger.Warning("[harness] SpawnStationaryAnimal: unknown entity code {0}", code); return -1; }
+        Entity e = api.World.ClassRegistry.CreateEntity(etype);
+        e.Pos.SetPos(pos.X + 0.5, pos.Y, pos.Z + 0.5);
+        e.ServerPos.SetPos(pos.X + 0.5, pos.Y, pos.Z + 0.5);
+        api.World.SpawnEntity(e);
+        return e.EntityId;
     }
 }

@@ -73,6 +73,7 @@ public class HaulGateScenario : IGoldenScenario
 
     // Haul arena (village S)
     private readonly List<long> shepherdIds = new List<long>();
+    private long chickenId = -1;      // consumer by the empty trough (feed feature refuses a trough with no animal)
     private BlockPos feedChest, decoyChest, emptyTrough, fullTrough;
     private bool sawTroughFilled, sawChestDrained, sawShepherdCarry;
     private bool controlEverChanged, decoyEverDrained, sawNonFeedCarry;
@@ -129,6 +130,10 @@ public class HaulGateScenario : IGoldenScenario
         BuildWallRing(decoyChest, wall.BlockId, 2);   // wrap the decoy: only impedes a shepherd that WRONGLY tries for it
         villageS.RegisterContainer(feedChest);        // troughs are excluded by the source fix; only the feed chest enrols
         villageS.ScanContainers();
+
+        // A stationary hen gives the empty trough a consumer — the feed feature refuses to fill a trough with
+        // no animal nearby. Small trough + grain-flax = chicken feed. Off the trough's approach lane.
+        chickenId = TestScene.SpawnStationaryAnimal(api, "game:chicken-hen", At(2, 22));
 
         // Seed-sanity: a mis-seed (wrong feed code / trough won't accept it) makes the haul a silent no-op
         // with every check red and no diagnosis. Capture the precondition so it fails loudly instead.
@@ -208,6 +213,7 @@ public class HaulGateScenario : IGoldenScenario
             api.World.GetEntityById(id)?.Die(EnumDespawnReason.Removed);
         farmerIds.Clear();
         shepherdIds.Clear();
+        if (chickenId >= 0) { api.World.GetEntityById(chickenId)?.Die(EnumDespawnReason.Removed); chickenId = -1; }
         foreach (BlockPos p in new[] { inA, inB, outC, feedChest, decoyChest, emptyTrough, fullTrough }.Where(p => p != null))
         {
             if (api.World.BlockAccessor.GetBlockEntity(p) is BlockEntityContainer be && be.Inventory != null)
