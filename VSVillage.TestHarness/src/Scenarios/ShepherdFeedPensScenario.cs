@@ -81,8 +81,10 @@ public class ShepherdFeedPensScenario : IGoldenScenario
     private bool chickenReadable, pigReadable, goatReadable, bakerLive;
     // Baker must never carry feed (the raid signal — chest census is unreliable headless).
     private bool bakerCarriedFeed;
-    // Both shepherds must do work (2-shepherd mode).
+    // 2-shepherd conflict resolution: both must work AND at some instant carry DIFFERENT feeds (proving
+    // they provision different pens concurrently, not both piling onto the nearest one).
     private readonly HashSet<long> shepherdsThatCarried = new HashSet<long>();
+    private bool sawConcurrentDifferentFeeds;
     private long sampleTickId = -1;
 
     private string ExpectedGoatFeed => HayStocked ? Hay : Veg;
@@ -92,7 +94,7 @@ public class ShepherdFeedPensScenario : IGoldenScenario
         sampleCount >= 50
         && chickenFedGrain && pigFedVeg && goatFedExpected
         && chickenReadable && pigReadable && goatReadable && bakerLive
-        && (mode != Mode.TwoShepherds || shepherdsThatCarried.Count >= 2);
+        && (mode != Mode.TwoShepherds || (shepherdsThatCarried.Count >= 2 && sawConcurrentDifferentFeeds));
 
     public void Setup(ICoreServerAPI sapi)
     {
@@ -100,7 +102,7 @@ public class ShepherdFeedPensScenario : IGoldenScenario
         VillageManager vm = api.ModLoader.GetModSystem<VillageManager>();
         BlockPos spawn = api.World.DefaultSpawnPosition.AsBlockPos;
 
-        int y = TestScene.BuildFlatArea(api, spawn, 12, 30);
+        int y = TestScene.BuildFlatArea(api, spawn, 14, 16);
         center = new BlockPos(spawn.X, y, spawn.Z);
         dirX = (spawn.X - ((spawn.X >> 5) << 5) <= 15) ? 1 : -1;
         dirZ = (spawn.Z - ((spawn.Z >> 5) << 5) <= 15) ? 1 : -1;
@@ -124,14 +126,17 @@ public class ShepherdFeedPensScenario : IGoldenScenario
         village.RegisterContainer(feedChest);
         village.ScanContainers();
 
-        // Three pens along +z. Small trough for chickens; large (2-block) troughs for pig & goat.
-        chickenTrough = PlaceSmallTrough(4, 12);
+        // Three pens spread along +x (troughs 4 apart), animals adjacent to their OWN trough. Small trough
+        // for chickens; large (2-block) troughs for pig & goat. Everything stays within ~12 of centre — inside
+        // spawn's own chunk for every seed offset (the anchoring guarantees ≥16 blocks of room). Adjacency
+        // gives each animal an unambiguous nearest trough, so the served-animal (mutual-nearest) is clean.
+        chickenTrough = PlaceSmallTrough(2, 10);
         SpawnAnimals("game:chicken-hen", chickenTrough, 2);
 
-        pigTrough = PlaceLargeTrough(4, 19);
+        pigTrough = PlaceLargeTrough(6, 10);
         SpawnAnimals("game:pig-eurasian-adult-female", pigTrough, 2);
 
-        goatTrough = PlaceLargeTrough(4, 26);
+        goatTrough = PlaceLargeTrough(10, 10);
         SpawnAnimals("game:goat-nubian-adult-female", goatTrough, 2);
 
         // Shepherd(s) at the chest.
@@ -183,6 +188,10 @@ public class ShepherdFeedPensScenario : IGoldenScenario
             string c = CarryPath(id);
             if (c == Hay || c == Veg || c == Grain) shepherdsThatCarried.Add(id);
         }
+        // Two shepherds carrying DIFFERENT feeds at the same instant → concurrently provisioning different pens.
+        if (ShepherdCount >= 2
+            && shepherdIds.Select(CarryPath).Where(c => c == Hay || c == Veg || c == Grain).Distinct().Count() >= 2)
+            sawConcurrentDifferentFeeds = true;
     }
 
     public void Assert(ScenarioReport report)
@@ -202,7 +211,10 @@ public class ShepherdFeedPensScenario : IGoldenScenario
         report.Check("the baker never carried feed (did not raid the chest)", !bakerCarriedFeed);
 
         if (mode == Mode.TwoShepherds)
-            report.Check("both shepherds carried feed (work split across pens)", shepherdsThatCarried.Count >= 2);
+        {
+            report.Check("both shepherds carried feed (both working)", shepherdsThatCarried.Count >= 2);
+            report.Check("two shepherds carried different feeds at once (provisioning different pens concurrently)", sawConcurrentDifferentFeeds);
+        }
     }
 
     public void Teardown()
@@ -262,13 +274,14 @@ public class ShepherdFeedPensScenario : IGoldenScenario
         return head;
     }
 
-    // Spawn `count` stationary animals just north of the trough (inside the pen, within PenRadius, off the
-    // shepherd's south/west approach). Non-AlwaysActive so they stay put and read as diet sources.
+    // Spawn `count` stationary animals directly north of the trough (adjacent, so each animal's nearest
+    // trough is unambiguously its own; within PenRadius; off the shepherd's south/west approach). Non-
+    // AlwaysActive so they stay put and read as diet sources.
     private void SpawnAnimals(string code, BlockPos trough, int count)
     {
         for (int i = 0; i < count; i++)
         {
-            BlockPos p = new BlockPos(trough.X, trough.Y, trough.Z + dirZ * (2 + i));   // 2,3 north (pen interior)
+            BlockPos p = new BlockPos(trough.X, trough.Y, trough.Z + dirZ * (1 + i));   // 1,2 north (adjacent)
             long id = TestScene.SpawnStationaryAnimal(api, code, p);
             if (id >= 0) animalIds.Add(id);
         }
