@@ -19,6 +19,9 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 
 	private long troughCooldownMs = 60000L;
 
+	// Trough↔animal proximity: an animal within this range of the trough is "in the pen" it serves.
+	private const float PenRadius = 8f;
+
 	// Trough claiming so multiple shepherds don't converge on the same one. Owner dict + separate timestamp dict for stale-claim expiry.
 	private static readonly ConcurrentDictionary<BlockPos, long> TroughClaimOwner =
 		new ConcurrentDictionary<BlockPos, long>();
@@ -165,7 +168,18 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 			return false;
 		}
 		if (carriedFeed == null || !ShepherdTroughs.AcceptsItem(blockEntityTrough, carriedFeed)) return false;
+		if (!ServedAnimalEats(blockEntityTrough)) return false;
 		return blockEntityTrough.Inventory[0]?.Empty ?? true;
+	}
+
+	// The carried feed must be one the trough's own pen animal will actually EAT (game diet + block
+	// suitability), else the shepherd could dump hay into a pig trough that physically accepts it but
+	// the pig ignores — a silent starve/brick. No suitable animal near the trough → don't fill it.
+	private bool ServedAnimalEats(BlockEntityTrough trough)
+	{
+		if (carriedFeed == null) return false;
+		ShepherdFeeding.ServedAnimal served = ShepherdFeeding.FindServed(entity.World, trough, PenRadius);
+		return served != null && ShepherdFeeding.WillEat(trough, served.CodePath, served.Diet, carriedFeed);
 	}
 
 	protected override void ApplyInteractionEffect()
@@ -272,6 +286,7 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 			return false;
 		}
 		if (carriedFeed == null || !ShepherdTroughs.AcceptsItem(blockEntityTrough, carriedFeed)) return false;
+		if (!ServedAnimalEats(blockEntityTrough)) return false;
 		return ShepherdTroughs.NeedsFeed(blockEntityTrough);
 	}
 
