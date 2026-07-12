@@ -44,6 +44,17 @@ public class GoldenRunner : ModSystem
         // Standalone single-behaviour suites — run these to LOCALISE a red gate (which behaviour broke).
         suites["container"] = new List<IGoldenScenario> { new ContainerFetchScenario() };
         suites["feedhaul"] = new List<IGoldenScenario> { new ShepherdFeedHaulScenario() };
+        // Animal-aware feeding: 3 pens (chicken/pig/goat), priority + cascade + baker control, and a
+        // 2-shepherd conflict variant. Per-mode suites below for fast iteration on one case.
+        suites["feed-pens"] = new List<IGoldenScenario>
+        {
+            new ShepherdFeedPensScenario(ShepherdFeedPensScenario.Mode.Priority),
+            new ShepherdFeedPensScenario(ShepherdFeedPensScenario.Mode.Cascade),
+            new ShepherdFeedPensScenario(ShepherdFeedPensScenario.Mode.TwoShepherds),
+        };
+        suites["feed-priority"] = new List<IGoldenScenario> { new ShepherdFeedPensScenario(ShepherdFeedPensScenario.Mode.Priority) };
+        suites["feed-cascade"] = new List<IGoldenScenario> { new ShepherdFeedPensScenario(ShepherdFeedPensScenario.Mode.Cascade) };
+        suites["feed-2shep"] = new List<IGoldenScenario> { new ShepherdFeedPensScenario(ShepherdFeedPensScenario.Mode.TwoShepherds) };
         // Navigation exploration — one obstacle-course arena per obstacle, with real locomotion via
         // HeadlessPhysicsDriver. Separate suite, NOT the push gate: it exists to characterise villager
         // navigation (and catch regressions in it) without coupling the haul gate to pathfinding depth.
