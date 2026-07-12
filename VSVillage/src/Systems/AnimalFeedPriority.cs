@@ -1,67 +1,77 @@
 using System.Collections.Generic;
+using Vintagestory.API.Common;
 
 namespace VsVillage;
 
 /// <summary>
-/// Pure feed-selection policy for the shepherd: rank feeds by an IMPOSED preference and pick the
-/// best one an animal will actually eat, cascading when the preferred feed isn't stocked.
-///
-/// Two halves live in two places on purpose (see .claude/rules/testing.md boundary): the DIETARY
-/// question "will this animal eat this feed?" is world-touching (the game's
-/// <c>CreatureDiet.Matches</c> + trough <c>UnsuitableForEntity</c> + physical <c>AcceptsItem</c>),
-/// computed in the AI task and passed in as <see cref="FeedCandidate.Edible"/>. The PRIORITY +
-/// cascade over already-classified candidates is pure value logic and lives here, unit-tested.
-///
-/// The rank is a design choice — VS gives no feed-quality signal (every trough portion = 1
-/// saturation; diet tag weights don't gate the trough path). Order: hay/drygrass &gt; vegetable &gt;
-/// grain &gt; legume &gt; cassava &gt; fruitmash &gt; anything else.
+/// Pure feed-selection policy: pick the feed an animal LIKES BEST among the ones it will eat. We borrow
+/// the game's own per-animal preference signal rather than inventing a global order — each animal's
+/// <c>CreatureDiet.WeightedFoodTags</c> carries a 0..1 "how much I like this food tag" weight. The trough
+/// eat-check ignores those weights (it passes minWeight 0), but they're the game's authored preference, so
+/// the shepherd feeds each animal its highest-weight edible feed (e.g. a goat prefers tasty vegetables 1.0
+/// over grass/hay 0.1). Kept as plain values (no CreatureDiet/world types) so it is fully unit-tested.
 /// </summary>
 public static class AnimalFeedPriority
 {
-    public const int RankHay = 0;
-    public const int RankVegetable = 1;
-    public const int RankGrain = 2;
-    public const int RankLegume = 3;
-    public const int RankCassava = 4;
-    public const int RankFruitmash = 5;
-    public const int RankOther = 99;
+    /// <summary>Preference for a feed a diet accepts by CATEGORY alone (no specific weighted tag). The one
+    /// imposed constant: a mid value so a category-accepted staple (e.g. grain for a goat) outranks a
+    /// barely-liked tag (grass 0.1) but yields to a loved one (tastyvegetable 1.0).</summary>
+    public const float CategoryMatchWeight = 0.5f;
 
-    // Classify a collectible code PATH (e.g. "grain-flax", "drygrass") into its imposed rank.
-    // Category prefixes come straight from the trough content-config content codes (see research).
-    public static int FeedRank(string codePath)
+    /// <summary>
+    /// The animal's preference weight for a feed, or <c>null</c> if it refuses the feed. Mirrors the game's
+    /// <c>CreatureDiet.Matches</c> edibility (skip-tags reject FIRST, then category-or-tag accepts) and layers
+    /// the liking weight on top: a matched weighted tag yields its weight; a category-only match yields
+    /// <paramref name="categoryDefault"/>; nothing matched (or a skip-tag hit) yields null (refused).
+    /// All inputs are the diet's deconstructed fields + the feed's category/tags — plain values, no world.
+    /// </summary>
+    public static float? PreferenceWeight(
+        EnumFoodCategory[] dietCategories, (string code, float weight)[] dietWeightedTags, string[] dietSkipTags,
+        EnumFoodCategory feedCategory, string[] feedTags, float categoryDefault)
     {
-        if (string.IsNullOrEmpty(codePath)) return RankOther;
-        // "hay" == the drygrass item or the hay-normal-* block; both carry the game's "grass" food tag.
-        if (codePath == "drygrass" || codePath.StartsWith("hay", System.StringComparison.Ordinal)) return RankHay;
-        if (codePath.StartsWith("vegetable-", System.StringComparison.Ordinal)) return RankVegetable;
-        if (codePath.StartsWith("grain-", System.StringComparison.Ordinal)) return RankGrain;
-        if (codePath.StartsWith("legume-", System.StringComparison.Ordinal)) return RankLegume;
-        if (codePath.StartsWith("rawcassava", System.StringComparison.Ordinal)) return RankCassava;
-        if (codePath.StartsWith("pressedmash", System.StringComparison.Ordinal)) return RankFruitmash;
-        return RankOther;
+        // 1. Skip tags — hard reject, checked first (parsnip/rice for the ruminants).
+        if (dietSkipTags != null && feedTags != null)
+            foreach (string ft in feedTags)
+                foreach (string skip in dietSkipTags)
+                    if (skip == ft) return null;
+
+        // 2. Best-liked matching weighted tag (the specific preference signal).
+        float best = -1f;
+        if (feedTags != null && dietWeightedTags != null)
+            foreach (string ft in feedTags)
+                foreach ((string code, float weight) wt in dietWeightedTags)
+                    if (wt.code == ft && wt.weight > best) best = wt.weight;
+        if (best >= 0f) return best;
+
+        // 3. No tag matched — accepted iff the nutrition category is in the diet (grain for a goat, legume
+        //    for a pig): edible but unranked, so the imposed default weight.
+        if (dietCategories != null)
+            foreach (EnumFoodCategory cat in dietCategories)
+                if (cat == feedCategory) return categoryDefault;
+
+        return null;   // refused
     }
 
-    // The cascade: the lowest-rank EDIBLE candidate, or null if none is edible. Strict &lt; keeps ties
-    // stable on first-seen. Inedible candidates are skipped entirely — a preferred-but-inedible feed
-    // (hay for a pig, veggies/parsnip for a chicken) never blocks a lower-ranked edible one.
+    /// <summary>The most-preferred feed among candidates the animal will eat (highest weight), or null when
+    /// none is edible. Strict &gt; keeps ties stable on first-seen. A refused candidate (null weight) is
+    /// skipped — a tempting-but-refused feed (hay for a pig) never blocks a lower-liked edible one.</summary>
     public static string ChooseBestFeed(IEnumerable<FeedCandidate> candidates)
     {
         string best = null;
-        int bestRank = int.MaxValue;
+        float bestWeight = float.NegativeInfinity;
         foreach (FeedCandidate c in candidates)
         {
-            if (!c.Edible) continue;
-            int r = FeedRank(c.CodePath);
-            if (r < bestRank) { bestRank = r; best = c.CodePath; }
+            if (c.Weight is not float w) continue;   // refused
+            if (w > bestWeight) { bestWeight = w; best = c.CodePath; }
         }
         return best;
     }
 }
 
-/// <summary>A source feed and whether the target animal will eat it (dietary gate computed upstream).</summary>
+/// <summary>A source feed and the served animal's preference weight for it (null = the animal refuses it).</summary>
 public readonly struct FeedCandidate
 {
     public readonly string CodePath;
-    public readonly bool Edible;
-    public FeedCandidate(string codePath, bool edible) { CodePath = codePath; Edible = edible; }
+    public readonly float? Weight;
+    public FeedCandidate(string codePath, float? weight) { CodePath = codePath; Weight = weight; }
 }

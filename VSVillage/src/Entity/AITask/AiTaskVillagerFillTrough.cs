@@ -172,7 +172,7 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		if (carriedFeed == null) return false;
 		POIRegistry poiReg = entity.Api.ModLoader.GetModSystem<POIRegistry>();
 		ShepherdFeeding.ServedAnimal served = ShepherdFeeding.FindServed(entity.World, poiReg, trough, PenRadius);
-		return served != null && ShepherdFeeding.WillEat(trough, served.CodePath, served.Diet, carriedFeed);
+		return served != null && ShepherdFeeding.WillEat(entity.World, trough, served, carriedFeed);
 	}
 
 	protected override void ApplyInteractionEffect()

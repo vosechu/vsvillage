@@ -2,24 +2,24 @@ using System.Collections.Generic;
 using System.Linq;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
+using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
 
 namespace VsVillage;
 
 /// <summary>
-/// World-touching half of the shepherd's animal-aware feeding: find the animal a trough serves and
-/// decide whether a (not-yet-deposited) feed is APPROPRIATE for it. Pairs with the pure
-/// <see cref="AnimalFeedPriority"/> (rank + cascade). Not unit-testable — it needs the world, live
-/// entities, and block entities — so it is verified by the behavioral golden scenarios.
+/// World-touching half of the shepherd's animal-aware feeding: find the animal a trough serves, and score
+/// each candidate feed by how much that animal LIKES it (or reject it). Pairs with the pure
+/// <see cref="AnimalFeedPriority"/> (preference weight + pick-best). Not unit-testable — it needs the world,
+/// live entities, and block entities — so it is verified by the behavioral golden scenarios.
 ///
-/// "Appropriate" replicates the game's own eat-check <c>BlockEntityTrough.IsSuitableFor</c> for a feed
-/// that isn't in the trough yet, i.e. all four gates:
+/// A feed is a candidate only if it passes all four game gates:
 ///   1. physical: the trough accepts the item (<see cref="ShepherdTroughs.AcceptsItem"/>);
 ///   2. block-suitability: the animal isn't in the trough block's <c>unsuitableFor</c> list;
-///   3. diet: the animal's <c>CreatureDiet.Matches(feed)</c> (respects skipFoodTags — parsnip/rice);
-///   4. portion: at least one full <c>QuantityPerFillLevel</c> is available to deposit (a sub-portion
-///      is inedible — the game's <c>StackSize &gt;= QuantityPerFillLevel</c> gate; drygrass needs 8).
+///   3. diet: the animal's diet accepts it (skip-tags reject parsnip/rice first, else category/tag);
+///   4. portion: at least one full <c>QuantityPerFillLevel</c> is available (a sub-portion is inedible; drygrass needs 8).
+/// Among the survivors the shepherd takes the one with the highest per-animal preference weight.
 /// </summary>
 public static class ShepherdFeeding
 {
@@ -28,7 +28,7 @@ public static class ShepherdFeeding
     {
         "sheep", "ram", "ewe", "lamb", "cow", "bull", "calf",
         "chicken", "hen", "rooster", "chick", "pig", "sow", "piglet",
-        "goat", "alpaca", "llama"
+        "goat", "hare", "alpaca", "llama"
     };
 
     public static bool IsLivestock(Entity e)
@@ -37,12 +37,15 @@ public static class ShepherdFeeding
         return fp != null && LivestockPrefixes.Contains(fp);
     }
 
-    /// <summary>The static facts the fetch/fill legs need about a trough's consumer, captured once so we
-    /// never hold a moving entity reference. Null when there is no suitable consumer (→ don't feed).</summary>
+    /// <summary>The static facts the fetch/fill legs need about a trough's consumer, captured once (its diet
+    /// deconstructed into plain fields the pure selector consumes) so we never hold a moving entity
+    /// reference. Null when there is no suitable consumer (→ don't feed).</summary>
     public sealed class ServedAnimal
     {
         public string CodePath;
-        public CreatureDiet Diet;
+        public EnumFoodCategory[] Categories;
+        public (string code, float weight)[] WeightedTags;
+        public string[] SkipTags;
     }
 
     // Diet is a property of the entity TYPE (its JSON attributes), identical for every animal of a code,
@@ -53,7 +56,7 @@ public static class ShepherdFeeding
     /// <summary>The LIVING livestock a trough serves: the nearest suitable-for-this-trough animal for which
     /// THIS trough is that animal's OWN nearest suitable trough. The mutual-nearest requirement stops a
     /// neighbouring pen's animal from being mistaken for the consumer — critical because pigs and goats/sheep
-    /// all share the large trough, so plain "nearest" could hand a pig trough a goat (→ hay → the pig starves).
+    /// all share the large trough, so plain "nearest" could hand a pig trough a goat.
     /// A wrong-species bystander (a chicken by a large trough) is already excluded by the block's unsuitableFor.</summary>
     public static Entity FindServedAnimal(IWorldAccessor world, POIRegistry poiReg, BlockEntityTrough trough, float radius)
     {
@@ -87,59 +90,87 @@ public static class ShepherdFeeding
         return d;
     }
 
-    /// <summary>Resolve the trough's consumer to the static (code, diet) the selection needs. Null when
-    /// no suitable animal is nearby OR its diet is missing (M4: null diet → don't feed, never "any feed").</summary>
+    /// <summary>Resolve the trough's consumer to the static (code + deconstructed diet) the selector needs.
+    /// Null when no suitable animal is nearby OR its diet is missing (null diet → don't feed, never "any feed").</summary>
     public static ServedAnimal FindServed(IWorldAccessor world, POIRegistry poiReg, BlockEntityTrough trough, float radius)
     {
         Entity a = FindServedAnimal(world, poiReg, trough, radius);
         if (a?.Code == null) return null;
         CreatureDiet d = GetDiet(a);
         if (d == null) return null;
-        return new ServedAnimal { CodePath = a.Code.Path, Diet = d };
+        return new ServedAnimal
+        {
+            CodePath = a.Code.Path,
+            Categories = d.FoodCategories ?? System.Array.Empty<EnumFoodCategory>(),
+            WeightedTags = ToTuples(d.WeightedFoodTags),
+            SkipTags = d.SkipFoodTags ?? System.Array.Empty<string>()
+        };
     }
 
-    /// <summary>Gates 2+3: the animal is allowed on this trough block AND its diet eats this feed.
-    /// (Gate 1 physical acceptance and gate 4 portion-availability are applied by the callers.)</summary>
-    public static bool WillEat(BlockEntityTrough trough, string animalCodePath, CreatureDiet diet, ItemStack feed)
+    private static (string code, float weight)[] ToTuples(WeightedFoodTag[] tags)
     {
-        if (trough?.Block is not BlockTroughBase btb || animalCodePath == null || diet == null || feed == null) return false;
-        if (btb.UnsuitableForEntity(animalCodePath)) return false;
-        return diet.Matches(feed);
+        if (tags == null) return System.Array.Empty<(string, float)>();
+        var result = new (string, float)[tags.Length];
+        for (int i = 0; i < tags.Length; i++) result[i] = (tags[i].Code, tags[i].Weight);
+        return result;
     }
 
-    /// <summary>Does a full portion of <paramref name="feed"/> fit-and-feed this trough's served animal?
-    /// All four gates, for one candidate stack in a source container.</summary>
-    public static bool IsAppropriateFeed(IWorldAccessor world, BlockEntityTrough trough, ServedAnimal served, ItemSlot slot)
+    /// <summary>Will this trough's served animal EAT this feed? Gate 2 (block-suitability) + gate 3 (diet
+    /// accepts). Used by the fill leg to refuse depositing a feed the pen's animal won't touch.</summary>
+    public static bool WillEat(IWorldAccessor world, BlockEntityTrough trough, ServedAnimal served, ItemStack feed)
     {
-        if (world == null || trough == null || served == null || slot == null || slot.Empty) return false;
+        if (trough?.Block is not BlockTroughBase btb || served == null || feed == null) return false;
+        if (btb.UnsuitableForEntity(served.CodePath)) return false;                     // gate 2
+        (EnumFoodCategory cat, string[] tags) = GetFeedTags(world, feed);
+        return AnimalFeedPriority.PreferenceWeight(served.Categories, served.WeightedTags, served.SkipTags,
+                   cat, tags, AnimalFeedPriority.CategoryMatchWeight) != null;           // gate 3
+    }
+
+    /// <summary>The served animal's preference weight for a full portion of this slot's feed, or null if it
+    /// fails any gate (physical accept, block-suitable, ≥ one portion) or the animal refuses it. Higher = liked more.</summary>
+    public static float? FeedPreference(IWorldAccessor world, BlockEntityTrough trough, ServedAnimal served, ItemSlot slot)
+    {
+        if (world == null || trough?.Block is not BlockTroughBase btb || served == null || slot == null || slot.Empty) return null;
         ItemStack stack = slot.Itemstack;
-        if (!ShepherdTroughs.AcceptsItem(trough, stack)) return false;                 // gate 1
-        if (!WillEat(trough, served.CodePath, served.Diet, stack)) return false;       // gates 2+3
+        if (!ShepherdTroughs.AcceptsItem(trough, stack)) return null;                    // gate 1
+        if (btb.UnsuitableForEntity(served.CodePath)) return null;                       // gate 2
         ContentConfig cfg = ItemSlotTrough.getContentConfig(world, trough.contentConfigs, slot);
-        if (cfg == null) return false;
-        return slot.StackSize >= cfg.QuantityPerFillLevel;                             // gate 4: ≥ one portion
+        if (cfg == null || slot.StackSize < cfg.QuantityPerFillLevel) return null;       // gate 4
+        (EnumFoodCategory cat, string[] tags) = GetFeedTags(world, stack);
+        return AnimalFeedPriority.PreferenceWeight(served.Categories, served.WeightedTags, served.SkipTags,
+                   cat, tags, AnimalFeedPriority.CategoryMatchWeight);                    // gate 3 + weight
     }
 
-    /// <summary>The best-priority appropriate feed slot to withdraw from <paramref name="be"/> for this
-    /// trough's animal, or null. Applies all four gates per slot, then <see cref="AnimalFeedPriority"/>'s
-    /// rank to cascade (hay → veg → grain …). This is the fetch leg's slot chooser.</summary>
+    // Extract a feed's nutrition category + food tags the same way the game's CreatureDiet.Matches(ItemStack) does.
+    public static (EnumFoodCategory category, string[] tags) GetFeedTags(IWorldAccessor world, ItemStack stack)
+    {
+        CollectibleObject coll = stack?.Collectible;
+        if (coll == null) return (EnumFoodCategory.NoNutrition, null);
+        FoodNutritionProperties nutri = coll.GetNutritionProperties(world, stack, null);
+        EnumFoodCategory cat = nutri?.FoodCategory ?? EnumFoodCategory.NoNutrition;
+        string[] tags = coll.GetCollectibleInterface<ICreatureDietFoodTags>()?.GetFoodTags(stack)
+                        ?? coll.Attributes?["foodTags"].AsArray<string>(null, "game");
+        return (cat, tags);
+    }
+
+    /// <summary>The most-liked appropriate feed slot to withdraw from <paramref name="be"/> for this trough's
+    /// animal, or null. Scores each slot with <see cref="FeedPreference"/> and lets the UNIT-TESTED
+    /// <see cref="AnimalFeedPriority.ChooseBestFeed"/> pick the highest-weight one. This is the fetch leg's chooser.</summary>
     public static ItemSlot ChooseFeedSlot(IWorldAccessor world, BlockEntityContainer be, BlockEntityTrough trough, ServedAnimal served)
     {
         if (be?.Inventory == null || trough == null || served == null) return null;
-        // Classify each source slot (code + whether it's appropriate) and let the UNIT-TESTED pure cascade
-        // pick the winning code, so production runs the same rank/cascade logic AnimalFeedPriorityTests cover.
         var candidates = new List<FeedCandidate>();
-        var firstEdibleSlotByCode = new Dictionary<string, ItemSlot>();
+        var likedSlotByCode = new Dictionary<string, ItemSlot>();
         foreach (ItemSlot slot in be.Inventory)
         {
             if (slot.Empty) continue;
             string code = slot.Itemstack.Collectible?.Code?.Path;
             if (code == null) continue;
-            bool edible = IsAppropriateFeed(world, trough, served, slot);
-            candidates.Add(new FeedCandidate(code, edible));
-            if (edible && !firstEdibleSlotByCode.ContainsKey(code)) firstEdibleSlotByCode[code] = slot;
+            float? w = FeedPreference(world, trough, served, slot);
+            candidates.Add(new FeedCandidate(code, w));
+            if (w != null && !likedSlotByCode.ContainsKey(code)) likedSlotByCode[code] = slot;
         }
         string bestCode = AnimalFeedPriority.ChooseBestFeed(candidates);
-        return bestCode != null && firstEdibleSlotByCode.TryGetValue(bestCode, out ItemSlot best) ? best : null;
+        return bestCode != null && likedSlotByCode.TryGetValue(bestCode, out ItemSlot best) ? best : null;
     }
 }
