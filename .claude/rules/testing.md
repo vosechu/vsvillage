@@ -68,13 +68,17 @@ Authoring rules (a scenario that breaks one does not belong in the suite):
   spawn chunk (see `ShepherdFeedHaulScenario`'s dirX/dirZ anchoring), and pair every negative
   assertion with a liveness check ("this BE was observed readable at least once") so an unreadable
   window can't pass it vacuously.
-- Headless locomotion is TELEPORT-ONLY: with no player connected the server does not simulate entity
-  locomotion physics at all (a commanded walk vector yields zero displacement; entities don't even
-  settle under gravity). Villagers advance because `AiTaskGotoAndInteract`'s stuck-recovery teleports
-  them ~2 path nodes at a time along the A* route. Scenarios therefore validate decision logic and
-  A*-route existence, NOT physical walking — and a path cell a teleport can't land in (e.g. a closed
-  door's collision box) can never be crossed headless. Verify locomotion-dependent behavior in a
-  live client (`VSVILLAGE_GOLDEN_ALLOW=1` + watch mode).
+- The engine skips entity physics for anything no CONNECTED CLIENT is near (`PhysicsManager.DoWork`:
+  `if (entity.IsTracked == 0) continue;` — `AlwaysActive` keeps AI ticking but does not exempt
+  physics). On a playerless server, walk vectors yield zero displacement and entities don't even fall.
+  The harness's `HeadlessPhysicsDriver` restores real locomotion by driving `OnPhysicsTick` at 30Hz
+  for untracked Active entities (it stands down per-entity when a real client tracks it, so watch
+  mode is safe). Without it, villagers only "move" via the stuck-recovery teleport — ~2 path nodes
+  per 18s, never through a cell a teleport can't land in (e.g. a closed door). If villagers freeze
+  or crawl in a scenario, check the boot line `HeadlessPhysicsDriver active` before suspecting the mod.
+- Scenario worlds are fresh per suite run (`golden-suite.sh` wipes `$VSTEST_DATA` before boot):
+  terrain edits are permanent, and imperfect teardowns from older scenario versions left ghost
+  terrain that stalled later runs. Never assume a reused world is clean.
 
 Run the suite: `scripts/golden-suite.sh golden` (exit 0 = pass). Gate it on push:
 `git config core.hooksPath scripts/hooks`. See `VSVillage.TestHarness/README.md`.

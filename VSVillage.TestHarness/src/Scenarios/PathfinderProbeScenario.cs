@@ -10,8 +10,8 @@ namespace VsVillageTest.Scenarios;
 // DIAGNOSTIC probe (suite "nav-probe"): calls VillagerAStarNew.FindPath directly — no AI, no settle —
 // across a matrix of obstacle configurations. Written to pinpoint why a closed door/gate froze the
 // obstacle-nav shepherd; the answer exonerated the pathfinder (8/8 enclosed configurations return direct
-// 7-node paths, closed doors and gates included). The freeze was headless teleport-only locomotion — see
-// ShepherdObstacleNavScenario's header. Kept as the fast way to ask "does A* accept this block?"
+// 7-node paths, closed doors and gates included). The real culprit was the engine skipping physics for
+// client-untracked entities — fixed by HeadlessPhysicsDriver. Kept: "does A* accept this block?" in seconds.
 public class PathfinderProbeScenario : IGoldenScenario
 {
     public string Name => "pathfinder-probe";

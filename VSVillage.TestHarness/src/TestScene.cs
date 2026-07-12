@@ -35,10 +35,15 @@ public static class TestScene
         {
             for (int z = center.Z - halfZ; z <= center.Z + halfZ; z++)
             {
+                // Two layers deep: the world is REUSED across suite runs, and a single-layer floor laid
+                // at each column's own (possibly dug-out) height left trench ghosts from old scenario
+                // versions. Solid to floorY-1 self-heals 1-deep digs and displaces stray water.
+                ba.SetBlock(floorId, new BlockPos(x, floorY - 1, z));
                 ba.SetBlock(floorId, new BlockPos(x, floorY, z));
                 for (int dy = 1; dy <= 5; dy++) ba.SetBlock(0, new BlockPos(x, floorY + dy, z));
             }
         }
+        api.Logger.Notification("[harness] BuildFlatArea: floor y={0} at {1} ({2}x{3})", floorY, center, halfX * 2 + 1, halfZ * 2 + 1);
         return floorY + 1;
     }
 }

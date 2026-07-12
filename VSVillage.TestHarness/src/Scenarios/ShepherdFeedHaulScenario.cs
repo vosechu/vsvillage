@@ -47,7 +47,17 @@ public class ShepherdFeedHaulScenario : IGoldenScenario
         "Runtime-only haul loop (AI tick + pathfinder + live chest and trough); no unit test can cover it. "
         + "Proves haul-don't-conjure, the NeedsFeed gate, and that troughs/non-feed are rejected as sources. "
         + "Flat floor + window-accumulated invariants + liveness-guarded negatives keep it durable.";
-    public int SettleSeconds => 70;
+    public int SettleSeconds => 70;   // upper bound; early exit below once positives land + negatives got a fair window
+
+    // Early exit, guarded for the NEGATIVE checks: the positives + liveness flipping true says the loop
+    // worked, but "control/decoy never touched" needs a real observation window to mean anything — so
+    // never settle before MinWindowSeconds regardless of how fast the haul completed.
+    private const int MinWindowSeconds = 45;
+    private int sampleCount;
+    public bool IsSettled =>
+        sampleCount >= MinWindowSeconds
+        && seededOk && sawTroughFilled && sawChestDrained && sawShepherdCarry
+        && sawControlReadable && sawDecoyReadable;
 
     private const int ChestFlax = 16;       // feed stock: one full 8-capacity trough + surplus
     private const int DecoyItems = 16;      // cobblestone in the non-feed decoy chest
@@ -137,6 +147,7 @@ public class ShepherdFeedHaulScenario : IGoldenScenario
     // only ever flips false->true, so a single true reading anywhere in the window is enough.
     private void Sample()
     {
+        sampleCount++;
         // Positives — the loop actually ran.
         if (!sawTroughFilled && FlaxIn(emptyTrough) > 0) { sawTroughFilled = true; Note("✅ Empty pen trough now holds grain — hauled in."); }
         if (!sawChestDrained && IsReadable(feedChest) && FlaxIn(feedChest) < ChestFlax) { sawChestDrained = true; Note("✅ Feed chest drained — grain was HAULED, not conjured."); }

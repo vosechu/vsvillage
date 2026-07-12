@@ -5,10 +5,10 @@
 set -u
 SUITE="${1:-golden}"
 # Outer wait budget (seconds) for the completion sentinel, NOT the per-scenario settle window
-# (each scenario hardcodes its own SettleSeconds). The golden suite runs scenarios sequentially,
-# so this must exceed the SUM of their settle windows plus boot/teardown overhead.
-# golden = container-fetch (40s) + shepherd-feed-haul (70s) => 110s of settle; default gives margin.
-SETTLE="${SETTLE:-140}"
+# (each scenario hardcodes its own SettleSeconds; most exit early via IsSettled). Must exceed the
+# WORST-CASE sum of settle windows for the largest suite (nav: 3 x 90s) — a generous budget costs
+# nothing on success because the wait loop breaks the moment the sentinel appears.
+SETTLE="${SETTLE:-300}"
 GAME="${VINTAGE_STORY:-/Applications/Vintage Story.app}"
 SERVER="$GAME/VintagestoryServer"
 DATA="${VSTEST_DATA:-/tmp/vsgolden}"
@@ -26,6 +26,18 @@ VINTAGE_STORY="$GAME" dotnet build -c Debug VSVillage.TestHarness/VSVillage.Test
 
 echo "== boot server =="
 pkill -f VintagestoryServer 2>/dev/null; sleep 3
+# Pinned-seed world, REUSED across runs (one boot per suite run; no per-run worldgen). Random spawn
+# terrain is a real hazard — one roll put spawn at sea level and cascading liquid updates ground the
+# tick rate to ~16%. So: if the resident world was built from our pinned seed, reuse it as-is;
+# otherwise migrate ONCE (wipe, install the seed-pinned config template, let boot create the world).
+# Scenario arenas self-heal via TestScene.BuildFlatArea, so reuse stays safe run-over-run.
+SEED="${VSTEST_SEED:-8543321}"
+TEMPLATE="$(pwd)/scripts/golden-serverconfig.template.json"
+if ! grep -q "\"Seed\": \"$SEED\"" "$DATA/serverconfig.json" 2>/dev/null || ! ls "$DATA"/Saves/*.vcdbs >/dev/null 2>&1; then
+  echo "== migrate: creating pinned-seed world (seed=$SEED) =="
+  rm -rf "$DATA"; mkdir -p "$DATA"
+  sed -e "s|__GOLDEN_SEED__|$SEED|" -e "s|__DATA_DIR__|$DATA|g" "$TEMPLATE" > "$DATA/serverconfig.json"
+fi
 mkdir -p "$DATA"; rm -f "$LOG" "$RESULTS" "$PIPE"; mkfifo "$PIPE"
 sleep 900 > "$PIPE" & HOLDER=$!
 # --addModPath is a sequence option: ONE flag, space-separated paths (repeating the flag NREs the server).

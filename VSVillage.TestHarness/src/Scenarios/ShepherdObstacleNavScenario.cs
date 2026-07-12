@@ -25,26 +25,21 @@ public enum NavObstacle { Door, FenceGate, Moat }
 // pre-push golden gate.
 //
 // Empirical findings (headless, raw SetBlock placement):
-//  - HEADLESS LOCOMOTION IS TELEPORT-ONLY. With no player connected the server does not simulate entity
-//    locomotion physics: a commanded walk vector produces zero displacement, and entities never even
-//    settle under gravity (they float at the +0.1 Y a recovery teleport leaves them at). All observed
-//    "movement" is AiTaskGotoAndInteract's stuck-recovery teleporting ~2 path nodes at a time along the
-//    A* route — positions always land on cell centres (x.50/z.50) in ~3-block jumps at ~18s cadence.
-//  - The PATHFINDER is innocent: it routes through every configuration tested — closed doors, closed
-//    gates, open gates, gaps, walls-with-holes — see PathfinderProbeScenario (8/8 enclosed probes return
-//    direct 7-node paths). Live-game villagers walk and open doors normally; nothing here contradicts it.
-//  - Consequently a passage cell a teleport cannot land IN can never be crossed headless: closed doors
-//    and closed gates have collision boxes, so the recovery's unsafe-destination check refuses them and
-//    the villager freezes at spawn with a walk vector uselessly commanded. The Door case is kept as the
-//    re-runnable nav-door probe documenting exactly this (expected: FAIL headless, fine in live play).
-//  - Gate (OPENED) and moat pass because every node on their A* route is a legal teleport target. The
-//    moat run follows the wading route A* prefers over the trapdoor bridge (+150/cell water penalty
-//    notwithstanding) — a routing-preference observation, not a physical-swimming test.
-//  - LADDERS: structurally unsupported in the pathfinder itself — VillagerAStarNew assigns climbableCodes
+//  - Real locomotion requires HeadlessPhysicsDriver. The engine skips OnPhysicsTick for every entity
+//    with IsTracked == 0 (set purely by distance to the nearest CONNECTED CLIENT — AlwaysActive keeps AI
+//    ticking but does not exempt physics), so a playerless server simulates no entity physics at all.
+//    Before the driver existed, all apparent movement was AiTaskGotoAndInteract's stuck-recovery
+//    teleporting ~2 path nodes at a time — which also meant a passage cell a teleport can't land in
+//    (a closed door/gate's collision box) could never be crossed. With the driver, villagers genuinely
+//    walk (~3x faster than the teleport crawl) and DoorPathHelper opens closed doors and gates.
+//  - With real locomotion ALL THREE obstacles pass the full haul loop: closed DOOR (opened en route),
+//    closed FENCE GATE (opened en route), and the 2-wide MOAT. The pathfinder was never the problem —
+//    PathfinderProbeScenario shows 8/8 enclosed configurations return direct paths.
+//  - LADDERS remain structurally unsupported in the pathfinder — VillagerAStarNew assigns climbableCodes
 //    but never reads it; only the dead, never-instantiated VillagerAStar had climb logic. Upstream author
 //    confirmed climb support was consciously shelved as a trade-off — do not treat as a bug to quick-fix.
-// Net: this suite validates A*-route existence and the haul decision layer behind obstacles. It CANNOT
-// validate physical locomotion — watch a scenario in a live client for that.
+//  - Scenario worlds are FRESH per suite run (golden-suite.sh wipes the data dir): terrain edits are
+//    permanent and imperfect teardowns left ghosts (a stale moat trench once stalled a later run).
 public class ShepherdObstacleNavScenario : IGoldenScenario
 {
     private readonly NavObstacle obstacle;
@@ -55,7 +50,8 @@ public class ShepherdObstacleNavScenario : IGoldenScenario
         "Aspirational: exercises villager pathfinding through a built " + obstacle + " to reach a required "
         + "resource, then haul. Separate 'nav' suite so a pathfinding limit is a finding, not a masked "
         + "haul regression.";
-    public int SettleSeconds => 120;   // full loop lands by ~75s in green runs; margin for slow paths
+    public int SettleSeconds => 90;   // upper bound only — all checks are positive, so we exit early
+    public bool IsSettled => sawCrossed && sawShepherdCarry && sawTroughFilled;
 
     private const int ChestFlax = 16;
     private const int VillageRadius = 24;
@@ -125,11 +121,9 @@ public class ShepherdObstacleNavScenario : IGoldenScenario
         {
             case NavObstacle.Door:
             {
-                // Expected to FAIL headless: teleport-only locomotion can't land in the door cell (its
-                // collision box trips the recovery's unsafe-destination check), whether the door is
-                // closed or BE-opened — the BE 'opened' flag alone doesn't drop the collision boxes of a
-                // raw-placed door (SetupRotationsAndColSelBoxes never re-runs). See the header. Kept as
-                // the nav-door probe; in live play villagers open and walk through doors normally.
+                // With HeadlessPhysicsDriver providing real locomotion the shepherd walks up and
+                // DoorPathHelper opens the door en route (the BE 'opened' seed below just matches how a
+                // raw-placed door is usually encountered mid-village; the closed state also passes).
                 int door = BlockId("game:door-solid-aged");
                 for (int dx = MinX + 1; dx <= MaxX - 1; dx++)
                 {
@@ -152,9 +146,9 @@ public class ShepherdObstacleNavScenario : IGoldenScenario
             case NavObstacle.FenceGate:
             {
                 int fence = BlockId("game:woodenfence-aged-ns-free");   // hard barrier
-                // OPENED variant on purpose: headless teleport-locomotion can't land in a CLOSED gate's
-                // collision box (see header), so this tests traversal through the gate cell, not opening.
-                int gate = BlockId("game:woodenfencegate-aged-n-opened-left-free");
+                // CLOSED gate: with HeadlessPhysicsDriver providing real locomotion, the villager walks
+                // up and DoorPathHelper opens it — the realistic case (a shepherd entering a pen).
+                int gate = BlockId("game:woodenfencegate-aged-n-closed-left-free");
                 for (int dx = MinX + 1; dx <= MaxX - 1; dx++)
                     api.World.BlockAccessor.SetBlock(dx == 0 ? gate : fence, new BlockPos(center.X + dx, center.Y, center.Z + ObstacleZ));
                 break;

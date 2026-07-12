@@ -39,19 +39,18 @@ public class GoldenRunner : ModSystem
     private void RegisterSuites()
     {
         suites["golden"] = new List<IGoldenScenario> { new ContainerFetchScenario(), new ShepherdFeedHaulScenario() };
-        // Aspirational navigation exploration — one obstacle-course arena per obstacle. Separate suite,
-        // NOT the push gate. Headless locomotion is TELEPORT-ONLY (no entity physics without a player —
-        // see ShepherdObstacleNavScenario's header), so these validate A* routes + decisions, not real
-        // walking. Door is excluded from the default suite: a teleport can't land in a door cell, so the
-        // door course can never be crossed headless — kept re-runnable as the nav-door probe below.
+        // Navigation exploration — one obstacle-course arena per obstacle, with real locomotion via
+        // HeadlessPhysicsDriver. Separate suite, NOT the push gate: it exists to characterise villager
+        // navigation (and catch regressions in it) without coupling the haul gate to pathfinding depth.
         suites["nav"] = new List<IGoldenScenario>
         {
+            new ShepherdObstacleNavScenario(NavObstacle.Door),
             new ShepherdObstacleNavScenario(NavObstacle.FenceGate),
             new ShepherdObstacleNavScenario(NavObstacle.Moat),
         };
-        // Direct-FindPath diagnostic matrix for the door/gate pathing question (no AI, runs in seconds).
+        // Direct-FindPath diagnostic matrix (no AI, runs in seconds): "does A* accept this block?"
         suites["nav-probe"] = new List<IGoldenScenario> { new PathfinderProbeScenario() };
-        // Single-obstacle probes (nav-door = known-fail; see ShepherdObstacleNavScenario header).
+        // Single-obstacle suites for fast iteration on one obstacle.
         suites["nav-door"] = new List<IGoldenScenario> { new ShepherdObstacleNavScenario(NavObstacle.Door) };
         suites["nav-gate"] = new List<IGoldenScenario> { new ShepherdObstacleNavScenario(NavObstacle.FenceGate) };
         suites["nav-moat"] = new List<IGoldenScenario> { new ShepherdObstacleNavScenario(NavObstacle.Moat) };
@@ -109,12 +108,22 @@ public class GoldenRunner : ModSystem
             return;
         }
 
-        sapi.World.RegisterCallback(_ =>
+        // Poll each second: end the scenario as soon as it reports settled (early exit), with
+        // SettleSeconds as the hard upper bound. Fixed windows made suite time ~2x the actual
+        // behavior time; IsSettled trims exactly that padding.
+        long elapsedMs = 0;
+        long pollId = 0;
+        pollId = sapi.Event.RegisterGameTickListener(_ =>
         {
+            elapsedMs += 1000;
+            bool settled = false;
+            try { settled = s.IsSettled; } catch (Exception e) { report.Fail("IsSettled threw", e); settled = true; }
+            if (!settled && elapsedMs < s.SettleSeconds * 1000L) return;
+            sapi.Event.UnregisterGameTickListener(pollId);
             try { s.Assert(report); } catch (Exception e) { report.Fail("assert threw", e); }
             SafeTeardown(s, report);
             RunNext(suiteName, scenarios, i + 1, results);
-        }, s.SettleSeconds * 1000);
+        }, 1000);
     }
 
     private void SafeTeardown(IGoldenScenario s, ScenarioReport report)
