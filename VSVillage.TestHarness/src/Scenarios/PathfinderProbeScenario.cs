@@ -40,11 +40,11 @@ public class PathfinderProbeScenario : IGoldenScenario
         api.World.SpawnEntity(e);
         villagerId = e.EntityId;
 
-        int wall = BlockId("game:cobblestone-granite");
-        int fence = BlockId("game:woodenfence-aged-ns-free");
-        int gateClosed = BlockId("game:woodenfencegate-aged-n-closed-left-free");
-        int gateOpened = BlockId("game:woodenfencegate-aged-n-opened-left-free");
-        int door = BlockId("game:door-solid-aged");
+        int wall = ScenarioKit.BlockId(api, "game:cobblestone-granite");
+        int fence = ScenarioKit.BlockId(api, "game:woodenfence-aged-ns-free");
+        int gateClosed = ScenarioKit.BlockId(api, "game:woodenfencegate-aged-n-closed-left-free");
+        int gateOpened = ScenarioKit.BlockId(api, "game:woodenfencegate-aged-n-opened-left-free");
+        int door = ScenarioKit.BlockId(api, "game:door-solid-aged");
 
         // ENCLOSE the probe area (2-high perimeter) so a "PATH" answer can only mean "through the
         // passage cell" — an early un-enclosed version returned around-the-row-end paths, which made
@@ -128,10 +128,4 @@ public class PathfinderProbeScenario : IGoldenScenario
             }
     }
 
-    private int BlockId(string code)
-    {
-        Block b = api.World.GetBlock(new AssetLocation(code));
-        if (b == null) api.Logger.Warning("[probe] block '{0}' did not resolve!", code);
-        return b?.BlockId ?? 0;
-    }
 }

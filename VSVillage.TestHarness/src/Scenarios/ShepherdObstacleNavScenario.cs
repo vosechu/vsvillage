@@ -88,16 +88,16 @@ public class ShepherdObstacleNavScenario : IGoldenScenario
         village.Init(api);
         vm.Villages.TryAdd(village.Id, village);
 
-        int wall = BlockId("game:" + WallBlock);
+        int wall = ScenarioKit.BlockId(api, "game:" + WallBlock);
         BuildPerimeter(wall, 2);   // isolate the course
         BuildObstacle(wall);       // the barrier, with a passage at x=0
 
-        int chestB = BlockId("game:chest-east");
-        int troughB = BlockId("game:trough-genericwood-small-ns");
+        int chestB = ScenarioKit.BlockId(api, "game:chest-east");
+        int troughB = ScenarioKit.BlockId(api, "game:trough-genericwood-small-ns");
         Item grain = api.World.GetItem(new AssetLocation("game:" + Feed));
 
-        feedChest  = PlaceChestWith(0, ChestZ, chestB, new ItemStack(grain, ChestFlax));
-        needyTrough = PlaceTroughAt(0, TroughZ, troughB);
+        feedChest  = ScenarioKit.PlaceContainer(api, new BlockPos(center.X, center.Y, center.Z + ChestZ), chestB, new ItemStack(grain, ChestFlax));
+        needyTrough = ScenarioKit.PlaceContainer(api, new BlockPos(center.X, center.Y, center.Z + TroughZ), troughB, null);
         // Consumer for the trough past the obstacle: the feed feature refuses to fill a trough with no
         // animal nearby. Small trough + grain-flax = chicken. Placed on the far side, beside the trough.
         chickenId = TestScene.SpawnStationaryAnimal(api, "game:chicken-hen", needyTrough.AddCopy(1, 0, 0));
@@ -105,14 +105,7 @@ public class ShepherdObstacleNavScenario : IGoldenScenario
         village.ScanContainers();
 
         EntityProperties etype = api.World.GetEntityType(new AssetLocation("vsvillage:villager-female-shepherd"));
-        BlockPos vp = new BlockPos(center.X, y, center.Z);
-        Entity e = api.World.ClassRegistry.CreateEntity(etype);
-        e.Pos.SetPos(vp.X + 0.5, vp.Y, vp.Z + 0.5);
-        e.ServerPos.SetPos(vp.X + 0.5, vp.Y, vp.Z + 0.5);
-        e.AlwaysActive = true;
-        api.World.SpawnEntity(e);
-        e.GetBehavior<EntityBehaviorVillager>().Village = village;
-        shepherdId = e.EntityId;
+        shepherdId = ScenarioKit.SpawnVillager(api, etype, new BlockPos(center.X, y, center.Z), village);
 
         sampleTickId = api.Event.RegisterGameTickListener(_ => Sample(), 1000);
         api.Logger.Notification("[nav-diag] {0}: obstacle at z={1}..{2}, chest z={3}, trough z={4}", Name, ObstacleZ, ObstacleEndZ, ChestZ, TroughZ);
@@ -128,7 +121,7 @@ public class ShepherdObstacleNavScenario : IGoldenScenario
                 // With HeadlessPhysicsDriver providing real locomotion the shepherd walks up and
                 // DoorPathHelper opens the door en route (the BE 'opened' seed below just matches how a
                 // raw-placed door is usually encountered mid-village; the closed state also passes).
-                int door = BlockId("game:door-solid-aged");
+                int door = ScenarioKit.BlockId(api, "game:door-solid-aged");
                 for (int dx = MinX + 1; dx <= MaxX - 1; dx++)
                 {
                     if (dx == 0) continue;
@@ -149,18 +142,18 @@ public class ShepherdObstacleNavScenario : IGoldenScenario
             }
             case NavObstacle.FenceGate:
             {
-                int fence = BlockId("game:woodenfence-aged-ns-free");   // hard barrier
+                int fence = ScenarioKit.BlockId(api, "game:woodenfence-aged-ns-free");   // hard barrier
                 // CLOSED gate: with HeadlessPhysicsDriver providing real locomotion, the villager walks
                 // up and DoorPathHelper opens it — the realistic case (a shepherd entering a pen).
-                int gate = BlockId("game:woodenfencegate-aged-n-closed-left-free");
+                int gate = ScenarioKit.BlockId(api, "game:woodenfencegate-aged-n-closed-left-free");
                 for (int dx = MinX + 1; dx <= MaxX - 1; dx++)
                     api.World.BlockAccessor.SetBlock(dx == 0 ? gate : fence, new BlockPos(center.X + dx, center.Y, center.Z + ObstacleZ));
                 break;
             }
             case NavObstacle.Moat:
             {
-                int water = BlockId("game:water-still-7");
-                int trapdoor = BlockId("game:trapdoor-solid-aged-1");   // closed horizontal slab = dry bridge tile
+                int water = ScenarioKit.BlockId(api, "game:water-still-7");
+                int trapdoor = ScenarioKit.BlockId(api, "game:trapdoor-solid-aged-1");   // closed horizontal slab = dry bridge tile
                 for (int dz = ObstacleZ; dz <= ObstacleZ + 1; dz++)      // 2-wide moat
                     for (int dx = MinX + 1; dx <= MaxX - 1; dx++)
                     {
@@ -210,7 +203,7 @@ public class ShepherdObstacleNavScenario : IGoldenScenario
         api.World.GetEntityById(shepherdId)?.Die(EnumDespawnReason.Removed);
         if (chickenId >= 0) { api.World.GetEntityById(chickenId)?.Die(EnumDespawnReason.Removed); chickenId = -1; }
         // Clear the whole arena volume (incl. one below, for the moat trench) back to air; floor is rebuilt.
-        int floor = BlockId("game:" + WallBlock);
+        int floor = ScenarioKit.BlockId(api, "game:" + WallBlock);
         for (int dx = MinX; dx <= MaxX; dx++)
             for (int dz = MinZ; dz <= MaxZ; dz++)
             {
@@ -238,37 +231,5 @@ public class ShepherdObstacleNavScenario : IGoldenScenario
             }
     }
 
-    private int BlockId(string code)
-    {
-        Block b = api.World.GetBlock(new AssetLocation(code));
-        if (b == null) { api.Logger.Warning("[nav-diag] {0}: block '{1}' did not resolve!", Name, code); return 0; }
-        return b.BlockId;
-    }
-
-    private BlockPos PlaceChestWith(int dx, int dz, int chestBlockId, ItemStack stack)
-    {
-        BlockPos cp = new BlockPos(center.X + dx, center.Y, center.Z + dz);
-        api.World.BlockAccessor.SetBlock(chestBlockId, cp);
-        if (api.World.BlockAccessor.GetBlockEntity(cp) is BlockEntityContainer be && be.Inventory != null && be.Inventory.Count > 0)
-        {
-            be.Inventory[0].Itemstack = stack;
-            be.Inventory[0].MarkDirty();
-            be.MarkDirty(true);
-        }
-        return cp;
-    }
-
-    private BlockPos PlaceTroughAt(int dx, int dz, int troughBlockId)
-    {
-        BlockPos tp = new BlockPos(center.X + dx, center.Y, center.Z + dz);
-        api.World.BlockAccessor.SetBlock(troughBlockId, tp);
-        return tp;
-    }
-
-    private int FlaxIn(BlockPos pos)
-    {
-        if (api.World.BlockAccessor.GetBlockEntity(pos) is BlockEntityContainer be && be.Inventory != null)
-            return be.Inventory.Where(s => !s.Empty && s.Itemstack.Collectible.Code.Path == Feed).Sum(s => s.StackSize);
-        return 0;
-    }
+    private int FlaxIn(BlockPos pos) => ScenarioKit.ItemCountIn(api, pos, Feed);
 }

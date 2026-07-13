@@ -94,8 +94,7 @@ public class ShepherdFeedHaulScenario : IGoldenScenario
         // chunk corner, so a block at dx=-2 is in another chunk and its liveness check fails when this
         // scenario runs second in a suite. Fix: extend the arena into whichever side of the spawn chunk
         // has room and keep every read-critical offset non-negative — all BEs stay in spawn's chunk.
-        dirX = (spawn.X - ((spawn.X >> 5) << 5) <= 15) ? 1 : -1;
-        dirZ = (spawn.Z - ((spawn.Z >> 5) << 5) <= 15) ? 1 : -1;
+        (dirX, dirZ) = ScenarioKit.AnchorDirections(spawn);
 
         village = new Village { Pos = center.Copy(), Radius = VillageRadius, Name = "golden-shepherd-feed-haul" };
         village.Init(api);
@@ -110,11 +109,11 @@ public class ShepherdFeedHaulScenario : IGoldenScenario
         // trough is collinear 3 past the feed chest (short, clear fill leg — the proven geometry). The
         // shepherd starts at center; the work lane runs along the dir-x axis, decoys sit off-lane. All
         // offsets are non-negative so every read-critical BE stays inside spawn's own chunk (see above).
-        fullTrough  = PlaceTrough(0, 2, troughBlock.Id, grain, FullTroughFlax);           // full control trough, NEAREST (dist 2), off-lane
-        decoyChest  = PlaceChestWith(2, 2, chest.Id, new ItemStack(wall, DecoyItems));    // non-feed decoy chest (dist ~2.8 < 3), off-lane
-        feedChest   = PlaceChestWith(3, 0, chest.Id, new ItemStack(grain, ChestFlax));    // real source (dist 3)
-        emptyTrough = PlaceTrough(6, 0, troughBlock.Id, grain, 0);                        // needy target, FARTHEST (dist 6)
-        BuildWallRing(decoyChest, wall.BlockId, 2);   // wrap the decoy: a naive shepherd that tries for it gets walled out
+        fullTrough  = ScenarioKit.PlaceContainer(api, At(0, 2), troughBlock.Id, new ItemStack(grain, FullTroughFlax)); // full control trough, NEAREST (dist 2), off-lane
+        decoyChest  = ScenarioKit.PlaceContainer(api, At(2, 2), chest.Id, new ItemStack(wall, DecoyItems));    // non-feed decoy chest (dist ~2.8 < 3), off-lane
+        feedChest   = ScenarioKit.PlaceContainer(api, At(3, 0), chest.Id, new ItemStack(grain, ChestFlax));    // real source (dist 3)
+        emptyTrough = ScenarioKit.PlaceContainer(api, At(6, 0), troughBlock.Id, null);                         // needy target, FARTHEST (dist 6)
+        ScenarioKit.WallRing(api, decoyChest, wall.BlockId, 2);   // wrap the decoy: a naive shepherd that tries for it gets walled out
 
         // A stationary hen gives the empty trough a real consumer — the feed feature now refuses to fill a
         // trough with no animal nearby (no consumer = no need). Small trough + grain-flax = chicken feed.
@@ -131,14 +130,7 @@ public class ShepherdFeedHaulScenario : IGoldenScenario
             seededOk = ShepherdTroughs.NeedsFeed(et) && ShepherdTroughs.AcceptsItem(et, new ItemStack(grain, 1));
 
         EntityProperties etype = api.World.GetEntityType(new AssetLocation("vsvillage:villager-female-shepherd"));
-        BlockPos vp = new BlockPos(center.X, y, center.Z);
-        Entity e = api.World.ClassRegistry.CreateEntity(etype);
-        e.Pos.SetPos(vp.X + 0.5, vp.Y, vp.Z + 0.5);
-        e.ServerPos.SetPos(vp.X + 0.5, vp.Y, vp.Z + 0.5);
-        e.AlwaysActive = true;                            // MUST precede SpawnEntity (ticks AI with no player)
-        api.World.SpawnEntity(e);
-        e.GetBehavior<EntityBehaviorVillager>().Village = village;
-        shepherdIds.Add(e.EntityId);
+        shepherdIds.Add(ScenarioKit.SpawnVillager(api, etype, new BlockPos(center.X, y, center.Z), village));
 
         sampleTickId = api.Event.RegisterGameTickListener(_ => Sample(), 1000);
 
@@ -199,7 +191,7 @@ public class ShepherdFeedHaulScenario : IGoldenScenario
                 be.Inventory.Clear();
             api.World.BlockAccessor.SetBlock(0, p);
         }
-        if (decoyChest != null) ClearWallRing(decoyChest, 2);
+        if (decoyChest != null) ScenarioKit.WallRing(api, decoyChest, 0, 2);
         if (village != null)
             api.ModLoader.GetModSystem<VillageManager>()?.Villages.TryRemove(village.Id, out _);
         // NOTE: static claim registries (VsVillage.ContainerClaims, FillTrough trough claims) are not
@@ -209,90 +201,15 @@ public class ShepherdFeedHaulScenario : IGoldenScenario
         Note("🧹 Scene torn down — shepherd despawned, blocks removed, village unregistered.");
     }
 
-    // Interactive-only narration. Broadcasts to any connected players (watch mode); no-op headless, so it
-    // never affects suite output.
-    private void Note(string msg)
-    {
-        if (api.World.AllOnlinePlayers.Length == 0) return;
-        api.BroadcastMessageToAllGroups("[golden] " + msg, EnumChatType.Notification);
-    }
-
     // Maps a non-negative arena offset to a world position, extending toward the roomy side of the
     // spawn chunk (see the dirX/dirZ derivation in Setup).
     private BlockPos At(int dx, int dz) => new BlockPos(center.X + dirX * dx, center.Y, center.Z + dirZ * dz);
 
-    // Places a chest coplanar on the flat floor and seeds slot 0 with the given stack.
-    private BlockPos PlaceChestWith(int dx, int dz, int chestBlockId, ItemStack stack)
-    {
-        BlockPos cp = At(dx, dz);
-        api.World.BlockAccessor.SetBlock(chestBlockId, cp);
-        if (api.World.BlockAccessor.GetBlockEntity(cp) is BlockEntityContainer be
-            && be.Inventory != null && be.Inventory.Count > 0)
-        {
-            be.Inventory[0].Itemstack = stack;
-            be.Inventory[0].MarkDirty();
-            be.MarkDirty(true);
-        }
-        return cp;
-    }
-
-    // Places a small trough coplanar on the flat floor; seeds slot 0 with `grainCount` grain (0 = empty).
-    // Its block entity registers itself as a POI on init, so the shepherd's POI query can find it.
-    private BlockPos PlaceTrough(int dx, int dz, int troughBlockId, Item grain, int grainCount)
-    {
-        BlockPos tp = At(dx, dz);
-        api.World.BlockAccessor.SetBlock(troughBlockId, tp);
-        if (grainCount > 0
-            && api.World.BlockAccessor.GetBlockEntity(tp) is BlockEntityTrough be
-            && be.Inventory != null && be.Inventory.Count > 0)
-        {
-            be.Inventory[0].Itemstack = new ItemStack(grain, grainCount);
-            be.Inventory[0].MarkDirty();
-            be.MarkDirty(true);
-        }
-        return tp;
-    }
-
-    // A 2-tall solid ring on the four horizontal neighbours of `around` (the block itself stays open for
-    // the chest). Wraps a decoy: it only ever impedes a shepherd that WRONGLY tries to reach the decoy,
-    // so it can never make a correct shepherd fail.
-    private void BuildWallRing(BlockPos around, int wallBlockId, int height)
-    {
-        foreach (BlockFacing f in BlockFacing.HORIZONTALS)
-            for (int dy = 0; dy < height; dy++)
-                api.World.BlockAccessor.SetBlock(wallBlockId,
-                    new BlockPos(around.X + f.Normali.X, around.Y + dy, around.Z + f.Normali.Z));
-    }
-
-    private void ClearWallRing(BlockPos around, int height)
-    {
-        foreach (BlockFacing f in BlockFacing.HORIZONTALS)
-            for (int dy = 0; dy < height; dy++)
-                api.World.BlockAccessor.SetBlock(0,
-                    new BlockPos(around.X + f.Normali.X, around.Y + dy, around.Z + f.Normali.Z));
-    }
-
-    private string CarryPath(long id)
-        => api.World.GetEntityById(id)?.GetBehavior<EntityBehaviorVillager>()?.CarrySlot?.Collectible?.Code?.Path;
-
-    // True only when the block entity at pos is currently loaded and queryable. Guards window-sampled
-    // reads against transient no-BE reads (the BE reads absent for seconds at a time headless).
-    private bool IsReadable(BlockPos pos)
-        => api.World.BlockAccessor.GetBlockEntity(pos) is BlockEntityContainer be && be.Inventory != null;
-
-    // Grain-flax count across the block entity's inventory (chest or trough — both are containers).
-    private int FlaxIn(BlockPos pos)
-    {
-        if (api.World.BlockAccessor.GetBlockEntity(pos) is BlockEntityContainer be && be.Inventory != null)
-            return be.Inventory.Where(s => !s.Empty && s.Itemstack.Collectible.Code.Path == Feed).Sum(s => s.StackSize);
-        return 0;
-    }
-
-    // Total item count across the inventory — used to detect ANY drain of the non-feed decoy chest.
-    private int TotalItemsIn(BlockPos pos)
-    {
-        if (api.World.BlockAccessor.GetBlockEntity(pos) is BlockEntityContainer be && be.Inventory != null)
-            return be.Inventory.Where(s => !s.Empty).Sum(s => s.StackSize);
-        return 0;
-    }
+    // Watch-mode narration + headless-guarded reads: shared impls live in ScenarioKit; these thin aliases
+    // keep the dense Sample()/Assert() lines terse and give the feed-count read its local name.
+    private void Note(string msg) => ScenarioKit.Note(api, msg);
+    private string CarryPath(long id) => ScenarioKit.CarryPath(api, id);
+    private bool IsReadable(BlockPos pos) => ScenarioKit.IsReadable(api, pos);
+    private int FlaxIn(BlockPos pos) => ScenarioKit.ItemCountIn(api, pos, Feed);
+    private int TotalItemsIn(BlockPos pos) => ScenarioKit.TotalItemsIn(api, pos);
 }

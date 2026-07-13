@@ -107,8 +107,7 @@ public class ShepherdFeedPensScenario : IGoldenScenario
 
         int y = TestScene.BuildFlatArea(api, spawn, 14, 16);
         center = new BlockPos(spawn.X, y, spawn.Z);
-        dirX = (spawn.X - ((spawn.X >> 5) << 5) <= 15) ? 1 : -1;
-        dirZ = (spawn.Z - ((spawn.Z >> 5) << 5) <= 15) ? 1 : -1;
+        (dirX, dirZ) = ScenarioKit.AnchorDirections(spawn);
 
         village = new Village { Pos = At(4, 4), Radius = VillageRadius, Name = "golden-" + Name };
         village.Init(api);
@@ -144,11 +143,11 @@ public class ShepherdFeedPensScenario : IGoldenScenario
 
         // Shepherd(s) at the chest.
         for (int i = 0; i < ShepherdCount; i++)
-            shepherdIds.Add(SpawnVillager("vsvillage:villager-female-shepherd", At(3 + i, 4), assignVillage: true));
+            shepherdIds.Add(ScenarioKit.SpawnVillager(api, "vsvillage:villager-female-shepherd", At(3 + i, 4), village));
 
         // A HOUSED baker beside the chest — could raid it if the exclusion failed. Village-assigned so the
         // control is non-vacuous (an unhoused baker never fetches for the wrong reason).
-        bakerId = SpawnVillager("vsvillage:villager-female-baker", At(5, 4), assignVillage: true);
+        bakerId = ScenarioKit.SpawnVillager(api, "vsvillage:villager-female-baker", At(5, 4), village);
 
         sampleTickId = api.Event.RegisterGameTickListener(_ => Sample(), 1000);
 
@@ -292,23 +291,9 @@ public class ShepherdFeedPensScenario : IGoldenScenario
         }
     }
 
-    private long SpawnVillager(string code, BlockPos vp, bool assignVillage)
-    {
-        EntityProperties etype = api.World.GetEntityType(new AssetLocation(code));
-        Entity e = api.World.ClassRegistry.CreateEntity(etype);
-        e.Pos.SetPos(vp.X + 0.5, vp.Y, vp.Z + 0.5);
-        e.ServerPos.SetPos(vp.X + 0.5, vp.Y, vp.Z + 0.5);
-        e.AlwaysActive = true;
-        api.World.SpawnEntity(e);
-        if (assignVillage) e.GetBehavior<EntityBehaviorVillager>().Village = village;
-        return e.EntityId;
-    }
-
-    private string CarryPath(long id)
-        => api.World.GetEntityById(id)?.GetBehavior<EntityBehaviorVillager>()?.CarrySlot?.Collectible?.Code?.Path;
-
-    private bool IsReadable(BlockPos pos)
-        => api.World.BlockAccessor.GetBlockEntity(pos) is BlockEntityContainer be && be.Inventory != null;
+    // Watch-mode reads: shared impls live in ScenarioKit; thin aliases keep Sample() terse.
+    private string CarryPath(long id) => ScenarioKit.CarryPath(api, id);
+    private bool IsReadable(BlockPos pos) => ScenarioKit.IsReadable(api, pos);
 
     private string TroughContent(BlockPos pos)
     {

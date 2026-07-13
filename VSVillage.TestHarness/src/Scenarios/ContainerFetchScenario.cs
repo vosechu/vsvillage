@@ -75,25 +75,16 @@ public class ContainerFetchScenario : IGoldenScenario
 
         Block chest = api.World.GetBlock(new AssetLocation("game:chest-east"));
         Item grain = api.World.GetItem(new AssetLocation("game:grain-flax"));
-        inA  = PlaceChest(center, 5, 0, chest.Id, grain);    // in-bounds (dist 5 < 12)
-        inB  = PlaceChest(center, -4, 4, chest.Id, grain);   // in-bounds (dist ~5.7 < 12)
-        outC = PlaceChest(center, 20, 0, chest.Id, grain);   // dist 20 > radius 12: control (must be ignored)
+        inA  = ScenarioKit.PlaceContainer(api, new BlockPos(center.X + 5, center.Y, center.Z), chest.Id, new ItemStack(grain, GrainPerChest));      // in-bounds (dist 5 < 12)
+        inB  = ScenarioKit.PlaceContainer(api, new BlockPos(center.X - 4, center.Y, center.Z + 4), chest.Id, new ItemStack(grain, GrainPerChest)); // in-bounds (dist ~5.7 < 12)
+        outC = ScenarioKit.PlaceContainer(api, new BlockPos(center.X + 20, center.Y, center.Z), chest.Id, new ItemStack(grain, GrainPerChest));     // dist 20 > radius 12: control (must be ignored)
         village.RegisterContainer(inA);
         village.RegisterContainer(inB);
         village.ScanContainers();
 
         EntityProperties etype = api.World.GetEntityType(new AssetLocation("vsvillage:villager-female-farmer"));
         for (int k = 0; k < 2; k++)
-        {
-            BlockPos vp = new BlockPos(center.X + 1 + k, y, center.Z + 1);
-            Entity e = api.World.ClassRegistry.CreateEntity(etype);
-            e.Pos.SetPos(vp.X + 0.5, vp.Y, vp.Z + 0.5);
-            e.ServerPos.SetPos(vp.X + 0.5, vp.Y, vp.Z + 0.5);
-            e.AlwaysActive = true;                            // MUST precede SpawnEntity (ticks AI with no player)
-            api.World.SpawnEntity(e);
-            e.GetBehavior<EntityBehaviorVillager>().Village = village;
-            villagerIds.Add(e.EntityId);
-        }
+            villagerIds.Add(ScenarioKit.SpawnVillager(api, etype, new BlockPos(center.X + 1 + k, y, center.Z + 1), village));
 
         sampleTickId = api.Event.RegisterGameTickListener(_ => Sample(), 1000);
 
@@ -116,8 +107,7 @@ public class ContainerFetchScenario : IGoldenScenario
         // and record that we saw it loaded so the untouched-check can't pass vacuously (liveness).
         if (IsChestReadable(outC)) sawControlReadable = true;
         if (!controlEverTouched && IsChestReadable(outC) && GrainIn(outC) != GrainPerChest) { controlEverTouched = true; Note("❌ Out-of-bounds control C was touched — bounds filter LEAKED."); }
-        if (!sawVillagerCarry && villagerIds.Any(id =>
-                api.World.GetEntityById(id)?.GetBehavior<EntityBehaviorVillager>()?.CarrySlot?.Collectible?.Code?.Path == "grain-flax"))
+        if (!sawVillagerCarry && villagerIds.Any(id => ScenarioKit.CarryPath(api, id) == "grain-flax"))
         { sawVillagerCarry = true; Note("🌾 A villager is now carrying grain-flax — withdraw-into-carry works."); }
     }
 
@@ -152,42 +142,9 @@ public class ContainerFetchScenario : IGoldenScenario
         Note("🧹 Scene torn down — villagers despawned, chests removed, village unregistered.");
     }
 
-    // Interactive-only narration. Broadcasts a beat to any connected players so a human watching in
-    // the client sees what each moment proves. No-op when nobody is connected (the headless golden
-    // suite has zero players), so it never affects suite output — a pure watch-mode affordance.
-    private void Note(string msg)
-    {
-        if (api.World.AllOnlinePlayers.Length == 0) return;
-        api.BroadcastMessageToAllGroups("[golden] " + msg, EnumChatType.Notification);
-    }
-
-    // Places a chest coplanar on the flat floor at center.Y (not each column's own surface), fills slot 0.
-    private BlockPos PlaceChest(BlockPos center, int dx, int dz, int chestBlockId, Item grain)
-    {
-        BlockPos cp = new BlockPos(center.X + dx, center.Y, center.Z + dz);
-        api.World.BlockAccessor.SetBlock(chestBlockId, cp);
-        if (api.World.BlockAccessor.GetBlockEntity(cp) is BlockEntityContainer be
-            && be.Inventory != null && be.Inventory.Count > 0)
-        {
-            be.Inventory[0].Itemstack = new ItemStack(grain, GrainPerChest);
-            be.Inventory[0].MarkDirty();
-            be.MarkDirty(true);
-        }
-        return cp;
-    }
-
-    // True only when the chest's container block entity is currently loaded and queryable. Guards
-    // window-sampled checks against transient no-BE reads (the BE reads as absent for seconds at a
-    // time in this headless server, which would otherwise make GrainIn's 0 look like real movement).
-    private bool IsChestReadable(BlockPos pos)
-        => api.World.BlockAccessor.GetBlockEntity(pos) is BlockEntityContainer be && be.Inventory != null;
-
-    private int GrainIn(BlockPos pos)
-    {
-        if (api.World.BlockAccessor.GetBlockEntity(pos) is BlockEntityContainer be && be.Inventory != null)
-            return be.Inventory
-                .Where(s => !s.Empty && s.Itemstack.Collectible.Code.Path == "grain-flax")
-                .Sum(s => s.StackSize);
-        return 0;
-    }
+    // Watch-mode narration + the headless-guarded reads — the shared implementations live in ScenarioKit;
+    // these thin aliases keep the hot Sample()/Assert() lines terse (and IsChestReadable's original name).
+    private void Note(string msg) => ScenarioKit.Note(api, msg);
+    private bool IsChestReadable(BlockPos pos) => ScenarioKit.IsReadable(api, pos);
+    private int GrainIn(BlockPos pos) => ScenarioKit.ItemCountIn(api, pos, "grain-flax");
 }
