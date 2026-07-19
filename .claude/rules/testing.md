@@ -85,6 +85,14 @@ Authoring rules (a scenario that breaks one does not belong in the suite):
   mode is safe). Without it, villagers only "move" via the stuck-recovery teleport — ~2 path nodes
   per 18s, never through a cell a teleport can't land in (e.g. a closed door). If villagers freeze
   or crawl in a scenario, check the boot line `HeadlessPhysicsDriver active` before suspecting the mod.
+- Livestock don't EAT on a playerless server (`AiTaskSeekFoodAndEat` is hunger/breeding/`AlwaysActive`-
+  gated), so a scenario cannot assert an animal consumed — assert what the SHEPHERD deposits. Spawn
+  animals as stationary diet sources via `TestScene.SpawnStationaryAnimal` (deliberately NOT
+  `AlwaysActive`: they stay put instead of wandering out of range, and in daytime their
+  `belowLightLevel` despawn never fires in-window). And the shepherd feed feature refuses a trough with
+  no suitable consumer nearby (no animal = no need), so EVERY shepherd trough-fill scenario needs a live
+  animal of the right species beside the trough (chicken → small trough, pig/goat/sheep → large) or it
+  silently fills nothing.
 - Scenario worlds are fresh per suite run (`golden-suite.sh` wipes `$VSTEST_DATA` before boot):
   terrain edits are permanent, and imperfect teardowns from older scenario versions left ghost
   terrain that stalled later runs. Never assume a reused world is clean.
