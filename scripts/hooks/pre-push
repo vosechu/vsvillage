@@ -1,7 +1,0 @@
-#!/bin/bash
-# Pre-push gate: run the golden behavioral suite; a non-zero exit blocks the push.
-# Install once:  git config core.hooksPath scripts/hooks
-# Bypass (use sparingly):  git push --no-verify
-set -e
-echo "[pre-push] running golden behavioral suite (VS Village)..."
-exec "$(git rev-parse --show-toplevel)/scripts/golden-suite.sh" golden

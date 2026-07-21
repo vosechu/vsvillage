@@ -25,18 +25,27 @@ namespace VsVillageTest.Scenarios;
 // Justification: the whole loop is runtime-only (AI tick + pathfinder + live chest/troughs + live animals'
 // CreatureDiet); no unit test can exercise decision→path→withdraw→deposit against real diets. The pure
 // preference/pick-best is unit-tested (AnimalFeedPriorityTests); this proves the integrated, animal-aware
-// behavior and the baker exclusion. Animals do NOT eat on a playerless server, so we assert what the shepherd FILLS.
+// behavior and the baker exclusion. We assert what the shepherd FILLS (a latched "filled at least once"),
+// which holds even if a client-revived animal later nibbles what was deposited.
 //
-// Durability: flat floor; every read-critical BE (chest, all troughs incl. the large trough's head) inside
-// spawn's own chunk; window-accumulated order-independent invariants; a full PORTION asserted (a sub-portion
-// is inedible); every negative paired with a liveness flag; animals are stationary (non-AlwaysActive) diet
-// sources so they can't wander out of range.
+// Durability: flat floor; a client parked on the arena keeps chunks loaded so BE reads are reliable;
+// window-accumulated order-independent invariants; a full PORTION asserted (a sub-portion is inedible);
+// the baker's "never raided" negative paired with a live-baker control; animals are penned beside their
+// trough (fenced) so a client-revived animal stays a fixed diet source instead of wandering out of range.
 public class ShepherdFeedPensScenario : IGoldenScenario
 {
     public enum Mode { Priority, Cascade, TwoShepherds }
 
     private readonly Mode mode;
     public ShepherdFeedPensScenario(Mode mode) { this.mode = mode; }
+
+    // All modes — used by the `feed-pens` suite and by auto-discovery for `all`.
+    public static IEnumerable<IGoldenScenario> Variants() => new IGoldenScenario[]
+    {
+        new ShepherdFeedPensScenario(Mode.Priority),
+        new ShepherdFeedPensScenario(Mode.Cascade),
+        new ShepherdFeedPensScenario(Mode.TwoShepherds),
+    };
 
     private bool VegStocked => mode != Mode.Cascade;             // cascade case removes VEG — forcing grazers off their favourite
     private int ShepherdCount => mode == Mode.TwoShepherds ? 2 : 1;
@@ -68,7 +77,6 @@ public class ShepherdFeedPensScenario : IGoldenScenario
     private Village village;
     private BlockPos center, feedChest;
     private BlockPos chickenTrough, pigTrough, goatTrough;   // pig/goat = large-trough HEAD (carries the BE/POI)
-    private int dirX = 1, dirZ = 1;
 
     private readonly List<long> shepherdIds = new List<long>();
     private readonly List<long> animalIds = new List<long>();
@@ -79,8 +87,8 @@ public class ShepherdFeedPensScenario : IGoldenScenario
     private bool chickenFedGrain, pigFedExpected, goatFedExpected;
     // Negatives: a trough ever held a feed its animal refuses OR (for grazers) the least-liked hay.
     private bool pigGotHay, goatGotHay, chickenGotVegOrHay;
-    // Liveness so negatives aren't vacuous.
-    private bool chickenReadable, pigReadable, goatReadable, bakerLive;
+    // The baker must be observed live for the "never raided the chest" negative to be non-vacuous.
+    private bool bakerLive;
     // Baker must never carry feed (the raid signal — chest census is unreliable headless).
     private bool bakerCarriedFeed;
     // 2-shepherd conflict resolution: both must work AND at some instant carry DIFFERENT feeds (proving
@@ -95,8 +103,7 @@ public class ShepherdFeedPensScenario : IGoldenScenario
 
     public bool IsSettled =>
         sampleCount >= 50
-        && chickenFedGrain && pigFedExpected && goatFedExpected
-        && chickenReadable && pigReadable && goatReadable && bakerLive
+        && chickenFedGrain && pigFedExpected && goatFedExpected && bakerLive
         && (mode != Mode.TwoShepherds || (shepherdsThatCarried.Count >= 2 && sawConcurrentDifferentFeeds));
 
     public void Setup(ICoreServerAPI sapi)
@@ -107,7 +114,6 @@ public class ShepherdFeedPensScenario : IGoldenScenario
 
         int y = TestScene.BuildFlatArea(api, spawn, 14, 16);
         center = new BlockPos(spawn.X, y, spawn.Z);
-        (dirX, dirZ) = ScenarioKit.AnchorDirections(spawn);
 
         village = new Village { Pos = At(4, 4), Radius = VillageRadius, Name = "golden-" + Name };
         village.Init(api);
@@ -129,9 +135,8 @@ public class ShepherdFeedPensScenario : IGoldenScenario
         village.ScanContainers();
 
         // Three pens spread along +x (troughs 4 apart), animals adjacent to their OWN trough. Small trough
-        // for chickens; large (2-block) troughs for pig & goat. Everything stays within ~12 of centre — inside
-        // spawn's own chunk for every seed offset (the anchoring guarantees ≥16 blocks of room). Adjacency
-        // gives each animal an unambiguous nearest trough, so the served-animal (mutual-nearest) is clean.
+        // for chickens; large (2-block) troughs for pig & goat. Adjacency gives each animal an unambiguous
+        // nearest trough, so the served-animal (mutual-nearest) is clean.
         chickenTrough = PlaceSmallTrough(2, 10);
         SpawnAnimals("game:chicken-hen", chickenTrough, 2);
 
@@ -153,8 +158,6 @@ public class ShepherdFeedPensScenario : IGoldenScenario
 
         api.Logger.Notification("[feed-diag] {0}: chest={1} chickenTrough={2} pigTrough={3} goatTrough={4} veg={5} shepherds={6}",
             Name, feedChest, chickenTrough, pigTrough, goatTrough, VegStocked, ShepherdCount);
-        api.Logger.Notification("[feed-diag] trough readable at setup: chicken={0} pig={1} goat={2}",
-            IsReadable(chickenTrough), IsReadable(pigTrough), IsReadable(goatTrough));
     }
 
     private void Sample()
@@ -162,19 +165,16 @@ public class ShepherdFeedPensScenario : IGoldenScenario
         sampleCount++;
 
         // Chicken pen — grain only.
-        if (IsReadable(chickenTrough)) chickenReadable = true;
         string ct = TroughContent(chickenTrough);
         if (ct == Grain && TroughStack(chickenTrough) >= GrainPortion) chickenFedGrain = true;
         if (ct == Veg || ct == Hay) chickenGotVegOrHay = true;
 
         // Pig pen — its favourite available (veg, else grain); NEVER hay (pigs can't eat grass).
-        if (IsReadable(pigTrough)) pigReadable = true;
         string pt = TroughContent(pigTrough);
         if (pt == ExpectedMammalFeed && TroughStack(pigTrough) >= MammalPortion) pigFedExpected = true;
         if (pt == Hay) pigGotHay = true;
 
         // Goat pen — its favourite available (veg, else grain); NEVER hay (grazes, but likes hay LEAST).
-        if (IsReadable(goatTrough)) goatReadable = true;
         string gt = TroughContent(goatTrough);
         if (gt == ExpectedMammalFeed && TroughStack(goatTrough) >= MammalPortion) goatFedExpected = true;
         if (gt == Hay) goatGotHay = true;
@@ -203,10 +203,6 @@ public class ShepherdFeedPensScenario : IGoldenScenario
         report.Check("pig trough was filled with " + MammalFeedLabel + " (≥1 portion)", pigFedExpected);
         report.Check("goat trough was filled with " + MammalFeedLabel + " (≥1 portion)", goatFedExpected);
 
-        report.Check("chicken trough was observed readable (negatives non-vacuous)", chickenReadable);
-        report.Check("pig trough was observed readable (negatives non-vacuous)", pigReadable);
-        report.Check("goat trough was observed readable", goatReadable);
-
         report.Check("pig trough never received hay (pigs don't graze)", !pigGotHay);
         report.Check("goat trough never received hay (goats like hay LEAST — they prefer " + (VegStocked ? "veg" : "grain") + ")", !goatGotHay);
         report.Check("chicken trough never received veg or hay (chickens are grain-only)", !chickenGotVegOrHay);
@@ -225,14 +221,9 @@ public class ShepherdFeedPensScenario : IGoldenScenario
     {
         if (sampleTickId >= 0) { api.Event.UnregisterGameTickListener(sampleTickId); sampleTickId = -1; }
         // Release any trough/chest claims our shepherds still hold BEFORE despawning them — the claim
-        // registries are process-static and the next scenario reuses these exact positions within the
-        // same boot, so a claim orphaned by a despawned shepherd would block it for up to the 120s expiry.
-        foreach (long sid in shepherdIds)
-        {
-            foreach (BlockPos tp in new[] { chickenTrough, pigTrough, goatTrough }.Where(p => p != null))
-                VsVillage.VsVillage.TroughClaims.Release(tp, sid);   // namespace.class.field (class shares the namespace name)
-            if (feedChest != null) VsVillage.VsVillage.ContainerClaims.Release(feedChest, sid);
-        }
+        // registries are process-static and the next scenario reuses these positions within the same boot,
+        // so a claim orphaned by a despawned shepherd would block it for up to the 120s expiry.
+        ScenarioKit.ReleaseClaims(shepherdIds, new[] { feedChest, chickenTrough, pigTrough, goatTrough });
         foreach (long id in shepherdIds.Concat(animalIds).Append(bakerId))
             api.World.GetEntityById(id)?.Die(EnumDespawnReason.Removed);
         shepherdIds.Clear();
@@ -249,7 +240,7 @@ public class ShepherdFeedPensScenario : IGoldenScenario
             api.ModLoader.GetModSystem<VillageManager>()?.Villages.TryRemove(village.Id, out _);
     }
 
-    private BlockPos At(int dx, int dz) => new BlockPos(center.X + dirX * dx, center.Y, center.Z + dirZ * dz);
+    private BlockPos At(int dx, int dz) => new BlockPos(center.X + dx, center.Y, center.Z + dz);
 
     private void SeedSlot(BlockEntityContainer be, int index, string code, int count)
     {
@@ -278,22 +269,20 @@ public class ShepherdFeedPensScenario : IGoldenScenario
         return head;
     }
 
-    // Spawn `count` stationary animals directly north of the trough (adjacent, so each animal's nearest
-    // trough is unambiguously its own; within PenRadius; off the shepherd's south/west approach). Non-
-    // AlwaysActive so they stay put and read as diet sources.
+    // Spawn `count` animals directly north of the trough (adjacent, so each animal's nearest trough is
+    // unambiguously its own; within PenRadius; off the shepherd's south approach), fenced in place as one
+    // pen. A client revives these animals (physics + AI), so the fence is what keeps them a fixed diet
+    // source instead of wandering off. The fence ring sits north of the trough, clear of the fill approach.
     private void SpawnAnimals(string code, BlockPos trough, int count)
     {
+        List<BlockPos> positions = new List<BlockPos>();
         for (int i = 0; i < count; i++)
-        {
-            BlockPos p = new BlockPos(trough.X, trough.Y, trough.Z + dirZ * (1 + i));   // 1,2 north (adjacent)
-            long id = TestScene.SpawnStationaryAnimal(api, code, p);
-            if (id >= 0) animalIds.Add(id);
-        }
+            positions.Add(new BlockPos(trough.X, trough.Y, trough.Z + (1 + i)));   // 1,2 north (adjacent)
+        animalIds.AddRange(ScenarioKit.PenAnimals(api, code, positions));
     }
 
     // Watch-mode reads: shared impls live in ScenarioKit; thin aliases keep Sample() terse.
     private string CarryPath(long id) => ScenarioKit.CarryPath(api, id);
-    private bool IsReadable(BlockPos pos) => ScenarioKit.IsReadable(api, pos);
 
     private string TroughContent(BlockPos pos)
     {

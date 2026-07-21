@@ -13,7 +13,7 @@ namespace VsVillageTest.Scenarios;
 // CONCURRENTLY in one settle window, instead of two serial scenarios each paying its own window.
 // One window bounds both, so the gate costs ~max(fetch, haul) instead of fetch + haul.
 //
-// Two SEPARATE villages, spatially disjoint inside spawn's own 32^3 chunk:
+// Two SEPARATE villages, spatially disjoint near spawn:
 //  - Village F (2 farmers): proves scan -> rank -> path -> withdraw and the bounds filter.
 //  - Village S (1 shepherd): proves fetch feed -> carry -> fill a needy trough while refusing three decoys.
 // They MUST be separate: both fetch grain-flax, so one shared village would enrol the shepherd's feed
@@ -26,17 +26,16 @@ namespace VsVillageTest.Scenarios;
 // gate. When it goes RED, the standalone `container` and `feedhaul` suites re-run each behaviour in
 // isolation to localise the failure — the merge trades per-run isolation, not the ability to get it.
 //
-// Durability: same discipline as the two source scenarios — flat floor (TestScene.BuildFlatArea),
-// window-accumulated order-independent invariants (never an end-of-run snapshot), every read gated on
-// the BE being loaded, every NEGATIVE paired with a liveness flag, and every read-critical BE anchored
-// at a non-negative offset so it stays inside spawn's own reliably-loaded chunk.
+// Durability: same discipline as the two source scenarios — flat floor (TestScene.BuildFlatArea) and
+// window-accumulated order-independent invariants (never an end-of-run snapshot). A client parked on the
+// arena keeps the chunks loaded, so reads are reliable.
 public class HaulGateScenario : IGoldenScenario
 {
     public string Name => "haul-gate";
     public string Justification =>
         "Runtime-only fetch + haul loops (AI tick + pathfinder + live containers/troughs); no unit test "
         + "can cover them. The headline inventory gate, run as one window; the standalone container/feedhaul "
-        + "suites localise a red gate. Flat floor + window-accumulated, liveness-guarded invariants keep it durable.";
+        + "suites localise a red gate. Flat floor + window-accumulated invariants keep it durable.";
     public int SettleSeconds => 70;   // upper bound; early exit below once both loops land + negatives got a fair window
 
     // Early exit, guarded for the NEGATIVE checks: positives + liveness flipping true says both loops
@@ -46,11 +45,10 @@ public class HaulGateScenario : IGoldenScenario
     private int sampleCount;
     public bool IsSettled =>
         sampleCount >= MinWindowSeconds
-        // fetch positives + control liveness
-        && sawADrained && sawBDrained && sawFarmerCarry && sawFetchControlReadable
-        // haul positives + both decoy liveness
-        && seededOk && sawTroughFilled && sawChestDrained && sawShepherdCarry
-        && sawFullTroughReadable && sawDecoyReadable;
+        // fetch positives
+        && sawADrained && sawBDrained && sawFarmerCarry
+        // haul positives
+        && seededOk && sawTroughFilled && sawChestDrained && sawShepherdCarry;
 
     private const int GrainPerChest = 16;   // fetch chests A, B, and the out-of-bounds control C
     private const int ChestFlax = 16;       // feed chest: one full 8-capacity trough + surplus
@@ -64,12 +62,11 @@ public class HaulGateScenario : IGoldenScenario
     private ICoreServerAPI api;
     private Village villageF, villageS;
     private BlockPos center;
-    private int dirX = 1, dirZ = 1;   // which way the arena extends so every read-critical BE stays in spawn's chunk
 
     // Fetch arena (village F)
     private readonly List<long> farmerIds = new List<long>();
     private BlockPos inA, inB, outC;
-    private bool sawADrained, sawBDrained, sawFarmerCarry, fetchControlTouched, sawFetchControlReadable;
+    private bool sawADrained, sawBDrained, sawFarmerCarry, fetchControlTouched;
 
     // Haul arena (village S)
     private readonly List<long> shepherdIds = new List<long>();
@@ -77,7 +74,7 @@ public class HaulGateScenario : IGoldenScenario
     private BlockPos feedChest, decoyChest, emptyTrough, fullTrough;
     private bool sawTroughFilled, sawChestDrained, sawShepherdCarry;
     private bool controlEverChanged, decoyEverDrained, sawNonFeedCarry;
-    private bool sawFullTroughReadable, sawDecoyReadable, seededOk;
+    private bool seededOk;
 
     private long sampleTickId = -1;
 
@@ -87,15 +84,9 @@ public class HaulGateScenario : IGoldenScenario
         VillageManager vm = api.ModLoader.GetModSystem<VillageManager>();
         BlockPos spawn = api.World.DefaultSpawnPosition.AsBlockPos;
 
-        // Floor must span both arenas (max offset ~ +13 x, +23 z); symmetric ± keeps it covered whichever
-        // way the arena extends. Floor blocks in neighbouring chunks are fine — only BE READS need spawn's chunk.
+        // Floor must span both arenas (max offset ~ +13 x, +23 z).
         int y = TestScene.BuildFlatArea(api, spawn, 16, 26);
         center = new BlockPos(spawn.X, y, spawn.Z);
-
-        // Anchor: keep every read-critical offset non-negative and extend toward the roomy side of the
-        // spawn chunk, so no BE lands in a neighbouring chunk (those decay to permanently-unreadable a
-        // minute or two into a headless run, which would fail the liveness guards). See ShepherdFeedHaul.
-        (dirX, dirZ) = ScenarioKit.AnchorDirections(spawn);
 
         Block chest = api.World.GetBlock(new AssetLocation("game:chest-east"));
         Block troughBlock = api.World.GetBlock(new AssetLocation("game:trough-genericwood-small-ns"));
@@ -130,9 +121,10 @@ public class HaulGateScenario : IGoldenScenario
         villageS.RegisterContainer(feedChest);        // troughs are excluded by the source fix; only the feed chest enrols
         villageS.ScanContainers();
 
-        // A stationary hen gives the empty trough a consumer — the feed feature refuses to fill a trough with
-        // no animal nearby. Small trough + grain-flax = chicken feed. Off the trough's approach lane.
-        chickenId = TestScene.SpawnStationaryAnimal(api, "game:chicken-hen", At(2, 22));
+        // A penned hen gives the empty trough a consumer — the feed feature refuses to fill a trough with
+        // no animal nearby. Small trough + grain-flax = chicken feed. Fenced in place so it stays a fixed
+        // consumer once a client revives it (see ScenarioKit.PenAnimal). Off the trough's approach lane.
+        chickenId = ScenarioKit.PenAnimal(api, "game:chicken-hen", At(2, 22));
 
         // Seed-sanity: a mis-seed (wrong feed code / trough won't accept it) makes the haul a silent no-op
         // with every check red and no diagnosis. Capture the precondition so it fails loudly instead.
@@ -164,19 +156,16 @@ public class HaulGateScenario : IGoldenScenario
         if (!sawADrained && GrainIn(inA) == 0) { sawADrained = true; Note("✅ In-bounds chest A emptied — a farmer reached it."); }
         if (!sawBDrained && GrainIn(inB) == 0) { sawBDrained = true; Note("✅ In-bounds chest B emptied — the fetch loop reached the second chest too."); }
         if (!sawFarmerCarry && farmerIds.Any(id => CarryPath(id) == Feed)) { sawFarmerCarry = true; Note("🌾 A farmer is carrying grain-flax — withdraw-into-carry works."); }
-        // Fetch negative + liveness
-        if (IsReadable(outC)) sawFetchControlReadable = true;
-        if (!fetchControlTouched && IsReadable(outC) && GrainIn(outC) != GrainPerChest) { fetchControlTouched = true; Note("❌ Out-of-bounds control C was touched — bounds filter LEAKED."); }
+        // Fetch negative
+        if (!fetchControlTouched && GrainIn(outC) != GrainPerChest) { fetchControlTouched = true; Note("❌ Out-of-bounds control C was touched — bounds filter LEAKED."); }
 
         // --- Haul positives ---
         if (!sawTroughFilled && FlaxIn(emptyTrough) > 0) { sawTroughFilled = true; Note("✅ Empty pen trough now holds grain — hauled in."); }
-        if (!sawChestDrained && IsReadable(feedChest) && FlaxIn(feedChest) < ChestFlax) { sawChestDrained = true; Note("✅ Feed chest drained — grain was HAULED, not conjured."); }
+        if (!sawChestDrained && FlaxIn(feedChest) < ChestFlax) { sawChestDrained = true; Note("✅ Feed chest drained — grain was HAULED, not conjured."); }
         if (!sawShepherdCarry && shepherdIds.Any(id => CarryPath(id) == Feed)) { sawShepherdCarry = true; Note("🌾 Shepherd carrying grain — fetch-into-carry works."); }
-        // Haul negatives + their liveness
-        if (IsReadable(fullTrough)) sawFullTroughReadable = true;
-        if (!controlEverChanged && IsReadable(fullTrough) && FlaxIn(fullTrough) != FullTroughFlax) { controlEverChanged = true; Note("❌ Full control trough changed — NeedsFeed gate LEAKED."); }
-        if (IsReadable(decoyChest)) sawDecoyReadable = true;
-        if (!decoyEverDrained && IsReadable(decoyChest) && TotalItemsIn(decoyChest) < DecoyItems) { decoyEverDrained = true; Note("❌ Non-feed decoy chest drained — the shepherd fetched junk."); }
+        // Haul negatives
+        if (!controlEverChanged && FlaxIn(fullTrough) != FullTroughFlax) { controlEverChanged = true; Note("❌ Full control trough changed — NeedsFeed gate LEAKED."); }
+        if (!decoyEverDrained && TotalItemsIn(decoyChest) < DecoyItems) { decoyEverDrained = true; Note("❌ Non-feed decoy chest drained — the shepherd fetched junk."); }
         if (!sawNonFeedCarry && shepherdIds.Any(id => { string p = CarryPath(id); return p != null && p != Feed; })) { sawNonFeedCarry = true; Note("❌ Shepherd carried a non-feed item."); }
     }
 
@@ -186,16 +175,13 @@ public class HaulGateScenario : IGoldenScenario
         report.Check("fetch: in-bounds chest A was fetched from (emptied at least once)", sawADrained);
         report.Check("fetch: in-bounds chest B was fetched from (emptied at least once)", sawBDrained);
         report.Check("fetch: a farmer carried grain-flax at some point", sawFarmerCarry);
-        report.Check("fetch: out-of-bounds control was observed readable (untouched-check is non-vacuous)", sawFetchControlReadable);
         report.Check("fetch: out-of-bounds control was never touched (bounds filter)", !fetchControlTouched);
         // Haul
         report.Check("haul: scenario seeded — empty trough is needy and accepts the feed", seededOk);
         report.Check("haul: empty pen trough was filled at least once", sawTroughFilled);
         report.Check("haul: feed chest was drained at least once (hauled, not conjured)", sawChestDrained);
         report.Check("haul: a shepherd carried feed at some point", sawShepherdCarry);
-        report.Check("haul: full control trough was observed readable (untouched-check is non-vacuous)", sawFullTroughReadable);
         report.Check("haul: full control trough was never touched (NeedsFeed gate)", !controlEverChanged);
-        report.Check("haul: non-feed decoy chest was observed readable (undrained-check is non-vacuous)", sawDecoyReadable);
         report.Check("haul: non-feed decoy chest was never drained (type gate)", !decoyEverDrained);
         report.Check("haul: a shepherd never carried a non-feed item", !sawNonFeedCarry);
 
@@ -208,6 +194,10 @@ public class HaulGateScenario : IGoldenScenario
     public void Teardown()
     {
         if (sampleTickId >= 0) { api.Event.UnregisterGameTickListener(sampleTickId); sampleTickId = -1; }
+        // Release claims before despawning so none bleeds into the next scenario in one boot (the "all"
+        // suite runs several with no server restart between them to reset the process-static registries).
+        ScenarioKit.ReleaseClaims(farmerIds.Concat(shepherdIds),
+            new[] { inA, inB, outC, feedChest, decoyChest, emptyTrough, fullTrough });
         foreach (long id in farmerIds.Concat(shepherdIds))
             api.World.GetEntityById(id)?.Die(EnumDespawnReason.Removed);
         farmerIds.Clear();
@@ -223,19 +213,16 @@ public class HaulGateScenario : IGoldenScenario
         VillageManager vm = api.ModLoader.GetModSystem<VillageManager>();
         if (villageF != null) vm?.Villages.TryRemove(villageF.Id, out _);
         if (villageS != null) vm?.Villages.TryRemove(villageS.Id, out _);
-        // Static claim registries (ContainerClaims, FillTrough trough claims) are not cleared: block
-        // positions are spawn-relative but the server restarts between suite runs, so no stale claim bleeds.
         Note("🧹 Scene torn down — villagers despawned, blocks removed, both villages unregistered.");
     }
 
-    // Maps a non-negative arena offset to a world position, extending toward the roomy side of the spawn chunk.
-    private BlockPos At(int dx, int dz) => new BlockPos(center.X + dirX * dx, center.Y, center.Z + dirZ * dz);
+    // Maps an arena offset to a world position.
+    private BlockPos At(int dx, int dz) => new BlockPos(center.X + dx, center.Y, center.Z + dz);
 
-    // Watch-mode narration + headless-guarded reads: shared impls live in ScenarioKit; these thin aliases
-    // keep the dense Sample()/Assert() lines terse and give the feed-count reads their local names.
+    // Watch-mode narration + shared reads: impls live in ScenarioKit; these thin aliases keep the dense
+    // Sample()/Assert() lines terse and give the feed-count reads their local names.
     private void Note(string msg) => ScenarioKit.Note(api, msg);
     private string CarryPath(long id) => ScenarioKit.CarryPath(api, id);
-    private bool IsReadable(BlockPos pos) => ScenarioKit.IsReadable(api, pos);
     private int FlaxIn(BlockPos pos) => ScenarioKit.ItemCountIn(api, pos, Feed);
     private int GrainIn(BlockPos pos) => FlaxIn(pos);
     private int TotalItemsIn(BlockPos pos) => ScenarioKit.TotalItemsIn(api, pos);

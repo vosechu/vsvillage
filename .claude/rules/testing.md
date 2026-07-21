@@ -7,8 +7,9 @@ globs: "{VSVillage.Tests,VSVillage.TestHarness}/**"
 
 Two suites, both fork-only. `VSVillage.Tests` (xUnit, net10.0) covers **only pure decision
 logic** extracted into plain classes — this is the default. `VSVillage.TestHarness` is a
-separate mod that runs **behavioral golden tests** on a headless dedicated server (see the
-tier-discipline section below for when each applies).
+separate mod that runs **behavioral golden tests** on a dedicated server — with a real game
+client connected for the suites that move villagers (see the tier-discipline section below for
+when each applies).
 
 ## The boundary (the one rule that matters)
 
@@ -41,8 +42,8 @@ packaged, so copying is correct. Do not "fix" this to match the mod's `Private=f
 
 ## Behavioral golden tests (VSVillage.TestHarness) — the bar
 
-Headless behavioral scenarios (spawn villagers on a dedicated server, assert on game state)
-are the most expensive and most flake-prone tests here. The framework working is not a licence
+Behavioral scenarios (spawn villagers on a dedicated server, assert on game state) are the most
+expensive and most flake-prone tests here. The framework working is not a licence
 to default to it. Prefer, in order:
 
 1. A pure unit test in `VSVillage.Tests` (fast, deterministic, no server) — the default.
@@ -53,8 +54,8 @@ to default to it. Prefer, in order:
 
 Denser still: run independent behaviors CONCURRENTLY in one settle window rather than as serial
 scenarios — the window is the dominant cost, so N behaviors in one window cost ~max, not sum. The
-push gate does this (`HaulGateScenario` = container-fetch + shepherd-feed-haul in disjoint villages
-inside spawn's chunk). The trade-off is per-run localization: a red merged gate doesn't say WHICH
+`golden` suite does this (`HaulGateScenario` = container-fetch + shepherd-feed-haul in disjoint
+villages near spawn). The trade-off is per-run localization: a red merged gate doesn't say WHICH
 behavior broke, so keep each behavior available as a standalone suite (`golden-suite.sh container`,
 `... feedhaul`) to re-run in isolation. Behaviors that touch the same item/village WILL cross-
 contaminate if merged naively (a farmer draining the shepherd's feed chest) — give each its own
@@ -67,35 +68,42 @@ Authoring rules (a scenario that breaks one does not belong in the suite):
 - Villagers run overlapping tasks (fetch AND return-carry) so state oscillates — sample across
   the settle window and assert accumulated invariants, not an end-of-run snapshot.
 - Pair every negative with a positive — a parked/dead villager passes all negatives vacuously.
-- Reads are unreliable headless — a chest's `GetBlockEntity` or a villager's `GetEntityById`
-  intermittently returns null for seconds at a time. So a point-in-time full-world census (e.g.
-  total-item conservation) is not assertable, and even a monotonic read-based check can false-fire;
-  gate any read on the BE/entity actually being loaded (see `ContainerFetchScenario.IsChestReadable`).
-- Sharper: chunks NEIGHBOURING spawn decay to permanently-unreadable a minute or two into a headless
-  run — only spawn's own 32³ chunk stays reliably loaded (a spawn can sit exactly on a chunk corner,
-  so even `dx=-2` may cross into a dying chunk). Place every read-critical block entity INSIDE the
-  spawn chunk (see `ShepherdFeedHaulScenario`'s dirX/dirZ anchoring), and pair every negative
-  assertion with a liveness check ("this BE was observed readable at least once") so an unreadable
-  window can't pass it vacuously.
+- Reads are reliable because movement suites run with a client parked on the arena, which keeps the
+  nearby chunks loaded. (Headless, a chest's `GetBlockEntity` or a villager's `GetEntityById` returned
+  null for seconds at a time, and chunks neighbouring spawn decayed to permanently-unreadable — which
+  forced per-read readability guards and spawn-chunk `dirX/dirZ` anchoring. The client route removed
+  both; the scenarios now read directly and place arenas with plain offsets.)
+- Still pair every negative with a positive/liveness control (e.g. `ShepherdFeedPensScenario`'s
+  live-baker check) so a parked, dead, or never-spawned villager can't pass a negative vacuously. That
+  discipline is about the actor being present, not about read reliability, so it stays.
 - The engine skips entity physics for anything no CONNECTED CLIENT is near (`PhysicsManager.DoWork`:
   `if (entity.IsTracked == 0) continue;` — `AlwaysActive` keeps AI ticking but does not exempt
   physics). On a playerless server, walk vectors yield zero displacement and entities don't even fall.
-  The harness's `HeadlessPhysicsDriver` restores real locomotion by driving `OnPhysicsTick` at 30Hz
-  for untracked Active entities (it stands down per-entity when a real client tracks it, so watch
-  mode is safe). Without it, villagers only "move" via the stuck-recovery teleport — ~2 path nodes
-  per 18s, never through a cell a teleport can't land in (e.g. a closed door). If villagers freeze
-  or crawl in a scenario, check the boot line `HeadlessPhysicsDriver active` before suspecting the mod.
-- Livestock don't EAT on a playerless server (`AiTaskSeekFoodAndEat` is hunger/breeding/`AlwaysActive`-
-  gated), so a scenario cannot assert an animal consumed — assert what the SHEPHERD deposits. Spawn
-  animals as stationary diet sources via `TestScene.SpawnStationaryAnimal` (deliberately NOT
-  `AlwaysActive`: they stay put instead of wandering out of range, and in daytime their
-  `belowLightLevel` despawn never fires in-window). And the shepherd feed feature refuses a trough with
-  no suitable consumer nearby (no animal = no need), so EVERY shepherd trough-fill scenario needs a live
-  animal of the right species beside the trough (chicken → small trough, pig/goat/sheep → large) or it
-  silently fills nothing.
+  So movement suites run with a real CLIENT connected: `golden-suite.sh` launches one and teleports
+  it onto the arena, which makes the nearby villagers `IsTracked` and their physics run. Physics-free
+  suites (`nav-probe` = direct FindPath, `selftest`) skip the client. Without a client villagers only
+  "move" via the stuck-recovery teleport — ~2 path nodes at a time, never through a cell a teleport
+  can't land in (e.g. a closed door) — so a movement scenario freezing usually means the client didn't
+  connect or park: check the server log for the `joins.` line and `Ok, teleported`. (This replaced an
+  earlier `HeadlessPhysicsDriver` that hand-drove `OnPhysicsTick`; a control run proved the client
+  route: no client froze the shepherd and failed `nav-gate`, a client crossed the closed gate and passed.)
+- Assert what the SHEPHERD deposits, never what an animal consumed. A consumer animal is spawned PENNED
+  via `ScenarioKit.PenAnimal` — with a client connected the animal comes alive (physics + AI) and would
+  wander off, so a fence ring keeps it a fixed diet source beside its trough (a fence's tall collision
+  box holds it in, no lid needed). It may nibble what was deposited, but the "filled at least once"
+  latch survives that. And the shepherd feed feature refuses a trough with no suitable consumer nearby
+  (no animal = no need), so EVERY shepherd trough-fill scenario needs a live animal of the right species
+  beside the trough (chicken → small trough, pig/goat/sheep → large) or it silently fills nothing.
 - Scenario worlds are fresh per suite run (`golden-suite.sh` wipes `$VSTEST_DATA` before boot):
   terrain edits are permanent, and imperfect teardowns from older scenario versions left ghost
   terrain that stalled later runs. Never assume a reused world is clean.
+- Release every trough/chest claim your villagers hold on teardown (`ScenarioKit.ReleaseClaims`, before
+  despawning). The `all` suite runs scenarios back-to-back in ONE boot with no restart to reset the
+  process-static claim registries, so an un-released claim bleeds into the next scenario and blocks it.
+- A new scenario auto-joins the one-boot `all` run (reflection over `IGoldenScenario`) — no list to edit.
+  Set `InAllSuite => false` only for a framework stub (selftest) or an aspirational scenario (nav).
 
-Run the suite: `scripts/golden-suite.sh golden` (exit 0 = pass). Gate it on push:
-`git config core.hooksPath scripts/hooks`. See `VSVillage.TestHarness/README.md`.
+Run the suite: `scripts/golden-suite.sh golden` (exit 0 = pass). Movement suites launch a game
+client, so they need a display and a world save with a character (`WORLD_SRC`, default the
+`foggy doodle world` save); physics-free suites (`nav-probe`, `selftest`) run without one. There
+is no push hook — run it by hand. See `VSVillage.TestHarness/README.md`.

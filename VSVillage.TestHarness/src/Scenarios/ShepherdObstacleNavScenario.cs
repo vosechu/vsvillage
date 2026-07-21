@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
@@ -24,14 +25,15 @@ public enum NavObstacle { Door, FenceGate, Moat }
 // so a failure here is a navigation FINDING, not a masked haul regression — it must never touch the
 // pre-push golden gate.
 //
-// Empirical findings (headless, raw SetBlock placement):
-//  - Real locomotion requires HeadlessPhysicsDriver. The engine skips OnPhysicsTick for every entity
-//    with IsTracked == 0 (set purely by distance to the nearest CONNECTED CLIENT — AlwaysActive keeps AI
+// Empirical findings (raw SetBlock placement):
+//  - Real locomotion requires a nearby connected CLIENT. The engine skips OnPhysicsTick for every entity
+//    with IsTracked == 0 (set purely by distance to the nearest connected client — AlwaysActive keeps AI
 //    ticking but does not exempt physics), so a playerless server simulates no entity physics at all.
-//    Before the driver existed, all apparent movement was AiTaskGotoAndInteract's stuck-recovery
-//    teleporting ~2 path nodes at a time — which also meant a passage cell a teleport can't land in
-//    (a closed door/gate's collision box) could never be crossed. With the driver, villagers genuinely
-//    walk (~3x faster than the teleport crawl) and DoorPathHelper opens closed doors and gates.
+//    Without a client, all apparent movement was AiTaskGotoAndInteract's stuck-recovery teleporting
+//    ~2 path nodes at a time — which also meant a passage cell a teleport can't land in (a closed
+//    door/gate's collision box) could never be crossed. With a client parked on the arena (golden-suite.sh
+//    launches one), villagers genuinely walk and DoorPathHelper opens closed doors and gates. Proven with
+//    a control: no client froze the shepherd at spawn (nav-gate FAIL); a client crossed it (nav-gate PASS).
 //  - With real locomotion ALL THREE obstacles pass the full haul loop: closed DOOR (opened en route),
 //    closed FENCE GATE (opened en route), and the 2-wide MOAT. The pathfinder was never the problem —
 //    PathfinderProbeScenario shows 8/8 enclosed configurations return direct paths.
@@ -44,6 +46,18 @@ public class ShepherdObstacleNavScenario : IGoldenScenario
 {
     private readonly NavObstacle obstacle;
     public ShepherdObstacleNavScenario(NavObstacle obstacle) { this.obstacle = obstacle; }
+
+    // Aspirational: a pathfinding limit is a navigation FINDING, not a gate failure, so keep nav out of the
+    // auto-discovered `all` run. Still runnable via the `nav` / `nav-door` / ... named suites.
+    public bool InAllSuite => false;
+
+    // All obstacle variants — used by the `nav` suite and by auto-discovery (which then filters via InAllSuite).
+    public static IEnumerable<IGoldenScenario> Variants() => new IGoldenScenario[]
+    {
+        new ShepherdObstacleNavScenario(NavObstacle.Door),
+        new ShepherdObstacleNavScenario(NavObstacle.FenceGate),
+        new ShepherdObstacleNavScenario(NavObstacle.Moat),
+    };
 
     public string Name => "shepherd-nav-" + obstacle.ToString().ToLowerInvariant();
     public string Justification =>
@@ -100,7 +114,7 @@ public class ShepherdObstacleNavScenario : IGoldenScenario
         needyTrough = ScenarioKit.PlaceContainer(api, new BlockPos(center.X, center.Y, center.Z + TroughZ), troughB, null);
         // Consumer for the trough past the obstacle: the feed feature refuses to fill a trough with no
         // animal nearby. Small trough + grain-flax = chicken. Placed on the far side, beside the trough.
-        chickenId = TestScene.SpawnStationaryAnimal(api, "game:chicken-hen", needyTrough.AddCopy(1, 0, 0));
+        chickenId = ScenarioKit.PenAnimal(api, "game:chicken-hen", needyTrough.AddCopy(1, 0, 0));
         village.RegisterContainer(feedChest);
         village.ScanContainers();
 
@@ -118,7 +132,7 @@ public class ShepherdObstacleNavScenario : IGoldenScenario
         {
             case NavObstacle.Door:
             {
-                // With HeadlessPhysicsDriver providing real locomotion the shepherd walks up and
+                // With real locomotion (a connected client nearby) the shepherd walks up and
                 // DoorPathHelper opens the door en route (the BE 'opened' seed below just matches how a
                 // raw-placed door is usually encountered mid-village; the closed state also passes).
                 int door = ScenarioKit.BlockId(api, "game:door-solid-aged");
@@ -143,7 +157,7 @@ public class ShepherdObstacleNavScenario : IGoldenScenario
             case NavObstacle.FenceGate:
             {
                 int fence = ScenarioKit.BlockId(api, "game:woodenfence-aged-ns-free");   // hard barrier
-                // CLOSED gate: with HeadlessPhysicsDriver providing real locomotion, the villager walks
+                // CLOSED gate: with real locomotion (a connected client nearby), the villager walks
                 // up and DoorPathHelper opens it — the realistic case (a shepherd entering a pen).
                 int gate = ScenarioKit.BlockId(api, "game:woodenfencegate-aged-n-closed-left-free");
                 for (int dx = MinX + 1; dx <= MaxX - 1; dx++)

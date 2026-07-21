@@ -24,10 +24,8 @@ namespace VsVillageTest.Scenarios;
 //    assert order-independent, oscillation-robust invariants: each in-bounds chest was emptied at
 //    least once (the loop reached it), the out-of-bounds control was NEVER touched (bounds filter),
 //    and a villager carried grain at some point (withdraw-into-carry works).
-//  - Reads are unreliable headless: a chest's block entity intermittently reads as absent for
-//    seconds at a time (GetBlockEntity returns null), so GrainIn returns 0. That is why the control
-//    check only fires when C's block entity is actually readable — an unguarded read would
-//    false-flag the untouched control.
+//  - Reads are reliable because a client is parked on the arena (golden-suite.sh), which keeps the
+//    chunks loaded; a headless run used to need per-read readability guards, no longer.
 public class ContainerFetchScenario : IGoldenScenario
 {
     public string Name => "container-fetch";
@@ -36,14 +34,14 @@ public class ContainerFetchScenario : IGoldenScenario
         + "Protects the inventory fetch feature. Flat floor + window-accumulated invariants keep it durable.";
     public int SettleSeconds => 40;   // upper bound; early exit below once positives land + the control got a fair window
 
-    // Early exit, guarded for the NEGATIVE check: the positives + control-liveness flipping true says the
-    // fetch loop worked, but "control never touched" needs a real observation window to mean anything — so
-    // never settle before MinWindowSeconds regardless of how fast the chests drained.
+    // Early exit, guarded for the NEGATIVE check: the positives say the fetch loop worked, but "control
+    // never touched" needs a real observation window to mean anything — so never settle before
+    // MinWindowSeconds regardless of how fast the chests drained.
     private const int MinWindowSeconds = 25;
     private int sampleCount;
     public bool IsSettled =>
         sampleCount >= MinWindowSeconds
-        && sawADrained && sawBDrained && sawVillagerCarry && sawControlReadable;
+        && sawADrained && sawBDrained && sawVillagerCarry;
 
     private const int GrainPerChest = 16;
     private const int VillageRadius = 12;
@@ -55,7 +53,6 @@ public class ContainerFetchScenario : IGoldenScenario
 
     // Accumulated over the settle window (sampled each second), so oscillation can't hide a result.
     private bool sawADrained, sawBDrained, sawVillagerCarry, controlEverTouched;
-    private bool sawControlReadable;   // liveness for the control negative (makes the untouched-check non-vacuous)
     private long sampleTickId = -1;
 
     public void Setup(ICoreServerAPI sapi)
@@ -102,11 +99,7 @@ public class ContainerFetchScenario : IGoldenScenario
         sampleCount++;
         if (!sawADrained && GrainIn(inA) == 0) { sawADrained = true; Note("✅ In-bounds chest A emptied — a villager reached it and withdrew grain."); }
         if (!sawBDrained && GrainIn(inB) == 0) { sawBDrained = true; Note("✅ In-bounds chest B emptied — the fetch loop reached the second chest too."); }
-        // Gate on C being readable: a transient no-BE read makes GrainIn(outC) return 0, which would
-        // false-flag the untouched control. Only trust a "changed" reading when the BE is actually loaded,
-        // and record that we saw it loaded so the untouched-check can't pass vacuously (liveness).
-        if (IsChestReadable(outC)) sawControlReadable = true;
-        if (!controlEverTouched && IsChestReadable(outC) && GrainIn(outC) != GrainPerChest) { controlEverTouched = true; Note("❌ Out-of-bounds control C was touched — bounds filter LEAKED."); }
+        if (!controlEverTouched && GrainIn(outC) != GrainPerChest) { controlEverTouched = true; Note("❌ Out-of-bounds control C was touched — bounds filter LEAKED."); }
         if (!sawVillagerCarry && villagerIds.Any(id => ScenarioKit.CarryPath(api, id) == "grain-flax"))
         { sawVillagerCarry = true; Note("🌾 A villager is now carrying grain-flax — withdraw-into-carry works."); }
     }
@@ -116,7 +109,6 @@ public class ContainerFetchScenario : IGoldenScenario
         report.Check("in-bounds chest A was fetched from (emptied at least once)", sawADrained);
         report.Check("in-bounds chest B was fetched from (emptied at least once)", sawBDrained);
         report.Check("a villager carried grain-flax at some point", sawVillagerCarry);
-        report.Check("out-of-bounds control was observed readable (untouched-check is non-vacuous)", sawControlReadable);
         report.Check("out-of-bounds control was never touched (bounds filter)", !controlEverTouched);
 
         Note("━━━━━ RESULT ━━━━━");
@@ -128,6 +120,8 @@ public class ContainerFetchScenario : IGoldenScenario
     public void Teardown()
     {
         if (sampleTickId >= 0) { api.Event.UnregisterGameTickListener(sampleTickId); sampleTickId = -1; }
+        // Release container claims before despawning so none bleeds into the next scenario in one boot.
+        ScenarioKit.ReleaseClaims(villagerIds, new[] { inA, inB, outC });
         foreach (long id in villagerIds)
             api.World.GetEntityById(id)?.Die(EnumDespawnReason.Removed);
         villagerIds.Clear();
@@ -142,9 +136,8 @@ public class ContainerFetchScenario : IGoldenScenario
         Note("🧹 Scene torn down — villagers despawned, chests removed, village unregistered.");
     }
 
-    // Watch-mode narration + the headless-guarded reads — the shared implementations live in ScenarioKit;
-    // these thin aliases keep the hot Sample()/Assert() lines terse (and IsChestReadable's original name).
+    // Watch-mode narration + shared reads — the implementations live in ScenarioKit; these thin aliases
+    // keep the hot Sample()/Assert() lines terse.
     private void Note(string msg) => ScenarioKit.Note(api, msg);
-    private bool IsChestReadable(BlockPos pos) => ScenarioKit.IsReadable(api, pos);
     private int GrainIn(BlockPos pos) => ScenarioKit.ItemCountIn(api, pos, "grain-flax");
 }
