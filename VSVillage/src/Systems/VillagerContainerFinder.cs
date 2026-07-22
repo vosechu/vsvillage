@@ -45,25 +45,40 @@ public static class VillagerContainerFinder
         foreach (BlockFacing facing in BlockFacing.HORIZONTALS)
         {
             BlockPos neighbour = containerPos.AddCopy(facing.Normali.X, 0, facing.Normali.Z);
-            Block nb = ba.GetBlock(neighbour);
-            if (nb.Code == null) continue;
-            string path = nb.Code.Path;
-            if (path.Contains("fence") && !path.Contains("gate")) continue; // solid fence panel blocks the approach
-
-            Block below = ba.GetBlock(neighbour.DownCopy());
-            bool groundSolid = below.CollisionBoxes != null && below.CollisionBoxes.Length != 0;
-            if (!groundSolid) continue;
-
-            bool isGate = path.Contains("gate") || path.Contains("door");
-            bool bodyClear = isGate || nb.CollisionBoxes == null || nb.CollisionBoxes.Length == 0;
-            Block above = ba.GetBlock(neighbour.UpCopy());
-            bool headClear = above.CollisionBoxes == null || above.CollisionBoxes.Length == 0;
-            if (!bodyClear || !headClear) continue;
+            if (!IsStandable(ba, neighbour)) continue;
 
             Vec3d candidate = neighbour.ToVec3d().Add(0.5, 0.0, 0.5);
             double dist = candidate.SquareDistanceTo(from);
             if (dist < bestDist) { bestDist = dist; best = candidate; }
         }
         return best;
+    }
+
+    /// <summary>
+    /// Can a villager stand at <paramref name="pos"/> to reach the adjacent container: solid ground
+    /// below, body and head clear, and not a solid fence panel (gates/doors stay passable — the
+    /// pathfinder opens them). Occupancy uses the engine's position-aware GetCollisionBoxes, so a
+    /// fence/slab/door reports the box for its actual state rather than the block default.
+    /// </summary>
+    private static bool IsStandable(IBlockAccessor ba, BlockPos pos)
+    {
+        Block block = ba.GetBlock(pos);
+        if (block.Code == null) return false;
+        string path = block.Code.Path;
+        if (path.Contains("fence") && !path.Contains("gate")) return false; // solid fence panel blocks the approach
+
+        if (!Occupies(ba, pos.DownCopy())) return false; // need solid ground under foot
+
+        bool isGate = path.Contains("gate") || path.Contains("door");
+        bool bodyClear = isGate || !Occupies(ba, pos);
+        return bodyClear && !Occupies(ba, pos.UpCopy()); // head clear
+    }
+
+    // Does the block at pos physically occupy space? Uses the position-aware GetCollisionBoxes overload
+    // (fences/doors/slabs override it to report their real collision) rather than the raw block default.
+    private static bool Occupies(IBlockAccessor ba, BlockPos pos)
+    {
+        Cuboidf[] boxes = ba.GetBlock(pos).GetCollisionBoxes(ba, pos);
+        return boxes != null && boxes.Length != 0;
     }
 }
