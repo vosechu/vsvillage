@@ -61,7 +61,11 @@ public class VillageManager : ModSystem
 	private void OnDidPlaceBlock(IServerPlayer byPlayer, int oldblockId, BlockSelection blockSel, ItemStack withItemStack)
 	{
 		if (blockSel?.Position == null) return;
-		if (Api.World.BlockAccessor.GetBlockEntity(blockSel.Position) is BlockEntityContainer)
+		// Troughs are BlockEntityContainers too, but they are feed SINKS, not storage: enrolling them
+		// would let a shepherd fetch feed OUT of a full trough and let ReturnCarry dump carry INTO one.
+		// The shepherd reaches troughs through the POI registry instead, never the storage index.
+		BlockEntity be = Api.World.BlockAccessor.GetBlockEntity(blockSel.Position);
+		if (be is BlockEntityContainer && !ShepherdTroughs.IsTrough(be))
 			GetVillage(blockSel.Position)?.RegisterContainer(blockSel.Position);
 	}
 

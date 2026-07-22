@@ -1,4 +1,5 @@
 using Vintagestory.API.Common;
+using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 
@@ -35,10 +36,33 @@ public static class TestScene
         {
             for (int z = center.Z - halfZ; z <= center.Z + halfZ; z++)
             {
+                // Two layers deep: the world is REUSED across suite runs, and a single-layer floor laid
+                // at each column's own (possibly dug-out) height left trench ghosts from old scenario
+                // versions. Solid to floorY-1 self-heals 1-deep digs and displaces stray water.
+                ba.SetBlock(floorId, new BlockPos(x, floorY - 1, z));
                 ba.SetBlock(floorId, new BlockPos(x, floorY, z));
                 for (int dy = 1; dy <= 5; dy++) ba.SetBlock(0, new BlockPos(x, floorY + dy, z));
             }
         }
+        api.Logger.Notification("[harness] BuildFlatArea: floor y={0} at {1} ({2}x{3})", floorY, center, halfX * 2 + 1, halfZ * 2 + 1);
         return floorY + 1;
+    }
+
+    // Spawn a livestock entity as a diet source for the shepherd's feed selection. NOT AlwaysActive — but the
+    // movement-suite client parked on the arena revives it (the 128-block simulation range that runs villager
+    // physics ticks its AI too), so it WOULD wander; PenAnimals rings it with a connected fence to hold it in
+    // place. In daytime (the golden suite sets /time set day) its despawn behaviour — gated on belowLightLevel
+    // — never fires within a scenario window. Returns the entity id, or -1 if the code doesn't resolve.
+    // NOTE: a revived animal may nibble the deposited feed, so scenarios assert what the SHEPHERD fills
+    // (a "filled at least once" latch), never what the animal consumes.
+    public static long SpawnStationaryAnimal(ICoreServerAPI api, string code, BlockPos pos)
+    {
+        EntityProperties etype = api.World.GetEntityType(new AssetLocation(code));
+        if (etype == null) { api.Logger.Warning("[harness] SpawnStationaryAnimal: unknown entity code {0}", code); return -1; }
+        Entity e = api.World.ClassRegistry.CreateEntity(etype);
+        e.Pos.SetPos(pos.X + 0.5, pos.Y, pos.Z + 0.5);
+        e.ServerPos.SetPos(pos.X + 0.5, pos.Y, pos.Z + 0.5);
+        api.World.SpawnEntity(e);
+        return e.EntityId;
     }
 }

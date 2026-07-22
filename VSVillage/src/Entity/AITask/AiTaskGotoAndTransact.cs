@@ -47,7 +47,7 @@ public class AiTaskGotoAndTransact : AiTaskGotoAndInteract
         Vec3d from = entity.ServerPos.XYZ;
         // Placeholder predicate: any container holding at least one item. Profession specs override this.
         List<BlockPos> ranked = VillagerContainerFinder.RankContainers(
-            entity.World, village, from, entity.EntityId, cooldown, now, HasAnyItem);
+            entity.World, village, from, entity.EntityId, cooldown, now, WantsItem);
 
         foreach (BlockPos candidate in ranked.Take(5)) // probe only the nearest few
         {
@@ -62,11 +62,32 @@ public class AiTaskGotoAndTransact : AiTaskGotoAndInteract
         return null;
     }
 
-    private static bool HasAnyItem(BlockEntityContainer be)
+    // Which containers hold something worth fetching. Profession subclasses override.
+    protected virtual bool WantsItem(BlockEntityContainer be)
     {
         if (be.Inventory == null) return false;
         foreach (ItemSlot slot in be.Inventory) if (!slot.Empty) return true;
         return false;
+    }
+
+    // How many of a matched stack to withdraw. Default: the whole source stack. Subclasses cap it.
+    protected virtual int WithdrawNeed(ItemSlot src) => src.StackSize;
+
+    // Movable quantity for a source slot under the single-stack carry model.
+    protected int Movable(ItemSlot src) => VillagerInventoryMath.MovableQuantity(
+        WithdrawNeed(src), src.StackSize, src.Itemstack.Collectible.MaxStackSize, src.StackSize);
+
+    // Which source slot to withdraw. Default: the first non-empty slot with a movable quantity.
+    // Subclasses (e.g. the shepherd feed-fetch) override to pick a specific/best slot — e.g. the
+    // highest-priority feed the target pen's animal will actually eat, rather than first-come.
+    protected virtual ItemSlot ChooseSourceSlot(BlockEntityContainer be)
+    {
+        foreach (ItemSlot src in be.Inventory)
+        {
+            if (src.Empty) continue;
+            if (Movable(src) > 0) return src;
+        }
+        return null;
     }
 
     protected override void ApplyInteractionEffect()
@@ -76,12 +97,10 @@ public class AiTaskGotoAndTransact : AiTaskGotoAndInteract
         {
             EntityBehaviorVillager bh = entity.GetBehavior<EntityBehaviorVillager>();
             if (bh == null) return;
-            foreach (ItemSlot src in be.Inventory)
+            ItemSlot src = ChooseSourceSlot(be);
+            int move = (src != null && !src.Empty) ? Movable(src) : 0;
+            if (move > 0)
             {
-                if (src.Empty) continue;
-                int move = VillagerInventoryMath.MovableQuantity(
-                    src.StackSize, src.StackSize, src.Itemstack.Collectible.MaxStackSize, src.StackSize);
-                if (move <= 0) continue;
                 ItemStack carried = src.TakeOut(move);
                 src.MarkDirty();
                 bh.CarrySlot = carried;
@@ -89,9 +108,9 @@ public class AiTaskGotoAndTransact : AiTaskGotoAndInteract
                     entity.EntityId, carried.StackSize, carried.Collectible?.Code, claimedPos);
                 return; // single-stack carry, done
             }
-            // Reached only if the chest was empty on arrival (race): cool it so we don't re-pick it.
+            // Nothing movable on arrival (empty, or every slot filtered out): cool it so we don't re-pick it.
             cooldown.Mark(claimedPos, entity.World.ElapsedMilliseconds);
-            entity.Api.Logger.Notification("[vsvillage] transact: villager {0} found container at {1} empty on arrival", entity.EntityId, claimedPos);
+            entity.Api.Logger.Notification("[vsvillage] transact: villager {0} found container at {1} with nothing to take", entity.EntityId, claimedPos);
         }
     }
 

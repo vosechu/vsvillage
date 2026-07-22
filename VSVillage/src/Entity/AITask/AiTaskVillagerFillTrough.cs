@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
@@ -13,18 +12,18 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 
 	private BlockPos lastTroughPos;
 
+	private ItemStack carriedFeed;
+
 	private Dictionary<BlockPos, long> recentlyFilledTroughs;
 
 	private long troughCooldownMs = 60000L;
 
-	// Trough claiming so multiple shepherds don't converge on the same one. Owner dict + separate timestamp dict for stale-claim expiry.
-	private static readonly ConcurrentDictionary<BlockPos, long> TroughClaimOwner =
-		new ConcurrentDictionary<BlockPos, long>();
-	private static readonly ConcurrentDictionary<BlockPos, long> TroughClaimTime =
-		new ConcurrentDictionary<BlockPos, long>();
+	// Trough↔animal proximity: an animal within this range of the trough is "in the pen" it serves.
+	private const float PenRadius = 8f;
 
-	// How long a claim is valid before being treated as stale (ms).
-	private const long TroughClaimExpiryMs = 120_000L;
+	// Trough claiming so multiple shepherds don't converge on the same one. Shared with the fetch leg
+	// via VsVillage.TroughClaims (a shepherd claims a trough at fetch and holds it through fill), so two
+	// shepherds provision different pens instead of both piling onto the nearest one.
 
 	public AiTaskVillagerFillTrough(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
 		: base(entity, taskConfig, aiConfig)
@@ -43,10 +42,12 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 			return null;
 		}
 
-		// Release our previous claim and evict globally-stale entries so they
-		// don't permanently prevent other shepherds from accessing those troughs.
+		EntityBehaviorVillager bh = entity.GetBehavior<EntityBehaviorVillager>();
+		if (bh == null || bh.IsCarryEmpty) return null;
+		carriedFeed = bh.CarrySlot;
+
+		// Release our previous claim (the registry evicts globally-stale entries itself on each claim).
 		ReleaseClaim(lastTroughPos);
-		PurgeExpiredClaims(entity.World.ElapsedMilliseconds);
 
 		POIRegistry poiReg = entity.Api.ModLoader.GetModSystem<POIRegistry>();
 		Vec3d myPos = entity.Pos.XYZ;
@@ -95,18 +96,9 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 	// Returns true for any block entity that represents a creature trough,
 	// regardless of whether it is the large (BlockEntityTrough) or small
 	// (BlockEntityTroughMiniBowl / any other VS variant) trough type.
-	private static bool IsTroughPoi(IPointOfInterest poi)
-	{
-		if (poi is BlockEntityTrough) return true;
-		if (poi is BlockEntity be)
-			return be.Block?.Code?.Path?.Contains("trough") == true;
-		return false;
-	}
+	private static bool IsTroughPoi(IPointOfInterest poi) => ShepherdTroughs.IsTroughPoi(poi);
 
-	private static BlockPos GetTroughPos(IPointOfInterest poi)
-	{
-		return (poi as BlockEntity)?.Pos;
-	}
+	private static BlockPos GetTroughPos(IPointOfInterest poi) => ShepherdTroughs.GetTroughPos(poi);
 
 	private Vec3d GetTroughApproachPos(BlockEntityTrough trough)
 	{
@@ -167,47 +159,51 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		{
 			return false;
 		}
+		if (carriedFeed == null || !ShepherdTroughs.AcceptsItem(blockEntityTrough, carriedFeed)) return false;
+		if (!ServedAnimalEats(blockEntityTrough)) return false;
 		return blockEntityTrough.Inventory[0]?.Empty ?? true;
+	}
+
+	// The carried feed must be one the trough's own pen animal will actually EAT (game diet + block
+	// suitability), else the shepherd could dump hay into a pig trough that physically accepts it but
+	// the pig ignores — a silent starve/brick. No suitable animal near the trough → don't fill it.
+	private bool ServedAnimalEats(BlockEntityTrough trough)
+	{
+		if (carriedFeed == null) return false;
+		POIRegistry poiReg = entity.Api.ModLoader.GetModSystem<POIRegistry>();
+		ShepherdFeeding.ServedAnimal served = ShepherdFeeding.FindServed(entity.World, poiReg, trough, PenRadius);
+		return served != null && ShepherdFeeding.WillEat(entity.World, trough, served, carriedFeed);
 	}
 
 	protected override void ApplyInteractionEffect()
 	{
-		if (!IsShepherd() || nearestTrough == null)
+		if (!IsShepherd() || nearestTrough == null) return;
+		EntityBehaviorVillager bh = entity.GetBehavior<EntityBehaviorVillager>();
+		if (bh == null || bh.IsCarryEmpty) return;
+
+		ItemSlot source = new DummySlot(bh.CarrySlot);
+		ContentConfig contentConfig = ItemSlotTrough.getContentConfig(entity.Api.World, nearestTrough.contentConfigs, source);
+		if (contentConfig == null)
 		{
+			ReleaseClaim(nearestTrough.Pos);   // carried item isn't feed for this trough; return leg reclaims
 			return;
 		}
-		Item item = (nearestTrough.Inventory[0].Empty ? entity.World.GetItem(new AssetLocation("grain-flax")) : nearestTrough.Inventory[0].Itemstack.Item);
-		if (item == null)
+		entity.AnimManager.StartAnimation(new AnimationMetaData
 		{
-			return;
-		}
-		ItemSlot itemSlot = new DummySlot(new ItemStack(item, 16));
-		ContentConfig contentConfig = ItemSlotTrough.getContentConfig(entity.Api.World, nearestTrough.contentConfigs, itemSlot);
-		if (contentConfig != null)
+			Animation = "hoe-till", Code = "hoe-till", AnimationSpeed = 1f,
+			BlendMode = EnumAnimationBlendMode.Average
+		}.Init());
+		BlockPos claimPos = nearestTrough.Pos.Copy();
+		entity.World.RegisterCallback(delegate
 		{
-			entity.AnimManager.StartAnimation(new AnimationMetaData
-			{
-				Animation = "hoe-till",
-				Code = "hoe-till",
-				AnimationSpeed = 1f,
-				BlendMode = EnumAnimationBlendMode.Average
-			}.Init());
-			// Capture the trough position for the delayed claim release.
-			BlockPos claimPos = nearestTrough.Pos.Copy();
-			entity.World.RegisterCallback(delegate
-			{
-				PerformFilling(itemSlot, contentConfig);
-				// Release claim here, AFTER filling, so no other shepherd swoops
-				// in during the 1500 ms animation window before food is placed.
-				ReleaseClaim(claimPos);
-			}, 1500);
-		}
-		else
-		{
-			// No valid content config - release the claim immediately so another
-			// shepherd can try a different item or the trough isn't locked forever.
-			ReleaseClaim(nearestTrough.Pos);
-		}
+			// Re-read the carry fresh: the villager may have died (dropping the carry) during the
+			// 1.5s animation, and depositing a captured reference would duplicate the dropped stack.
+			if (!entity.Alive || bh.IsCarryEmpty) { ReleaseClaim(claimPos); return; }
+			ItemSlot freshSource = new DummySlot(bh.CarrySlot);
+			ContentConfig freshCfg = ItemSlotTrough.getContentConfig(entity.Api.World, nearestTrough.contentConfigs, freshSource);
+			if (freshCfg != null) PerformFilling(freshSource, freshCfg, bh);
+			ReleaseClaim(claimPos);
+		}, 1500);
 	}
 
 	public override void FinishExecute(bool cancelled)
@@ -252,16 +248,23 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		recentlyFilledTroughs[pos.Copy()] = entity.World.ElapsedMilliseconds;
 	}
 
-	private void PerformFilling(ItemSlot itemSlot, ContentConfig contentConfig)
+	private void PerformFilling(ItemSlot source, ContentConfig contentConfig, EntityBehaviorVillager bh)
 	{
 		if (nearestTrough == null) return;
 
-		int transferred = itemSlot.TryPutInto(entity.World, nearestTrough.Inventory[0], contentConfig.QuantityPerFillLevel);
-		if (transferred > 0)
+		int totalMoved = 0, moved;
+		do
 		{
-			// Only mark filled and show particles when food was actually placed.
+			moved = source.TryPutInto(entity.World, nearestTrough.Inventory[0], contentConfig.QuantityPerFillLevel);
+			totalMoved += moved;
+		}
+		while (moved > 0 && !source.Empty);
+
+		if (totalMoved > 0)
+		{
 			nearestTrough.Inventory[0].MarkDirty();
 			MarkTroughFilled(nearestTrough.Pos);
+			bh.CarrySlot = source.Empty ? null : source.Itemstack;
 			SimpleParticleProperties simpleParticleProperties = new SimpleParticleProperties(10f, 15f, ColorUtil.ToRgba(255, 255, 233, 83), nearestTrough.Position.AddCopy(-0.4, 0.8, -0.4), nearestTrough.Position.AddCopy(-0.6, 0.8, -0.6), new Vec3f(-0.25f, 0f, -0.25f), new Vec3f(0.25f, 0f, 0.25f), 2f, 1f, 0.2f);
 			simpleParticleProperties.MinPos = nearestTrough.Position.AddCopy(0.5, 1.0, 0.5);
 			entity.World.SpawnParticles(simpleParticleProperties);
@@ -275,58 +278,23 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		{
 			return false;
 		}
-		ItemSlot itemSlot = blockEntityTrough.Inventory[0];
-		if (itemSlot == null || itemSlot.Empty)
-		{
-			return true;
-		}
-		int stackSize = itemSlot.StackSize;
-		int maxStackSize = itemSlot.Itemstack.Collectible.MaxStackSize;
-		return stackSize < maxStackSize;
+		if (carriedFeed == null || !ShepherdTroughs.AcceptsItem(blockEntityTrough, carriedFeed)) return false;
+		if (!ServedAnimalEats(blockEntityTrough)) return false;
+		return ShepherdTroughs.NeedsFeed(blockEntityTrough);
 	}
 
-	// === Claim helpers ===
+	// === Claim helpers (delegate to the shared VsVillage.TroughClaims registry) ===
 
 	private bool IsClaimedByOther(BlockPos pos)
-	{
-		if (pos == null) return false;
-		if (!TroughClaimOwner.TryGetValue(pos, out long owner)) return false;
-		if (owner == entity.EntityId) return false; // our own claim
-		// Treat the claim as void if it has expired.
-		if (TroughClaimTime.TryGetValue(pos, out long claimedAt)
-		    && entity.World.ElapsedMilliseconds - claimedAt > TroughClaimExpiryMs)
-		{
-			TroughClaimOwner.TryRemove(pos, out _);
-			TroughClaimTime.TryRemove(pos, out _);
-			return false;
-		}
-		return true;
-	}
+		=> pos != null && VsVillage.TroughClaims.IsClaimedByOther(pos, entity.EntityId, entity.World.ElapsedMilliseconds);
 
 	private void ClaimTrough(BlockPos pos)
 	{
-		if (pos == null) return;
-		TroughClaimOwner[pos] = entity.EntityId;
-		TroughClaimTime[pos]  = entity.World.ElapsedMilliseconds;
+		if (pos != null) VsVillage.TroughClaims.TryClaim(pos, entity.EntityId, entity.World.ElapsedMilliseconds);
 	}
 
-	private static void ReleaseClaim(BlockPos pos)
+	private void ReleaseClaim(BlockPos pos)
 	{
-		if (pos == null) return;
-		TroughClaimOwner.TryRemove(pos, out _);
-		TroughClaimTime.TryRemove(pos, out _);
-	}
-
-	// Caller passes world tick time (entity.World.ElapsedMilliseconds) so the clock matches the other claim methods.
-	private static void PurgeExpiredClaims(long now)
-	{
-		foreach (BlockPos pos in TroughClaimTime.Keys)
-		{
-			if (TroughClaimTime.TryGetValue(pos, out long t) && now - t > TroughClaimExpiryMs)
-			{
-				TroughClaimOwner.TryRemove(pos, out _);
-				TroughClaimTime.TryRemove(pos, out _);
-			}
-		}
+		if (pos != null) VsVillage.TroughClaims.Release(pos, entity.EntityId);
 	}
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
@@ -38,12 +39,60 @@ public class GoldenRunner : ModSystem
 
     private void RegisterSuites()
     {
-        suites["golden"] = new List<IGoldenScenario> { new ContainerFetchScenario() };
+        // The push gate: the two inventory behaviours merged into ONE settle window (fetch + haul run
+        // concurrently in disjoint villages), so the gate costs ~max(fetch, haul) instead of fetch + haul serial.
+        suites["golden"] = new List<IGoldenScenario> { new HaulGateScenario() };
+        // One-boot comprehensive run: every scenario in a SINGLE server+client session. The boot +
+        // client-launch is the dominant cost, so N scenarios in one boot cost ~one boot, not N. This list
+        // is AUTO-DISCOVERED (see DiscoverAllScenarios) — a new scenario file joins it with no edit here —
+        // and each scenario releases its claims on teardown, so nothing bleeds with no restart between them.
+        suites["all"] = DiscoverAllScenarios();
+        // Standalone single-behaviour suites — run these to LOCALISE a red gate (which behaviour broke).
+        suites["container"] = new List<IGoldenScenario> { new ContainerFetchScenario() };
+        suites["feedhaul"] = new List<IGoldenScenario> { new ShepherdFeedHaulScenario() };
+        // Animal-aware feeding: 3 pens (chicken/pig/goat), priority + cascade + baker control, and a
+        // 2-shepherd conflict variant. Per-mode suites below for fast iteration on one case.
+        suites["feed-pens"] = ShepherdFeedPensScenario.Variants().ToList();
+        suites["feed-priority"] = new List<IGoldenScenario> { new ShepherdFeedPensScenario(ShepherdFeedPensScenario.Mode.Priority) };
+        suites["feed-cascade"] = new List<IGoldenScenario> { new ShepherdFeedPensScenario(ShepherdFeedPensScenario.Mode.Cascade) };
+        suites["feed-2shep"] = new List<IGoldenScenario> { new ShepherdFeedPensScenario(ShepherdFeedPensScenario.Mode.TwoShepherds) };
+        // Navigation exploration — one obstacle-course arena per obstacle. Real locomotion comes from the
+        // connected client the runner parks on the arena (physics only runs for entities a client tracks).
+        // Separate suite: it characterises villager navigation (and catches regressions in it) without
+        // coupling the haul gate to pathfinding depth.
+        suites["nav"] = ShepherdObstacleNavScenario.Variants().ToList();
+        // Direct-FindPath diagnostic matrix (no AI, runs in seconds): "does A* accept this block?"
+        suites["nav-probe"] = new List<IGoldenScenario> { new PathfinderProbeScenario() };
+        // Single-obstacle suites for fast iteration on one obstacle.
+        suites["nav-door"] = new List<IGoldenScenario> { new ShepherdObstacleNavScenario(NavObstacle.Door) };
+        suites["nav-gate"] = new List<IGoldenScenario> { new ShepherdObstacleNavScenario(NavObstacle.FenceGate) };
+        suites["nav-moat"] = new List<IGoldenScenario> { new ShepherdObstacleNavScenario(NavObstacle.Moat) };
         suites["selftest"] = new List<IGoldenScenario>
         {
             new AlwaysPassScenario(),
             new AlwaysFailScenario()
         };
+    }
+
+    // Reflect over every IGoldenScenario in the assembly so the `all` suite needs no hand-maintained list:
+    // a new scenario file is picked up automatically. A type with a public static Variants() contributes all
+    // its variants (FeedPens modes, nav obstacles); any other type is built via its parameterless ctor. Then
+    // keep only those whose InAllSuite is true (drops the selftest stubs and the aspirational nav) and sort
+    // by Name for a deterministic order.
+    private static List<IGoldenScenario> DiscoverAllScenarios()
+    {
+        var found = new List<IGoldenScenario>();
+        foreach (Type t in typeof(GoldenRunner).Assembly.GetTypes())
+        {
+            if (t.IsAbstract || t.IsInterface || !typeof(IGoldenScenario).IsAssignableFrom(t)) continue;
+            MethodInfo variants = t.GetMethod("Variants", BindingFlags.Public | BindingFlags.Static);
+            if (variants != null && typeof(IEnumerable<IGoldenScenario>).IsAssignableFrom(variants.ReturnType))
+                found.AddRange((IEnumerable<IGoldenScenario>)variants.Invoke(null, null));
+            else if (t.GetConstructor(Type.EmptyTypes) != null)
+                found.Add((IGoldenScenario)Activator.CreateInstance(t));
+            // else: a parameterized scenario with no Variants() can't be auto-instantiated — skip it.
+        }
+        return found.Where(s => s.InAllSuite).OrderBy(s => s.Name).ToList();
     }
 
     private TextCommandResult OnList(TextCommandCallingArgs args)
@@ -93,12 +142,22 @@ public class GoldenRunner : ModSystem
             return;
         }
 
-        sapi.World.RegisterCallback(_ =>
+        // Poll each second: end the scenario as soon as it reports settled (early exit), with
+        // SettleSeconds as the hard upper bound. Fixed windows made suite time ~2x the actual
+        // behavior time; IsSettled trims exactly that padding.
+        long elapsedMs = 0;
+        long pollId = 0;
+        pollId = sapi.Event.RegisterGameTickListener(_ =>
         {
+            elapsedMs += 1000;
+            bool settled = false;
+            try { settled = s.IsSettled; } catch (Exception e) { report.Fail("IsSettled threw", e); settled = true; }
+            if (!settled && elapsedMs < s.SettleSeconds * 1000L) return;
+            sapi.Event.UnregisterGameTickListener(pollId);
             try { s.Assert(report); } catch (Exception e) { report.Fail("assert threw", e); }
             SafeTeardown(s, report);
             RunNext(suiteName, scenarios, i + 1, results);
-        }, s.SettleSeconds * 1000);
+        }, 1000);
     }
 
     private void SafeTeardown(IGoldenScenario s, ScenarioReport report)
