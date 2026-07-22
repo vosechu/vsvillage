@@ -24,14 +24,15 @@ public static class ScenarioKit
         api.BroadcastMessageToAllGroups("[golden] " + msg, EnumChatType.Notification);
     }
 
-    // Spawn a villager that ticks its AI on a playerless server (AlwaysActive set BEFORE SpawnEntity),
-    // optionally assigned to a village. Returns the entity id.
+    // Spawn a villager, optionally assigned to a village. Returns the entity id. Its AI ticks because the
+    // movement-suite client parked on the arena keeps it inside the 128-block simulation range — the SAME
+    // range that runs its physics (AI-active and physics-tracked are one threshold, GlobalConstants
+    // .DefaultSimulationRange). No AlwaysActive: real villagers never set it, so the harness matches them.
     public static long SpawnVillager(ICoreServerAPI api, EntityProperties etype, BlockPos vp, Village village)
     {
         Entity e = api.World.ClassRegistry.CreateEntity(etype);
         e.Pos.SetPos(vp.X + 0.5, vp.Y, vp.Z + 0.5);
         e.ServerPos.SetPos(vp.X + 0.5, vp.Y, vp.Z + 0.5);
-        e.AlwaysActive = true;                            // MUST precede SpawnEntity (ticks AI with no player)
         api.World.SpawnEntity(e);
         if (village != null) e.GetBehavior<EntityBehaviorVillager>().Village = village;
         return e.EntityId;

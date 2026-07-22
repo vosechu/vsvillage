@@ -1,10 +1,10 @@
 # VS Village Test Harness (fork-only)
 
 Behavioral golden-test framework. A **separate mod assembly**, never shipped in the release zip,
-loaded only via `--addModPath`. It spawns `AlwaysActive` villagers on a dedicated server and
-asserts on live game state. Suites that move villagers also connect a real game client — villager
-physics only runs for entities a client is near — so those need a display; physics-free suites
-(`nav-probe`, `selftest`) run headless.
+loaded only via `--addModPath`. It spawns villagers on a dedicated server and asserts on live game
+state. Suites that move villagers also connect a real game client — villager physics only runs for
+entities a client is near — so those need a display; physics-free suites (`nav-probe`, `selftest`)
+run headless.
 
 ## Run
 

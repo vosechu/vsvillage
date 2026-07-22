@@ -48,12 +48,13 @@ public static class TestScene
         return floorY + 1;
     }
 
-    // Spawn a livestock entity as a STATIONARY diet source for the shepherd's feed selection. Deliberately
-    // NOT AlwaysActive: its AI never ticks, so it can't wander out of its pen (deterministic), and in
-    // daytime (the golden suite sets /time set day) its despawn behaviour — gated on belowLightLevel — never
-    // fires within a scenario window. Returns the entity id, or -1 if the code doesn't resolve.
-    // NOTE: on a playerless server these animals do NOT eat (AiTaskSeekFoodAndEat is hunger/AlwaysActive
-    // gated), so scenarios assert what the SHEPHERD fills, never what the animal consumes.
+    // Spawn a livestock entity as a diet source for the shepherd's feed selection. NOT AlwaysActive — but the
+    // movement-suite client parked on the arena revives it (the 128-block simulation range that runs villager
+    // physics ticks its AI too), so it WOULD wander; PenAnimals rings it with a connected fence to hold it in
+    // place. In daytime (the golden suite sets /time set day) its despawn behaviour — gated on belowLightLevel
+    // — never fires within a scenario window. Returns the entity id, or -1 if the code doesn't resolve.
+    // NOTE: a revived animal may nibble the deposited feed, so scenarios assert what the SHEPHERD fills
+    // (a "filled at least once" latch), never what the animal consumes.
     public static long SpawnStationaryAnimal(ICoreServerAPI api, string code, BlockPos pos)
     {
         EntityProperties etype = api.World.GetEntityType(new AssetLocation(code));
