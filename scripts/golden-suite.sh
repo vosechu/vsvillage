@@ -50,6 +50,16 @@ cleanup() {
 }
 fail() { echo "GOLDEN SUITE FAIL: $1"; cleanup 2>/dev/null; exit 1; }
 
+# Preflight: refuse a client-driven suite while a real game client is open. Launching a second
+# Vintage Story client (macOS treats the app as single-instance) kicks the player out of their
+# session. The harness client always carries --connect 127.0.0.1:$PORT; a real session never does,
+# so a client-path process lacking that marker (and not the dedicated VintagestoryServer) is the
+# player's own game. Headless suites (WITH_CLIENT=0) launch no client, so they skip this gate.
+if [ "$WITH_CLIENT" = 1 ] && pgrep -fl "Vintage Story.app/Vintagestory" 2>/dev/null \
+     | grep -v VintagestoryServer | grep -qv "127.0.0.1:$PORT"; then
+  fail "a Vintage Story client is already running — close your game first (this suite launches its own client and would kick you out of your session)"
+fi
+
 echo "== build =="
 VINTAGE_STORY="$GAME" dotnet build -c Debug "$ROOT/VSVillage/VSVillage.csproj" >/dev/null 2>&1 || fail "mod build failed"
 VINTAGE_STORY="$GAME" dotnet build -c Debug "$ROOT/VSVillage.TestHarness/VSVillage.TestHarness.csproj" >/dev/null 2>&1 || fail "harness build failed"
