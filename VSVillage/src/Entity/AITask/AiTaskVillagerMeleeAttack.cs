@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
+using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
@@ -21,7 +22,6 @@ public class AiTaskVillagerMeleeAttack : AiTaskMeleeAttack
 	// -ReportCooldownMs so the first engagement always fires (long.MinValue would underflow the cooldown subtraction).
 	private long _lastReportedAtMs = -ReportCooldownMs;
 	private const long ReportCooldownMs  = 60_000L;  // per-soldier minimum gap; per-village throttle is via VillageAlarms below
-	private const double ReportRadiusSq  = 50.0 * 50.0; // broadcast radius (blocks²); 50 = "close enough to engage", not player chunk-load distance
 
 
 	public AnimationMetaData baseAnimMeta { get; set; }
@@ -109,7 +109,7 @@ public class AiTaskVillagerMeleeAttack : AiTaskMeleeAttack
 			}
 		}
 
-		if (entity.RightHandItemSlot != null && !entity.RightHandItemSlot.Empty)
+		if (entity.RightHandItemSlot != null && !entity.RightHandItemSlot.Empty && entity.RightHandItemSlot.Itemstack?.Item != null)
 		{
 			damage = Math.Max(entity.RightHandItemSlot.Itemstack.Item.AttackPower * armedDamageMultiplier, unarmedDamage);
 			animMeta = (entity.RightHandItemSlot.Itemstack.Item.Code.Path.Contains("spear") ? stabAnimMeta : slashAnimMeta);
@@ -184,28 +184,21 @@ public class AiTaskVillagerMeleeAttack : AiTaskMeleeAttack
 
 		if (!firstReportInWindow) return;
 
+		// Alarm and rally state above always updates; only the chat line is configurable.
+		if (!(entity.Api.ModLoader.GetModSystem<VillageGenerator>()?.Config?.ShowGuardAlertMessages ?? true)) return;
+
 		// Compose the message.
 		string soldierName = entity.WatchedAttributes.GetString("nametag");
 		if (string.IsNullOrEmpty(soldierName))
-			soldierName = entity.GetBehavior<EntityBehaviorNameTag>()?.DisplayName ?? "A soldier";
+			soldierName = entity.GetBehavior<EntityBehaviorNameTag>()?.DisplayName ?? Lang.Get("vsvillage:guard-unnamed-soldier");
 
-		string villageName = !string.IsNullOrEmpty(village.Name) ? village.Name : "the village";
+		string villageName = !string.IsNullOrEmpty(village.Name) ? village.Name : Lang.Get("vsvillage:guard-village-unnamed");
 		string enemyType  = FormatEnemyType(targetEntity.Code?.Path ?? "");
-		string message    = $"{soldierName}, soldier of {villageName}, reports a hostile {enemyType}!";
+		string message    = Lang.Get("vsvillage:guard-report-hostile", soldierName, villageName, enemyType);
 
-		// Broadcast to players within range.
-		ICoreServerAPI sapi = entity.Api as ICoreServerAPI;
-		if (sapi == null) return;
-
-		Vec3d myPos   = entity.Pos.XYZ;
-		IPlayer[] all = sapi.World.AllOnlinePlayers;
-		for (int i = 0; i < all.Length; i++)
-		{
-			IServerPlayer sp = all[i] as IServerPlayer;
-			if (sp?.Entity == null) continue;
-			if (sp.Entity.Pos.SquareDistanceTo(myPos) <= ReportRadiusSq)
-				sp.SendMessage(0, message, EnumChatType.Notification);
-		}
+		// Everyone inside the village hears it. Scoped to the village's own radius rather than a
+		// fixed distance, so large villages are covered and small ones do not leak to passers-by.
+		VillageChat.SendToVillage(entity.Api as ICoreServerAPI, village, message);
 	}
 
 	// Turns a raw entity code path ("drifter-normal", "wolf-male", "hellboar-female")
@@ -214,7 +207,7 @@ public class AiTaskVillagerMeleeAttack : AiTaskMeleeAttack
 	{
 		int dash = codePath.IndexOf('-');
 		string name = dash > 0 ? codePath.Substring(0, dash) : codePath;
-		if (name.Length == 0) return "hostile creature";
+		if (name.Length == 0) return Lang.Get("vsvillage:guard-hostile-generic");
 		return char.ToUpperInvariant(name[0]) + name.Substring(1);
 	}
 }

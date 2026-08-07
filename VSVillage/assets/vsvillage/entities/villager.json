@@ -11,7 +11,9 @@
 			"*-herbalist": "vsvillage:config/tradelists/villager-herbalist",
 			"*-smith": "vsvillage:config/tradelists/villager-smith",
 			"*-baker": "vsvillage:config/tradelists/villager-baker",
-			"*-builder": "vsvillage:config/tradelists/villager-builder"
+			"*-builder": "vsvillage:config/tradelists/villager-builder",
+			"*-angler": "vsvillage:config/tradelists/villager-angler",
+			"*-woodworker": "vsvillage:config/tradelists/villager-woodworker"
         },
 		"voiceSoundsByType": {
 			"*-male-*":
@@ -94,7 +96,9 @@
 				"*-mayor": [{"Code": "arm-copper-lapis-bracelet"}, {"Code": "arm-coral-bracelet"}, {"Code": "arm-seashell-bracelet"}],
 				"*-trader": [{"Code": "arm-copper-lapis-bracelet"}, {"Code": "arm-coral-bracelet"}, {"Code": "arm-seashell-bracelet"}],
 				"*-baker": [{"Code": "nothing"}, {"Code": "arm-peasant-bracer"}],
-				"*-builder": [{"Code": "arm-copper-armlet"}, {"Code": "arm-peasant-bracer"}]
+				"*-builder": [{"Code": "arm-copper-armlet"}, {"Code": "arm-peasant-bracer"}],
+				"*-angler": [{"Code": "nothing"}, {"Code": "arm-peasant-bracer"}],
+				"*-woodworker": [{"Code": "nothing"}, {"Code": "arm-copper-armlet"}]
 			},
 			"faceByType":
 			{
@@ -107,7 +111,9 @@
 				"*-mayor": [],
 				"*-trader": [],
 				"*-baker": [],
-				"*-builder": []
+				"*-builder": [],
+				"*-angler": [],
+				"*-woodworker": []
 			},
 			"footByType":
 			{
@@ -120,7 +126,9 @@
 				"*-mayor": [{"Code": "foot-innkeeper"}],
 				"*-trader": [{"Code": "foot-tailor"}],
 				"*-baker": [{"Code": "foot-innkeeper"}],
-				"*-builder": [{"Code": "foot-peasant1"}, {"Code": "foot-peasant2"}]
+				"*-builder": [{"Code": "foot-peasant1"}, {"Code": "foot-peasant2"}],
+				"*-angler": [{"Code": "foot-hunter"}, {"Code": "foot-peasant1"}],
+				"*-woodworker": [{"Code": "foot-peasant1"}, {"Code": "foot-peasant2"}]
 			},
 			"handByType":
 			{
@@ -133,7 +141,9 @@
 				"*-mayor": [],
 				"*-trader": [],
 				"*-baker": [],
-				"*-builder": [{"Code": "hand-blacksmith"}]
+				"*-builder": [{"Code": "hand-blacksmith"}],
+				"*-angler": [{"Code": "nothing"}, {"Code": "hand-peasant1"}],
+				"*-woodworker": [{"Code": "hand-blacksmith"}]
 			},
 			"headByType":
 			{
@@ -146,7 +156,9 @@
 				"*-mayor": [],
 				"*-trader": [{"Code": "head-tailor"}],
 				"*-baker": [{"Code": "nothing"}, {"Code": "head-innkeeper"}, {"Code": "peasantwhite"}],
-				"*-builder": [{"Code": "nothing"}, {"Code": "head-peasant1"}, {"Code": "head-peasant2"}]
+				"*-builder": [{"Code": "nothing"}, {"Code": "head-peasant1"}, {"Code": "head-peasant2"}],
+				"*-angler": [{"Code": "nothing"}, {"Code": "head-straw"}, {"Code": "head-hunter"}],
+				"*-woodworker": [{"Code": "nothing"}, {"Code": "head-peasant1"}, {"Code": "head-peasant2"}]
 			},
 			"lowerbodyByType":
 			{
@@ -162,7 +174,9 @@
 				"*-male-baker": [{"Code": "lowerbody-pants-innkeeper"}],
 				"*-female-baker": [{"Code": "lowerbody-skirt-peasant-skirt1"},{"Code": "lowerbody-skirt-peasant-skirt2"}],
 				"*-male-builder": [{"Code": "lowerbody-pants-peasant1"}, {"Code": "lowerbody-pants-peasant2"}],
-				"*-female-builder": [{"Code": "lowerbody-pants-peasant1"}, {"Code": "lowerbody-pants-peasant2"}]
+				"*-female-builder": [{"Code": "lowerbody-pants-peasant1"}, {"Code": "lowerbody-pants-peasant2"}],
+				"*-angler": [{"Code": "lowerbody-pants-hunter"}, {"Code": "lowerbody-pants-peasant1"}],
+				"*-woodworker": [{"Code": "lowerbody-pants-peasant2"}, {"Code": "lowerbody-pants-peasant3"}]
 			},
 			"neckByType":
 			{
@@ -175,7 +189,9 @@
 				"*-mayor": [{"Code": "neck-papyrus-root-amulet"}, {"Code": "neck-purpleheart-amulet"}, {"Code": "neck-tule-root-amulet"}],
 				"*-trader": [],
 				"*-baker": [],
-				"*-builder": []
+				"*-builder": [],
+				"*-angler": [],
+				"*-woodworker": []
 			},
 			"shoulderByType":
 			{
@@ -188,7 +204,9 @@
 				"*-mayor": [{"Code": "shoulder-{sex}-innkeeper-apron-innkeeper"}],
 				"*-trader": [{"Code": "shoulder-{sex}-innkeeper-apron-innkeeper"}],
 				"*-baker": [{"Code": "shoulder-{sex}-innkeeper-apron-innkeeper"}],
-				"*-builder": [{"Code": "shoulder-{sex}-blacksmith-apron-blacksmith"}]
+				"*-builder": [{"Code": "shoulder-{sex}-blacksmith-apron-blacksmith"}],
+				"*-angler": [{"Code": "shoulder-{sex}-shortsleeve-peasant1"}, {"Code": "shoulder-{sex}-longsleeve-hunter"}],
+				"*-woodworker": [{"Code": "shoulder-{sex}-blacksmith-apron-blacksmith"}]
 			},
 			"upperbodyByType":
 			{
@@ -201,7 +219,9 @@
 				"*-mayor": [{"Code": "upperbody-{sex}-longsleeve-beekeeper"}],
 				"*-trader": [{"Code": "upperbody-{sex}-longsleeve-beekeeper"}],
 				"*-baker": [{"Code": "upperbody-{sex}-longsleeve-beekeeper"}],
-				"*-builder": [{"Code": "upperbody-{sex}-shortsleeve-peasant1"}, {"Code": "upperbody-{sex}-shortsleeve-peasant3"}]
+				"*-builder": [{"Code": "upperbody-{sex}-shortsleeve-peasant1"}, {"Code": "upperbody-{sex}-shortsleeve-peasant3"}],
+				"*-angler": [{"Code": "upperbody-{sex}-shortsleeve-hunter"}, {"Code": "upperbody-{sex}-shortsleeve-peasant2"}],
+				"*-woodworker": [{"Code": "upperbody-{sex}-shortsleeve-peasant2"}, {"Code": "upperbody-{sex}-shortsleeve-peasant4"}]
 			},
 			"upperbodyoverByType":
 			{
@@ -214,7 +234,9 @@
 				"*-mayor": [],
 				"*-trader": [{"Code": "nothing"},{"Code": "upperbodyover-{sex}-longsleeve-extended-coat-verylong"},{"Code": "upperbodyover-{sex}-longsleeve-coat-long"},{"Code": "upperbodyover-{sex}-shortsleeve-coat-short"}],
 				"*-baker": [{"Code": "nothing"}],
-				"*-builder": [{"Code": "nothing"}]
+				"*-builder": [{"Code": "nothing"}],
+				"*-angler": [{"Code": "nothing"}],
+				"*-woodworker": [{"Code": "nothing"}]
 			},
 			"waistByType":
 			{
@@ -226,11 +248,13 @@
 				"*-herbalist": [{"Code": "waist-alchemist"}],
 				"*-mayor": [{"Code": "waist-innkeeper-accessories"}],
 				"*-trader": [{"Code": "waist-innkeeper"}],
-				"*-baker": [{"Code": "waist-innkeeper"}]
+				"*-baker": [{"Code": "waist-innkeeper"}],
+				"*-angler": [{"Code": "waist-hunter"}, {"Code": "waist-peasant1"}],
+				"*-woodworker": [{"Code": "waist-peasant2"}]
 			}
 		}
 	},
-	"variantGroups": [{"code": "sex", "states": ["male", "female"]}, {"code": "profession", "states": ["soldier", "smith", "farmer", "shepherd", "herbalist", "mayor", "archer", "trader", "baker", "builder"]}],
+	"variantGroups": [{"code": "sex", "states": ["male", "female"]}, {"code": "profession", "states": ["soldier", "smith", "farmer", "shepherd", "herbalist", "mayor", "archer", "trader", "baker", "builder", "angler", "woodworker"]}],
 	"client": {
 		"renderer": "Shape",
 		"shape": { "base": "vsvillage:entity/humanoid/villager-{sex}" },
@@ -255,6 +279,8 @@
 					"*-smith": "vsvillage:config/dialogue/trader",
 					"*-baker": "vsvillage:config/dialogue/trader",
 					"*-builder": "vsvillage:config/dialogue/trader",
+					"*-angler": "vsvillage:config/dialogue/trader",
+					"*-woodworker": "vsvillage:config/dialogue/trader",
 					"*": "vsvillage:config/dialogue/other"
 				}
             }
@@ -943,7 +969,10 @@
       "Obi", "Nnamdi", "Chukwu", "Ade", "Bayo", "Dayo", "Gbenga", "Rotimi", "Wale",
       "Jabari", "Zuberi", "Omari", "Tendai", "Sipho", "Thabo", "Mandla", "Lekan",
       "Sekou", "Moussa", "Oumar", "Amadou", "Boubacar", "Lamine", "Cheikh", "Ibrahima",
-      "Abebe", "Bekele", "Dawit", "Girma", "Haile", "Tesfaye", "Yonas", "Mulugeta"
+      "Abebe", "Bekele", "Dawit", "Girma", "Haile", "Tesfaye", "Yonas", "Mulugeta",
+
+      "Alden", "Arthur", "Conrad", "Eamon", "Hugo", "Ahmed", "Finn", "Cormac", "Haruto",
+      "Kwesi"
     ],
 
     "*-female-*": [
@@ -974,16 +1003,26 @@
       "Chandra", "Indira", "Padma", "Tara", "Uma", "Yashoda",
 
       "Mei", "Xiu", "Ling", "Fang", "Yan", "Rui", "Xia", "Zhen", "Lan", "Hua",
-      "Yuki", "Hana", "Akiko", "Natsuko", "Emi", "Saki", "Rin", "Koharu", "Yuna", "Michiko",
+      "Yuki", "Hanako", "Akiko", "Natsuko", "Emi", "Saki", "Rin", "Koharu", "Yuna", "Michiko",
       "Ji-yeon", "Soo-yeon", "Hyun-ji", "Eun-ji", "Min-seo", "Chaeyoung", "Jiyoo",
       "Linh", "Thuy", "Ngoc", "Phuong", "Tuyen", "Bich", "Cam", "Huong", "Mai",
       "Malee", "Pensri", "Narin", "Chanya", "Araya",
 
       "Adaeze", "Chioma", "Ngozi", "Amara", "Nneka", "Yetunde", "Folake", "Bimpe", "Kemi",
       "Sade", "Temi", "Yinka", "Abeni", "Efua", "Akosua", "Ama", "Adwoa", "Abena",
-      "Zuri", "Imani", "Zawadi", "Amara", "Thandiwe", "Nomvula", "Zanele", "Lindiwe",
+      "Zuri", "Imani", "Zawadi", "Makena", "Thandiwe", "Nomvula", "Zanele", "Lindiwe",
       "Fatou", "Mariama", "Rokhaya", "Aissatou", "Ndeye", "Kadiatou",
-      "Tigist", "Mekdes", "Selam", "Hiwot", "Biruk", "Selamawit", "Tsehay", "Almaz"
+      "Tigist", "Mekdes", "Selam", "Hiwot", "Biruk", "Selamawit", "Tsehay", "Almaz",
+
+      "Alice", "Anastasia", "Astrid", "Brigid", "Celeste", "Cecily", "Eleanor", "Elowen",
+      "Freya", "Ingrid", "Irene", "Livia", "Mabel", "Margot", "Matilda", "Rowena",
+      "Sybil", "Tilda", "Viola",
+
+      "Aisha", "Aziza", "Fatima", "Jamila", "Malika", "Naima", "Rabia", "Safiya",
+      "Suhaila", "Daphne", "Eleni", "Irena", "Zofia", "Maeve", "Niamh", "Orla", "Saoirse",
+
+      "Aiko", "Haruka", "Keiko", "Mariko", "Sakura", "Tomoko", "Lian", "Qiao", "Wen",
+      "Ayana", "Eshe", "Nia"
     ]
   }
 },
@@ -1004,8 +1043,7 @@
 			},
 
 			{ "code": "repulseagents" },
-                        { "code": "safeonhurt" },
-			{ "code": "controlledphysics", "stepHeight": 1.2 },
+                        { "code": "controlledphysics", "stepHeight": 1.2 },
 			{ "code": "health", "currenthealthByType": {"*-smith": 30, "*-soldier": 40, "*": 20 }, "maxhealthByType": {"*-smith": 30, "*-soldier": 40, "*": 20}},
 			{
 				"code": "emotionstates",
@@ -1039,6 +1077,20 @@
 			"drawingsound": "game:sounds/bow-draw.ogg",
 			"shootingsound": "game:sounds/bow-release.ogg",
 			"projectile": "game:arrow-iron"
+		},
+		{
+			"code": "villagerflee",
+			"onlyForEntitySuffix": "-archer",
+			"useShelter": false,
+			"entityCodes": [ "bandit-*", "lonehuntergoblin-*", "ork-*", "surfacegoblin-*", "drifter-*", "shiver-*", "bowtorn-*", "direwolf-*", "hellboar-*", "bear-*", "wolf-*" ],
+			"priority": 9.5,
+			"movespeed": 0.020,
+			"seekingRange": 4,
+			"fleeingDistance": 8,
+			"fleeDurationMs": 5000,
+			"scanIntervalMs": 200,
+			"animation": "Run",
+			"animationSpeed": 1.75
 		},
 		{
 			"code": "villagermeleeattack",
@@ -1112,6 +1164,7 @@
 		// === SLEEP ===
 		{
 			"code": "villagersleep",
+			"guardShift": "unassigned",
 			"excludeEntitySuffix": "-soldier",
 			"priority": 9.0,
 			"movespeed": 0.012,
@@ -1127,6 +1180,7 @@
 		},
 		{
 			"code": "villagersleep",
+			"guardShift": "unassigned",
 			"onlyForEntitySuffix": "-soldier",
 			"priority": 3.0,
 			"movespeed": 0.012,
@@ -1142,6 +1196,7 @@
 		},
 		{
 			"code": "villagersleep",
+			"guardShift": "unassigned",
 			"onlyForEntitySuffix": "-soldier",
 			"priority": 3.0,
 			"movespeed": 0.012,
@@ -1157,6 +1212,7 @@
 		},
 		{
 			"code": "villagersleep",
+			"guardShift": "unassigned",
 			"onlyForEntitySuffix": "-soldier",
 			"priority": 3.0,
 			"movespeed": 0.012,
@@ -1467,6 +1523,7 @@
 		// === PATROL ===
 		{
 			"code": "villagerpatrol",
+			"guardShift": "unassigned",
 			"excludeEntitySuffix": "-soldier",
 			"priority": 4.5,
 			"moveSpeed": 0.008,
@@ -1483,6 +1540,7 @@
 		},
 		{
 			"code": "villagerpatrol",
+			"guardShift": "unassigned",
 			"onlyForEntitySuffix": "-soldier",
 			"priority": 4.5,
 			"moveSpeed": 0.008,
@@ -1494,6 +1552,156 @@
 				{
 					"fromHour": 15,
 					"toHour": 7
+				}
+			]
+		},
+		// === GUARD POST ===
+		// Shift window is duringDayTimeFrames; guardShift picks which assignment the entry serves.
+		// 6.2 sits above gotowork (5.5) and patrol (4.5) but below seekentity (6.5) so combat always wins.
+		{
+			"code": "villagerguardpost",
+			"guardShift": "day",
+			"priority": 6.2,
+			"movespeed": 0.013,
+			"animation": "Walk",
+			"maxdistance": 200,
+			"maxtaskduration": 300,
+			"mincooldown": 2000,
+			"maxcooldown": 4000,
+			"duringDayTimeFrames": [
+				{
+					"fromHour": 7,
+					"toHour": 19
+				}
+			]
+		},
+		{
+			"code": "villagerguardpost",
+			"guardShift": "night",
+			"priority": 6.2,
+			"movespeed": 0.013,
+			"animation": "Walk",
+			"maxdistance": 200,
+			"maxtaskduration": 300,
+			"mincooldown": 2000,
+			"maxcooldown": 4000,
+			"duringDayTimeFrames": [
+				{
+					"fromHour": 19,
+					"toHour": 7
+				}
+			]
+		},
+		// === GUARD POST - MINI PATROL ===
+		// 6.3 preempts the standing task twice a shift, still loses to combat at 6.5.
+		{
+			"code": "villagerpatrol",
+			"guardShift": "day",
+			"centerOnGuardPost": true,
+			"priority": 6.3,
+			"moveSpeed": 0.008,
+			"animation": "walk",
+			"patrolOffset": 8,
+			"mincooldown": 5000,
+			"maxcooldown": 15000,
+			"duringDayTimeFrames": [
+				{
+					"fromHour": 10,
+					"toHour": 10.5
+				},
+				{
+					"fromHour": 15,
+					"toHour": 15.5
+				}
+			]
+		},
+		{
+			"code": "villagerpatrol",
+			"guardShift": "night",
+			"centerOnGuardPost": true,
+			"priority": 6.3,
+			"moveSpeed": 0.008,
+			"animation": "walk",
+			"patrolOffset": 8,
+			"mincooldown": 5000,
+			"maxcooldown": 15000,
+			"duringDayTimeFrames": [
+				{
+					"fromHour": 22,
+					"toHour": 22.5
+				},
+				{
+					"fromHour": 3,
+					"toHour": 3.5
+				}
+			]
+		},
+		// === GUARD POST - OFF SHIFT MEANDER ===
+		{
+			"code": "villagerpatrol",
+			"guardShift": "day",
+			"priority": 4.5,
+			"moveSpeed": 0.008,
+			"animation": "walk",
+			"patrolOffset": 5,
+			"mincooldown": 5000,
+			"maxcooldown": 15000,
+			"duringDayTimeFrames": [
+				{
+					"fromHour": 19,
+					"toHour": 23
+				}
+			]
+		},
+		{
+			"code": "villagerpatrol",
+			"guardShift": "night",
+			"priority": 4.5,
+			"moveSpeed": 0.008,
+			"animation": "walk",
+			"patrolOffset": 5,
+			"mincooldown": 5000,
+			"maxcooldown": 15000,
+			"duringDayTimeFrames": [
+				{
+					"fromHour": 7,
+					"toHour": 11
+				}
+			]
+		},
+		// === GUARD POST - OFF SHIFT SLEEP ===
+		// minoffset 0 keeps the wake jitter one-sided so a guard is never late on post.
+		{
+			"code": "villagersleep",
+			"guardShift": "day",
+			"priority": 9.0,
+			"movespeed": 0.012,
+			"animation": "Walk",
+			"minoffset": 0,
+			"maxoffset": 50,
+			"mincooldown": 5000,
+			"maxcooldown": 10000,
+			"duringDayTimeFrames": [
+				{
+					"fromHour": 23,
+					"toHour": 7
+				}
+			]
+		},
+		{
+			"code": "villagersleep",
+			"guardShift": "night",
+			"priority": 9.0,
+			"movespeed": 0.012,
+			"animation": "Walk",
+			"minoffset": 0,
+			"maxoffset": 50,
+			"mincooldown": 5000,
+			"maxcooldown": 10000,
+			"duringDayTimeFrames": [
+				{
+					"fromHour": 11,
+					"toHour": 19
 				}
 			]
 		},
@@ -1526,6 +1734,43 @@
 			"animationSpeed": 1,
 			"maxdistance": 30,
 			"hammerDurationSeconds": 30,
+			"mincooldown": 2000,
+			"maxcooldown": 5000,
+			"duringDayTimeFrames": [
+				{
+					"fromHour": 8,
+					"toHour": 17
+				}
+			]
+		},
+		// === ANGLER ===
+		{
+			"code": "villageranglerfish",
+			"priority": 6.4,
+			"movespeed": 0.012,
+			"animation": "walk",
+			"animationSpeed": 1,
+			"mincooldown": 5000,
+			"maxcooldown": 15000,
+			"pathfindNodes": 15000,
+			"spotCacheSeconds": 120,
+			"villageBoundaryPadding": 2,
+			"duringDayTimeFrames": [
+				{
+					"fromHour": 7.5,
+					"toHour": 14.0
+				}
+			]
+		},
+		// === WOODWORKER ===
+		{
+			"code": "villagerwoodworkersaw",
+			"priority": 6.0,
+			"movespeed": 0.012,
+			"animation": "walk",
+			"animationSpeed": 1,
+			"maxdistance": 30,
+			"sawDurationSeconds": 30,
 			"mincooldown": 2000,
 			"maxcooldown": 5000,
 			"duringDayTimeFrames": [
@@ -2056,6 +2301,8 @@
 					"*-smith": "vsvillage:config/dialogue/trader",
 					"*-baker": "vsvillage:config/dialogue/trader",
 					"*-builder": "vsvillage:config/dialogue/trader",
+					"*-angler": "vsvillage:config/dialogue/trader",
+					"*-woodworker": "vsvillage:config/dialogue/trader",
 					"*": "vsvillage:config/dialogue/other"
 				}
             }

@@ -32,6 +32,10 @@ public class ChiseledBlockLeniencySystem : ModSystem
 
 		if (config.ChiseledBlocksCountAsWalls) return;
 
+		// ChiseledBlockRetention owns this behaviour when installed and our patches are
+		// skipped via inverted dependsOn, so reverting here would clobber ITS changes.
+		if (api.ModLoader.IsModEnabled("cbr")) return;
+
 		foreach (Block block in api.World.Blocks)
 		{
 			if (block == null) continue;

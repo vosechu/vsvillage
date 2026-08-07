@@ -99,7 +99,7 @@ public class AiTaskVillagerTameAnimal : AiTaskBase
             // Must be generation 0 (wild / not yet tamed)
             if (GetGeneration(e) != 0) return false;
             // Must be in THIS shepherd's pen (same BFS the hire check uses).
-            return VillagerHireRequirementChecker.IsAnimalInShepherdPen(wsPos, e.Pos.XYZ.AsBlockPos, ba);
+            return VillagerHireRequirementChecker.IsAnimalInShepherdPen(wsPos, e.Pos.XYZ.AsBlockPos, entity.Api);
         });
 
         if (nearby.Length == 0) return;
@@ -108,15 +108,20 @@ public class AiTaskVillagerTameAnimal : AiTaskBase
         Entity target = nearby[entity.World.Rand.Next(nearby.Length)];
         SetGeneration(target, 1);
 
-        // Build the notification message
-        string shepherdName = entity.GetBehavior<EntityBehaviorNameTag>()?.DisplayName ?? "A shepherd";
-        string villageName = entity.GetBehavior<EntityBehaviorVillager>()?.VillageName ?? "an unknown village";
+        string shepherdName = entity.GetBehavior<EntityBehaviorNameTag>()?.DisplayName ?? Lang.Get("vsvillage:shepherd-unnamed");
+        Village village = entity.GetBehavior<EntityBehaviorVillager>()?.Village;
+        string villageName = entity.GetBehavior<EntityBehaviorVillager>()?.VillageName ?? Lang.Get("vsvillage:shepherd-village-unknown");
         string animalName = GetAnimalDisplayName(target);
         BlockPos coords = target.Pos.AsBlockPos;
-        string msg = $"{shepherdName}, a Shepherd at {villageName}, has successfully tamed a {animalName} at ({coords.X}, {coords.Y}, {coords.Z}).";
 
-        (entity.Api as ICoreServerAPI)?.BroadcastMessageToAllGroups(msg, EnumChatType.Notification);
-        entity.World.Logger.Notification("[VsVillage] " + msg);
+        // Coordinates stay in the server log only, never in chat.
+        entity.World.Logger.Notification($"[VsVillage] {shepherdName} ({villageName}) tamed a {animalName} at ({coords.X}, {coords.Y}, {coords.Z}).");
+
+        if (!(entity.Api.ModLoader.GetModSystem<VillageGenerator>()?.Config?.ShowTamingMessages ?? true)) return;
+
+        // Everyone inside the village hears it. A server-wide broadcast per tame was spam.
+        string msg = Lang.Get("vsvillage:shepherd-tamed-animal", shepherdName, villageName, animalName);
+        VillageChat.SendToVillage(entity.Api as ICoreServerAPI, village, msg);
     }
 
     // === Generation helpers ===

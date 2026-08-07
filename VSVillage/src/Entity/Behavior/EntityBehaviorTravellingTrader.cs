@@ -132,7 +132,16 @@ public class EntityBehaviorTravellingTrader : EntityBehavior
     {
         if (entity.Api.Side == EnumAppSide.Server)
         {
+            if (_tickListenerId != 0)
+            {
+                entity.World.UnregisterGameTickListener(_tickListenerId);
+            }
             _tickListenerId = entity.World.RegisterGameTickListener(CheckDespawn, 10000);
+
+            if (SpawnedTotalHours <= 0.0)
+            {
+                SpawnedTotalHours = entity.World.Calendar.TotalHours;
+            }
 
             // Idempotent re-register with the manager (SaveGameLoaded already populated _active in the normal case).
             string vid = VillageId;
@@ -199,7 +208,7 @@ public class EntityBehaviorTravellingTrader : EntityBehavior
         Village village = entity.Api.ModLoader.GetModSystem<VillageManager>()?.GetVillage(villageId);
         if (village == null) { DespawnSelf(); return; }
 
-        double dist = entity.Pos.XYZ.DistanceTo(village.Pos.ToVec3d());
+        double dist = entity.Pos.XYZ.DistanceTo(village.EffectiveCenter());
         if (dist > DespawnDist)
         {
             Log($"Path complete and outside village ({dist:F0} > {DespawnDist}) - despawning.");
@@ -263,9 +272,11 @@ public class EntityBehaviorTravellingTrader : EntityBehavior
 
         string villageId = VillageId;
         Village village = entity.Api.ModLoader.GetModSystem<VillageManager>()?.GetVillage(villageId);
-        if (village != null)
+        // Only cull by distance once leaving. Fresh arrivals spawn near the 55-block ring
+        // and would otherwise be despawned before walking in, then instantly re-spawned.
+        if (village != null && IsLeaving)
         {
-            double distToVillage = entity.Pos.XYZ.DistanceTo(village.Pos.ToVec3d());
+            double distToVillage = entity.Pos.XYZ.DistanceTo(village.EffectiveCenter());
             if (distToVillage > DespawnDist)
             {
                 Log($"Left village area ({distToVillage:F0} > {DespawnDist}) - despawning.");
@@ -297,7 +308,8 @@ public class EntityBehaviorTravellingTrader : EntityBehavior
             IsAtStall = false;
             LeavingStartedMs = entity.World.ElapsedMilliseconds;
             Log("Visit timer expired - beginning departure walk.");
-            if (!string.IsNullOrEmpty(villageId))
+            if (!string.IsNullOrEmpty(villageId)
+                && (entity.Api.ModLoader.GetModSystem<VillageGenerator>()?.Config?.ShowTravellingTraderMessages ?? true))
             {
                 string traderName = entity.GetBehavior<EntityBehaviorNameTag>()?.DisplayName ?? "the travelling trader";
                 string villageName = !string.IsNullOrWhiteSpace(village?.Name) ? village.Name : Lang.Get("vsvillage:trader-village-unknown");

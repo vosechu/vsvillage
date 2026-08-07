@@ -6,8 +6,19 @@
             "type": "condition",
             "variable": "entity.hasmet",
             "isNotValue": "true",
-            "thenJumpTo": "firstmeet",
+            "thenJumpTo": "firstmeet-intro",
             "elseJumpTo": "welcomeback"
+        },
+        {
+            "code": "firstmeet-intro",
+            "owner": "player",
+            "type": "talk",
+            "text": [
+                {
+                    "value": "vsvillage:dialogue-introduce",
+                    "jumpTo": "firstmeet"
+                }
+            ]
         },
         {
             "code": "firstmeet",

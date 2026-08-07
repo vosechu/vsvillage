@@ -1,0 +1,72 @@
+{
+    "money": {
+        "avg": 15,
+        "var": 5
+    },
+    "selling": {
+        "maxItems": 4,
+        "list": [
+            {
+                "code": "game:plank-pine",
+                "type": "item",
+                "stacksize": 8,
+                "stock": { "avg": 8, "var": 3 },
+                "price": { "avg": 3, "var": 1 }
+            },
+            {
+                "code": "game:plank-baldcypress",
+                "type": "item",
+                "stacksize": 8,
+                "stock": { "avg": 6, "var": 2 },
+                "price": { "avg": 4, "var": 1 }
+            },
+            {
+                "code": "game:axe-flint",
+                "type": "item",
+                "stacksize": 1,
+                "stock": { "avg": 2, "var": 1 },
+                "price": { "avg": 4, "var": 1 }
+            },
+            {
+                "code": "game:axe-felling-copper",
+                "type": "item",
+                "stacksize": 1,
+                "stock": { "avg": 2, "var": 1 },
+                "price": { "avg": 8, "var": 2 }
+            }
+        ]
+    },
+    "buying": {
+        "maxItems": 4,
+        "list": [
+            {
+                "code": "game:debarkedlog-pine-ud",
+                "type": "block",
+                "stacksize": 8,
+                "stock": { "avg": 6, "var": 2 },
+                "price": { "avg": 1.5, "var": 0.5 }
+            },
+            {
+                "code": "game:debarkedlog-baldcypress-ud",
+                "type": "block",
+                "stacksize": 8,
+                "stock": { "avg": 4, "var": 2 },
+                "price": { "avg": 2, "var": 0.5 }
+            },
+            {
+                "code": "game:resin",
+                "type": "item",
+                "stacksize": 8,
+                "stock": { "avg": 4, "var": 2 },
+                "price": { "avg": 2, "var": 0.5 }
+            },
+            {
+                "code": "game:stick",
+                "type": "item",
+                "stacksize": 16,
+                "stock": { "avg": 8, "var": 3 },
+                "price": { "avg": 1, "var": 0.5 }
+            }
+        ]
+    }
+}

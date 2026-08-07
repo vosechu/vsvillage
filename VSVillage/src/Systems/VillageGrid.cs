@@ -14,6 +14,14 @@ public class VillageGrid
 
 	public EnumgGridSlot[,] grid;
 
+	// Grid cells the worldgen water scan found watered - excluded from slot placement so no
+	// building lands on a pond/marsh cell. Packed (x,y) since BlockPos-per-cell would be wasteful.
+	private readonly HashSet<long> _blockedCells = new HashSet<long>();
+
+	private static long PackCoord(int x, int y) => (long)x << 32 | (uint)y;
+
+	public void BlockCell(int x, int y) { _blockedCells.Add(PackCoord(x, y)); }
+
 	public List<StructureWithOrientation> structures = new List<StructureWithOrientation>();
 
 	public int capacity;
@@ -61,17 +69,30 @@ public class VillageGrid
 
 	public bool BigSlotAvailable(int x, int y)
 	{
-		return grid[x * 8 + 1, y * 8 + 1] == EnumgGridSlot.EMPTY;
+		int sx = x * 8 + 1, sy = y * 8 + 1;
+		if (grid[sx, sy] != EnumgGridSlot.EMPTY) return false;
+		for (int i = sx; i < sx + 7; i++)
+			for (int j = sy; j < sy + 7; j++)
+				if (_blockedCells.Contains(PackCoord(i, j))) return false;
+		return true;
 	}
 
 	public bool MediumSlotAvailable(int x, int y)
 	{
-		return grid[x * 4 + 1, y * 4 + 1] == EnumgGridSlot.EMPTY;
+		int sx = x * 4 + 1, sy = y * 4 + 1;
+		if (grid[sx, sy] != EnumgGridSlot.EMPTY) return false;
+		for (int i = sx; i < sx + 3; i++)
+			for (int j = sy; j < sy + 3; j++)
+				if (_blockedCells.Contains(PackCoord(i, j))) return false;
+		return true;
 	}
 
 	public bool SmallSlotAvailable(int x, int y)
 	{
-		return grid[x * 2 + 1, y * 2 + 1] == EnumgGridSlot.EMPTY;
+		int sx = x * 2 + 1, sy = y * 2 + 1;
+		if (grid[sx, sy] != EnumgGridSlot.EMPTY) return false;
+		if (_blockedCells.Contains(PackCoord(sx, sy))) return false;
+		return true;
 	}
 
 	public void AddBigStructure(WorldGenVillageStructure structure, int x, int y, int orientation)
@@ -189,6 +210,7 @@ public class VillageGrid
 					}
 				}
 			}
+			if (list3.Count == 0) return false;
 			Vec2i vec2i3 = list3[random.NextInt(list3.Count)];
 			AddBigStructure(structure, vec2i3.X, vec2i3.Y, orientation);
 			return true;
@@ -210,6 +232,7 @@ public class VillageGrid
 					}
 				}
 			}
+			if (list2.Count == 0) return false;
 			Vec2i vec2i2 = list2[random.NextInt(list2.Count)];
 			AddMediumStructure(structure, vec2i2.X, vec2i2.Y, orientation);
 			return true;
@@ -231,6 +254,7 @@ public class VillageGrid
 					}
 				}
 			}
+			if (list.Count == 0) return false;
 			Vec2i vec2i = list[random.NextInt(list.Count)];
 			AddSmallStructure(structure, vec2i.X, vec2i.Y, orientation);
 			return true;

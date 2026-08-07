@@ -22,7 +22,7 @@ public class BlockMayorWorkstation : Block
 			Village village = mgr?.GetVillage(villageId);
 			if (village == null)
 			{
-				serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup, Lang.Get("vsvillage:village-data-unavailable"), EnumChatType.Notification);
+				serverPlayer.SendMessage(GlobalConstants.InfoLogChatGroup, Lang.Get("vsvillage:village-data-unavailable"), EnumChatType.Notification);
 				return true;
 			}
 			coreServerAPI.Network.GetChannel("villagemanagementnetwork").SendPacket(village, serverPlayer);

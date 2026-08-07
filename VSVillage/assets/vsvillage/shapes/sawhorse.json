@@ -1,0 +1,1724 @@
+{
+	"editor": {
+		"collapsedPaths": "Root/origin4/origin5/origin6,Root/origin2/handle 3",
+		"allAngles": false,
+		"entityTextureMode": false
+	},
+	"textureWidth": 16,
+	"textureHeight": 16,
+	"textureSizes": {
+		"pine": [16, 16],
+		"pine2": [16, 16],
+		"string": [16, 16],
+		"material": [16, 16],
+		"handle": [16, 16]
+	},
+	"textures": {
+		"pine": "game:block/wood/debarked/pine",
+		"pine2": "game:block/wood/treetrunk/debarked/pine",
+		"string": "game:item/resource/string",
+		"material": "game:block/metal/ingot/copper",
+		"handle": "game:item/tool/handle"
+	},
+	"elements": [
+		{
+			"name": "Log",
+			"from": [8.5, 60.75, -39.8],
+			"to": [22.5, 94.75, -25.8],
+			"rotationOrigin": [8.5, 28.75, -40],
+			"uv": [0, 0],
+			"shade": true,
+			"faces": {
+				"north": {"texture": "#pine", "uv": [0, 0, 8.24242, 16], "rotation": 90, "autoUv": false, "snapUv": false},
+				"east": {"texture": "#pine", "uv": [0, 0, 8.24242, 16], "rotation": 90, "autoUv": false, "snapUv": false},
+				"south": {"texture": "#pine", "uv": [0, 0, 8.24242, 16], "rotation": 90, "autoUv": false, "snapUv": false},
+				"west": {"texture": "#pine", "uv": [0, 0, 8.24242, 16], "rotation": 90, "autoUv": false, "snapUv": false},
+				"up": {"texture": "#pine2", "uv": [0, 0, 16, 16], "autoUv": false, "snapUv": false},
+				"down": {"texture": "#pine2", "uv": [0, 0, 16, 16], "autoUv": false, "snapUv": false}
+			},
+			"rotationX": 90,
+			"rotationY": -45,
+			"rotationZ": 0,
+			"stepParentName": "",
+			"climateColorMap": "",
+			"gradientShade": false,
+			"renderPass": 0,
+			"seasonColorMap": ""
+		},
+		{
+			"name": "origin2",
+			"from": [-4, -7, -3],
+			"to": [-4, -7, -3],
+			"rotationOrigin": [-4, -7, -3],
+			"rotationX": 9.6658,
+			"rotationY": -2.57594,
+			"rotationZ": -104.78217,
+			"children": [
+				{
+					"name": "string_2",
+					"from": [-21.6, -0.1, 0.8],
+					"to": [-21.6, -0.1, 0.8],
+					"rotationOrigin": [-21.6, -0.1, 0.8],
+					"rotationX": 1,
+					"children": [
+						{
+							"name": "string 46",
+							"from": [2.8, 0, -1.5],
+							"to": [3.3, 1.8, 0.3],
+							"rotationOrigin": [2.7, 0, 0],
+							"uv": [0, 0],
+							"shade": true,
+							"faces": {
+								"north": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+								"east": {"texture": "#string", "uv": [0, 2, 1.5, 3.5], "autoUv": false, "snapUv": false},
+								"south": {"texture": "#string", "uv": [0, 2.5, 1.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+								"west": {"texture": "#string", "uv": [2, 2.5, 3.5, 4], "autoUv": false, "snapUv": false},
+								"up": {"texture": "#string", "uv": [4.5, 0, 6, 0.5], "rotation": 90, "autoUv": false, "snapUv": false},
+								"down": {"texture": "#string", "uv": [2.5, 2, 4, 2.5], "rotation": 90, "autoUv": false, "snapUv": false}
+							},
+							"rotationY": -11,
+							"stepParentName": "",
+							"climateColorMap": "",
+							"gradientShade": false,
+							"renderPass": 0,
+							"seasonColorMap": ""
+						},
+						{
+							"name": "string 47",
+							"from": [2.4, -0.05, -1.5],
+							"to": [2.9, 1.75, 0.5],
+							"rotationOrigin": [2.4, 0, 0],
+							"uv": [0, 0],
+							"shade": true,
+							"faces": {
+								"north": {"texture": "#string", "uv": [5, 5.5, 6.5, 6], "rotation": 90, "autoUv": false, "snapUv": false},
+								"east": {"texture": "#string", "uv": [6, 2, 8, 3.5], "autoUv": false, "snapUv": false},
+								"south": {"texture": "#string", "uv": [10, 2.5, 11.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+								"west": {"texture": "#string", "uv": [3, 6, 5, 7.5], "autoUv": false, "snapUv": false},
+								"up": {"texture": "#string", "uv": [5, 0.5, 7, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+								"down": {"texture": "#string", "uv": [8.5, 0.5, 10.5, 1], "rotation": 90, "autoUv": false, "snapUv": false}
+							},
+							"rotationX": 1,
+							"rotationY": 28,
+							"stepParentName": "",
+							"climateColorMap": "",
+							"gradientShade": false,
+							"renderPass": 0,
+							"seasonColorMap": ""
+						},
+						{
+							"name": "string 48",
+							"from": [0.8, -0.0535, -1.7],
+							"to": [1.3, 1.7465, 0.3],
+							"rotationOrigin": [0.8, -0.0035, -0.2],
+							"uv": [0, 0],
+							"shade": true,
+							"faces": {
+								"north": {"texture": "#string", "uv": [0, 0.5, 1.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+								"east": {"texture": "#string", "uv": [0, 0, 2, 1.5], "autoUv": false, "snapUv": false},
+								"south": {"texture": "#string", "uv": [2, 0.5, 3.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+								"west": {"texture": "#string", "uv": [0, 4, 2, 5.5], "autoUv": false, "snapUv": false},
+								"up": {"texture": "#string", "uv": [5, 1.5, 7, 2], "rotation": 90, "autoUv": false, "snapUv": false},
+								"down": {"texture": "#string", "uv": [6.5, 1.5, 8.5, 2], "rotation": 90, "autoUv": false, "snapUv": false}
+							},
+							"rotationX": 1,
+							"rotationY": -32,
+							"stepParentName": "",
+							"climateColorMap": "",
+							"gradientShade": false,
+							"renderPass": 0,
+							"seasonColorMap": ""
+						},
+						{
+							"name": "string 49",
+							"from": [-0.6, 0.1465, -1.7035],
+							"to": [-0.1, 1.6465, 0.7965],
+							"rotationOrigin": [-0.6, 0.1965, -0.2035],
+							"uv": [0, 0],
+							"shade": true,
+							"faces": {
+								"north": {"texture": "#string", "uv": [0, 0.5, 1.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+								"east": {"texture": "#string", "uv": [0, 0, 2.5, 1.5], "autoUv": false, "snapUv": false},
+								"south": {"texture": "#string", "uv": [2, 0.5, 3.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+								"west": {"texture": "#string", "uv": [0, 4, 2.5, 5.5], "autoUv": false, "snapUv": false},
+								"up": {"texture": "#string", "uv": [5, 1.5, 7.5, 2], "rotation": 90, "autoUv": false, "snapUv": false},
+								"down": {"texture": "#string", "uv": [6.5, 1.5, 9, 2], "rotation": 90, "autoUv": false, "snapUv": false}
+							},
+							"rotationX": 1,
+							"rotationY": -27,
+							"stepParentName": "",
+							"climateColorMap": "",
+							"gradientShade": false,
+							"renderPass": 0,
+							"seasonColorMap": ""
+						},
+						{
+							"name": "string 50",
+							"from": [-0.4, 0.093, -1.9017],
+							"to": [0.1, 1.793, 0.5983],
+							"rotationOrigin": [-0.4, 0.093, -0.4017],
+							"uv": [0, 0],
+							"shade": true,
+							"faces": {
+								"north": {"texture": "#string", "uv": [8.5, 0.5, 10, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+								"east": {"texture": "#string", "uv": [0, 0, 2.5, 1.5], "autoUv": false, "snapUv": false},
+								"south": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+								"west": {"texture": "#string", "uv": [2, 2.5, 4.5, 4], "autoUv": false, "snapUv": false},
+								"up": {"texture": "#string", "uv": [0, 0, 0.5, 2.5], "autoUv": false, "snapUv": false},
+								"down": {"texture": "#string", "uv": [0, 0, 0.5, 2.5], "autoUv": false, "snapUv": false}
+							},
+							"rotationX": -2,
+							"rotationY": 25,
+							"stepParentName": "",
+							"climateColorMap": "",
+							"gradientShade": false,
+							"renderPass": 0,
+							"seasonColorMap": ""
+						},
+						{
+							"name": "string 51",
+							"from": [0.4, 0.2552, -1.2053],
+							"to": [0.9, 1.7552, 0.7947],
+							"rotationOrigin": [0.4, 0.3052, 0.2947],
+							"uv": [0, 0],
+							"shade": true,
+							"faces": {
+								"north": {"texture": "#string", "uv": [5, 5.5, 6.5, 6], "rotation": 90, "autoUv": false, "snapUv": false},
+								"east": {"texture": "#string", "uv": [6, 2, 8, 3.5], "autoUv": false, "snapUv": false},
+								"south": {"texture": "#string", "uv": [10, 2.5, 11.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+								"west": {"texture": "#string", "uv": [3, 6, 5, 7.5], "autoUv": false, "snapUv": false},
+								"up": {"texture": "#string", "uv": [5, 0.5, 7, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+								"down": {"texture": "#string", "uv": [8.5, 0.5, 10.5, 1], "rotation": 90, "autoUv": false, "snapUv": false}
+							},
+							"rotationX": 1,
+							"rotationY": 73,
+							"stepParentName": "",
+							"climateColorMap": "",
+							"gradientShade": false,
+							"renderPass": 0,
+							"seasonColorMap": ""
+						},
+						{
+							"name": "string 52",
+							"from": [3.6, -0.03, -1.5],
+							"to": [4.1, 1.73, 0.5],
+							"rotationOrigin": [3.6, 0, 0],
+							"uv": [0, 0],
+							"shade": true,
+							"faces": {
+								"north": {"texture": "#string", "uv": [8.5, 0.5, 10, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+								"east": {"texture": "#string", "uv": [0, 0, 2, 1.5], "autoUv": false, "snapUv": false},
+								"south": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+								"west": {"texture": "#string", "uv": [2, 2.5, 4, 4], "autoUv": false, "snapUv": false},
+								"up": {"texture": "#string", "uv": [0, 0, 0.5, 2], "autoUv": false, "snapUv": false},
+								"down": {"texture": "#string", "uv": [0, 0, 0.5, 2], "autoUv": false, "snapUv": false}
+							},
+							"rotationX": -1,
+							"rotationY": 3,
+							"stepParentName": "",
+							"climateColorMap": "",
+							"gradientShade": false,
+							"renderPass": 0,
+							"seasonColorMap": ""
+						},
+						{
+							"name": "string 45_geo",
+							"from": [0, -0.05, -1.5],
+							"to": [0.5, 1.75, 0.3],
+							"rotationOrigin": [0, -0.05, -1.5],
+							"uv": [0, 0],
+							"shade": true,
+							"faces": {
+								"north": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+								"east": {"texture": "#string", "uv": [0, 2, 1.5, 3.5], "autoUv": false, "snapUv": false},
+								"south": {"texture": "#string", "uv": [0, 2.5, 1.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+								"west": {"texture": "#string", "uv": [2, 2.5, 3.5, 4], "autoUv": false, "snapUv": false},
+								"up": {"texture": "#string", "uv": [4.5, 0, 6, 0.5], "rotation": 90, "autoUv": false, "snapUv": false},
+								"down": {"texture": "#string", "uv": [2.5, 2, 4, 2.5], "rotation": 90, "autoUv": false, "snapUv": false}
+							},
+							"stepParentName": "",
+							"climateColorMap": "",
+							"gradientShade": false,
+							"renderPass": 0,
+							"seasonColorMap": ""
+						}
+					],
+					"stepParentName": ""
+				},
+				{
+					"name": "origin3",
+					"from": [-6.7293, 25.1141, 0],
+					"to": [-6.7293, 25.1141, 0],
+					"rotationOrigin": [-6.7293, 25.1141, 0],
+					"rotationZ": 37.5,
+					"children": [
+						{
+							"name": "origin7",
+							"from": [-16.53698, -0.72693, 0],
+							"to": [-16.53698, -0.72693, 0],
+							"rotationOrigin": [-16.53698, -0.72693, 0],
+							"rotationZ": 67.5,
+							"children": [
+								{
+									"name": "handle_2",
+									"from": [-4.5, 0.5, 0],
+									"to": [-4.5, 0.5, 0],
+									"rotationOrigin": [-4.5, 0.5, 0],
+									"children": [
+										{
+											"name": "handle 12",
+											"from": [-10.5, -0.5, -0.5],
+											"to": [0.5, 1, 1],
+											"rotationOrigin": [-9, 0, 0],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#handle", "uv": [1, 8.5, 11, 10], "autoUv": false, "snapUv": false},
+												"east": {"texture": "#handle", "uv": [3.5, 0.5, 5, 2], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#handle", "uv": [1.5, 3.5, 11.5, 5], "autoUv": false, "snapUv": false},
+												"west": {"texture": "#handle", "uv": [11, 10, 12.5, 11.5], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#handle", "uv": [4, 2.5, 14, 4], "autoUv": false, "snapUv": false},
+												"down": {"texture": "#handle", "uv": [1.5, 5, 11.5, 6.5], "autoUv": false, "snapUv": false}
+											},
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "handle 11_geo",
+											"from": [-0.5, -0.5, -0.5],
+											"to": [6.5, 1, 1],
+											"rotationOrigin": [-0.5, -0.5, -0.5],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#handle", "uv": [0, 5.5, 6, 7], "autoUv": false, "snapUv": false},
+												"east": {"texture": "#handle", "uv": [0.5, 0.5, 2, 2], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#handle", "uv": [0, 10.5, 6, 12], "autoUv": false, "snapUv": false},
+												"west": {"texture": "#handle", "uv": [14, 10, 15.5, 11.5], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#handle", "uv": [0, 4.5, 6, 6], "autoUv": false, "snapUv": false},
+												"down": {"texture": "#handle", "uv": [0, 5, 6, 6.5], "autoUv": false, "snapUv": false}
+											},
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										}
+									],
+									"stepParentName": ""
+								},
+								{
+									"name": "string_3",
+									"from": [-0.6, -0.1, 0.8],
+									"to": [-0.6, -0.1, 0.8],
+									"rotationOrigin": [-0.6, -0.1, 0.8],
+									"rotationY": 12,
+									"children": [
+										{
+											"name": "string 67",
+											"from": [-1.3278, -0.05, -1.9867],
+											"to": [-0.8278, 1.75, 0.0133],
+											"rotationOrigin": [-1.3278, 0, -0.4867],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [5, 5.5, 6.5, 6], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [6, 2, 8, 3.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [10, 2.5, 11.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [3, 6, 5, 7.5], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [5, 0.5, 7, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [8.5, 0.5, 10.5, 1], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationX": 2.2811,
+											"rotationY": -37.9917,
+											"rotationZ": 0.5275,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 68",
+											"from": [-0.154, -0.05, -1.7372],
+											"to": [0.346, 1.75, 0.2628],
+											"rotationOrigin": [-0.154, 0, -0.2372],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [0, 0.5, 1.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 0, 2, 1.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [2, 0.5, 3.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [0, 4, 2, 5.5], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [5, 1.5, 7, 2], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [6.5, 1.5, 8.5, 2], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationX": 2.2811,
+											"rotationY": -37.9917,
+											"rotationZ": 0.5275,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 69",
+											"from": [1.9781, -0.05, -1.2921],
+											"to": [2.4781, 1.75, 0.5079],
+											"rotationOrigin": [0.9781, 0, 0.2079],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 2, 1.5, 3.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [0, 2.5, 1.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [2, 2.5, 3.5, 4], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [4.5, 0, 6, 0.5], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [2.5, 2, 4, 2.5], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationX": 1.0223,
+											"rotationY": -11.9981,
+											"rotationZ": 0.2125,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 70",
+											"from": [-2.0541, -0.05, -1.9366],
+											"to": [-1.5541, 1.75, -0.1366],
+											"rotationOrigin": [-2.0541, 0, -0.4366],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [3, 4.5, 4.5, 5], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [1, 3, 2.5, 4.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [0, 7.5, 1.5, 8], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [3, 5.5, 4.5, 7], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [5.5, 0, 7, 0.5], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [5.5, 2, 7, 2.5], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationX": 1.0223,
+											"rotationY": -11.9981,
+											"rotationZ": 0.2125,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 66_geo",
+											"from": [0, -0.03, -1.5],
+											"to": [0.5, 1.73, 0.5],
+											"rotationOrigin": [0, -0.03, -1.5],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [8.5, 0.5, 10, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 0, 2, 1.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [2, 2.5, 4, 4], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [0, 0, 0.5, 2], "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [0, 0, 0.5, 2], "autoUv": false, "snapUv": false}
+											},
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										}
+									],
+									"stepParentName": ""
+								},
+								{
+									"name": "string_4",
+									"from": [-12.6, -0.1, 0.8],
+									"to": [-12.6, -0.1, 0.8],
+									"rotationOrigin": [-12.6, -0.1, 0.8],
+									"rotationX": 1,
+									"children": [
+										{
+											"name": "string 72",
+											"from": [2.8, 0, -1.5],
+											"to": [3.3, 1.8, 0.3],
+											"rotationOrigin": [2.7, 0, 0],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 2, 1.5, 3.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [0, 2.5, 1.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [2, 2.5, 3.5, 4], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [4.5, 0, 6, 0.5], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [2.5, 2, 4, 2.5], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationY": -11,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 73",
+											"from": [2.4, -0.05, -1.5],
+											"to": [2.9, 1.75, 0.5],
+											"rotationOrigin": [2.4, 0, 0],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [5, 5.5, 6.5, 6], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [6, 2, 8, 3.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [10, 2.5, 11.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [3, 6, 5, 7.5], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [5, 0.5, 7, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [8.5, 0.5, 10.5, 1], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationX": 1,
+											"rotationY": 28,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 74",
+											"from": [0.8, -0.0535, -1.7],
+											"to": [1.3, 1.7465, 0.3],
+											"rotationOrigin": [0.8, -0.0035, -0.2],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [0, 0.5, 1.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 0, 2, 1.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [2, 0.5, 3.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [0, 4, 2, 5.5], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [5, 1.5, 7, 2], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [6.5, 1.5, 8.5, 2], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationX": 1,
+											"rotationY": -32,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 75",
+											"from": [-0.6, 0.1465, -1.7035],
+											"to": [-0.1, 1.6465, 0.7965],
+											"rotationOrigin": [-0.6, 0.1965, -0.2035],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [0, 0.5, 1.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 0, 2.5, 1.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [2, 0.5, 3.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [0, 4, 2.5, 5.5], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [5, 1.5, 7.5, 2], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [6.5, 1.5, 9, 2], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationX": 1,
+											"rotationY": -27,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 76",
+											"from": [-0.4, 0.093, -1.9017],
+											"to": [0.1, 1.793, 0.5983],
+											"rotationOrigin": [-0.4, 0.093, -0.4017],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [8.5, 0.5, 10, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 0, 2.5, 1.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [2, 2.5, 4.5, 4], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [0, 0, 0.5, 2.5], "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [0, 0, 0.5, 2.5], "autoUv": false, "snapUv": false}
+											},
+											"rotationX": -2,
+											"rotationY": 25,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 77",
+											"from": [0.4, 0.2552, -1.2053],
+											"to": [0.9, 1.7552, 0.7947],
+											"rotationOrigin": [0.4, 0.3052, 0.2947],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [5, 5.5, 6.5, 6], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [6, 2, 8, 3.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [10, 2.5, 11.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [3, 6, 5, 7.5], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [5, 0.5, 7, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [8.5, 0.5, 10.5, 1], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationX": 1,
+											"rotationY": 73,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 78",
+											"from": [3.6, -0.03, -1.5],
+											"to": [4.1, 1.73, 0.5],
+											"rotationOrigin": [3.6, 0, 0],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [8.5, 0.5, 10, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 0, 2, 1.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [2, 2.5, 4, 4], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [0, 0, 0.5, 2], "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [0, 0, 0.5, 2], "autoUv": false, "snapUv": false}
+											},
+											"rotationX": -1,
+											"rotationY": 3,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 71_geo",
+											"from": [0, -0.05, -1.5],
+											"to": [0.5, 1.75, 0.3],
+											"rotationOrigin": [0, -0.05, -1.5],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 2, 1.5, 3.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [0, 2.5, 1.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [2, 2.5, 3.5, 4], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [4.5, 0, 6, 0.5], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [2.5, 2, 4, 2.5], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										}
+									],
+									"stepParentName": ""
+								}
+							],
+							"stepParentName": ""
+						},
+						{
+							"name": "handle_3",
+							"from": [-22.5, 0.5, 0],
+							"to": [-22.5, 0.5, 0],
+							"rotationOrigin": [-22.5, 0.5, 0],
+							"rotationZ": -8,
+							"children": [
+								{
+									"name": "string_5",
+									"from": [0.9103, -0.5842, 0.8],
+									"to": [0.9103, -0.5842, 0.8],
+									"rotationOrigin": [0.9103, -0.5842, 0.8],
+									"rotationX": 0.9998,
+									"rotationY": 0.0175,
+									"rotationZ": -1,
+									"children": [
+										{
+											"name": "string 59",
+											"from": [2.8, 0, -1.5],
+											"to": [3.3, 1.8, 0.3],
+											"rotationOrigin": [2.7, 0, 0],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 2, 1.5, 3.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [0, 2.5, 1.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [2, 2.5, 3.5, 4], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [4.5, 0, 6, 0.5], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [2.5, 2, 4, 2.5], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationY": -11,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 60",
+											"from": [2.4, -0.05, -1.5],
+											"to": [2.9, 1.75, 0.5],
+											"rotationOrigin": [2.4, 0, 0],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [5, 5.5, 6.5, 6], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [6, 2, 8, 3.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [10, 2.5, 11.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [3, 6, 5, 7.5], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [5, 0.5, 7, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [8.5, 0.5, 10.5, 1], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationX": 1,
+											"rotationY": 28,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 61",
+											"from": [0.8, -0.0535, -1.7],
+											"to": [1.3, 1.7465, 0.3],
+											"rotationOrigin": [0.8, -0.0035, -0.2],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [0, 0.5, 1.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 0, 2, 1.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [2, 0.5, 3.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [0, 4, 2, 5.5], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [5, 1.5, 7, 2], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [6.5, 1.5, 8.5, 2], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationX": 1,
+											"rotationY": -32,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 62",
+											"from": [-0.6, 0.1465, -1.7035],
+											"to": [-0.1, 1.6465, 0.7965],
+											"rotationOrigin": [-0.6, 0.1965, -0.2035],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [0, 0.5, 1.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 0, 2.5, 1.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [2, 0.5, 3.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [0, 4, 2.5, 5.5], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [5, 1.5, 7.5, 2], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [6.5, 1.5, 9, 2], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationX": 1,
+											"rotationY": -27,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 63",
+											"from": [-0.4, 0.093, -1.9017],
+											"to": [0.1, 1.793, 0.5983],
+											"rotationOrigin": [-0.4, 0.093, -0.4017],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [8.5, 0.5, 10, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 0, 2.5, 1.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [2, 2.5, 4.5, 4], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [0, 0, 0.5, 2.5], "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [0, 0, 0.5, 2.5], "autoUv": false, "snapUv": false}
+											},
+											"rotationX": -2,
+											"rotationY": 25,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 64",
+											"from": [0.4, 0.2552, -1.2053],
+											"to": [0.9, 1.7552, 0.7947],
+											"rotationOrigin": [0.4, 0.3052, 0.2947],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [5, 5.5, 6.5, 6], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [6, 2, 8, 3.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [10, 2.5, 11.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [3, 6, 5, 7.5], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [5, 0.5, 7, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [8.5, 0.5, 10.5, 1], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationX": 1,
+											"rotationY": 73,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 65",
+											"from": [3.6, -0.03, -1.5],
+											"to": [4.1, 1.73, 0.5],
+											"rotationOrigin": [3.6, 0, 0],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [8.5, 0.5, 10, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 0, 2, 1.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [2, 2.5, 4, 4], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [0, 0, 0.5, 2], "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [0, 0, 0.5, 2], "autoUv": false, "snapUv": false}
+											},
+											"rotationX": -1,
+											"rotationY": 3,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 58_geo",
+											"from": [0, -0.05, -1.5],
+											"to": [0.5, 1.75, 0.3],
+											"rotationOrigin": [0, -0.05, -1.5],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 2, 1.5, 3.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [0, 2.5, 1.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [2, 2.5, 3.5, 4], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [4.5, 0, 6, 0.5], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [2.5, 2, 4, 2.5], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										}
+									],
+									"stepParentName": ""
+								},
+								{
+									"name": "handle 10_geo",
+									"from": [-0.5, -0.5, -0.5],
+									"to": [14.5, 1, 1],
+									"rotationOrigin": [-0.5, -0.5, -0.5],
+									"uv": [0, 0],
+									"shade": true,
+									"faces": {
+										"north": {"texture": "#handle", "uv": [1, 8.5, 16, 10], "autoUv": false, "snapUv": false},
+										"east": {"texture": "#handle", "uv": [3.5, 0.5, 5, 2], "autoUv": false, "snapUv": false},
+										"south": {"texture": "#handle", "uv": [1.5, 3.5, 16.5, 5], "autoUv": false, "snapUv": false},
+										"west": {"texture": "#handle", "uv": [11, 10, 12.5, 11.5], "autoUv": false, "snapUv": false},
+										"up": {"texture": "#handle", "uv": [4, 2.5, 19, 4], "autoUv": false, "snapUv": false},
+										"down": {"texture": "#handle", "uv": [1.5, 5, 16.5, 6.5], "autoUv": false, "snapUv": false}
+									},
+									"stepParentName": "",
+									"climateColorMap": "",
+									"gradientShade": false,
+									"renderPass": 0,
+									"seasonColorMap": ""
+								}
+							],
+							"stepParentName": ""
+						}
+					],
+					"stepParentName": ""
+				},
+				{
+					"name": "handle 8",
+					"from": [-23, 0, -0.5],
+					"to": [-8, 1.5, 1],
+					"rotationOrigin": [-22.5, 0.5, 0],
+					"uv": [0, 0],
+					"shade": true,
+					"faces": {
+						"north": {"texture": "#handle", "uv": [1, 8.5, 17, 10], "autoUv": false, "snapUv": false},
+						"east": {"texture": "#handle", "uv": [3.5, 0.5, 5, 2], "autoUv": false, "snapUv": false},
+						"south": {"texture": "#handle", "uv": [1.5, 3.5, 17.5, 5], "autoUv": false, "snapUv": false},
+						"west": {"texture": "#handle", "uv": [11, 10, 12.5, 11.5], "autoUv": false, "snapUv": false},
+						"up": {"texture": "#handle", "uv": [4, 2.5, 20, 4], "autoUv": false, "snapUv": false},
+						"down": {"texture": "#handle", "uv": [1.5, 5, 17.5, 6.5], "autoUv": false, "snapUv": false}
+					},
+					"stepParentName": "",
+					"climateColorMap": "",
+					"gradientShade": false,
+					"renderPass": 0,
+					"seasonColorMap": ""
+				}
+			],
+			"stepParentName": ""
+		},
+		{
+			"name": "origin4",
+			"from": [-4, -7, 22],
+			"to": [-4, -7, 22],
+			"rotationOrigin": [-4, -7, 22],
+			"rotationX": -12.08681,
+			"rotationY": 3.21132,
+			"rotationZ": -104.65993,
+			"children": [
+				{
+					"name": "string_6",
+					"from": [-21.6, -0.1, 0.8],
+					"to": [-21.6, -0.1, 0.8],
+					"rotationOrigin": [-21.6, -0.1, 0.8],
+					"rotationX": 1,
+					"children": [
+						{
+							"name": "string 46",
+							"from": [2.8, 0, -1.5],
+							"to": [3.3, 1.8, 0.3],
+							"rotationOrigin": [2.7, 0, 0],
+							"uv": [0, 0],
+							"shade": true,
+							"faces": {
+								"north": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+								"east": {"texture": "#string", "uv": [0, 2, 1.5, 3.5], "autoUv": false, "snapUv": false},
+								"south": {"texture": "#string", "uv": [0, 2.5, 1.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+								"west": {"texture": "#string", "uv": [2, 2.5, 3.5, 4], "autoUv": false, "snapUv": false},
+								"up": {"texture": "#string", "uv": [4.5, 0, 6, 0.5], "rotation": 90, "autoUv": false, "snapUv": false},
+								"down": {"texture": "#string", "uv": [2.5, 2, 4, 2.5], "rotation": 90, "autoUv": false, "snapUv": false}
+							},
+							"rotationY": -11,
+							"stepParentName": "",
+							"climateColorMap": "",
+							"gradientShade": false,
+							"renderPass": 0,
+							"seasonColorMap": ""
+						},
+						{
+							"name": "string 47",
+							"from": [2.4, -0.05, -1.5],
+							"to": [2.9, 1.75, 0.5],
+							"rotationOrigin": [2.4, 0, 0],
+							"uv": [0, 0],
+							"shade": true,
+							"faces": {
+								"north": {"texture": "#string", "uv": [5, 5.5, 6.5, 6], "rotation": 90, "autoUv": false, "snapUv": false},
+								"east": {"texture": "#string", "uv": [6, 2, 8, 3.5], "autoUv": false, "snapUv": false},
+								"south": {"texture": "#string", "uv": [10, 2.5, 11.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+								"west": {"texture": "#string", "uv": [3, 6, 5, 7.5], "autoUv": false, "snapUv": false},
+								"up": {"texture": "#string", "uv": [5, 0.5, 7, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+								"down": {"texture": "#string", "uv": [8.5, 0.5, 10.5, 1], "rotation": 90, "autoUv": false, "snapUv": false}
+							},
+							"rotationX": 1,
+							"rotationY": 28,
+							"stepParentName": "",
+							"climateColorMap": "",
+							"gradientShade": false,
+							"renderPass": 0,
+							"seasonColorMap": ""
+						},
+						{
+							"name": "string 48",
+							"from": [0.8, -0.0535, -1.7],
+							"to": [1.3, 1.7465, 0.3],
+							"rotationOrigin": [0.8, -0.0035, -0.2],
+							"uv": [0, 0],
+							"shade": true,
+							"faces": {
+								"north": {"texture": "#string", "uv": [0, 0.5, 1.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+								"east": {"texture": "#string", "uv": [0, 0, 2, 1.5], "autoUv": false, "snapUv": false},
+								"south": {"texture": "#string", "uv": [2, 0.5, 3.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+								"west": {"texture": "#string", "uv": [0, 4, 2, 5.5], "autoUv": false, "snapUv": false},
+								"up": {"texture": "#string", "uv": [5, 1.5, 7, 2], "rotation": 90, "autoUv": false, "snapUv": false},
+								"down": {"texture": "#string", "uv": [6.5, 1.5, 8.5, 2], "rotation": 90, "autoUv": false, "snapUv": false}
+							},
+							"rotationX": 1,
+							"rotationY": -32,
+							"stepParentName": "",
+							"climateColorMap": "",
+							"gradientShade": false,
+							"renderPass": 0,
+							"seasonColorMap": ""
+						},
+						{
+							"name": "string 49",
+							"from": [-0.6, 0.1465, -1.7035],
+							"to": [-0.1, 1.6465, 0.7965],
+							"rotationOrigin": [-0.6, 0.1965, -0.2035],
+							"uv": [0, 0],
+							"shade": true,
+							"faces": {
+								"north": {"texture": "#string", "uv": [0, 0.5, 1.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+								"east": {"texture": "#string", "uv": [0, 0, 2.5, 1.5], "autoUv": false, "snapUv": false},
+								"south": {"texture": "#string", "uv": [2, 0.5, 3.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+								"west": {"texture": "#string", "uv": [0, 4, 2.5, 5.5], "autoUv": false, "snapUv": false},
+								"up": {"texture": "#string", "uv": [5, 1.5, 7.5, 2], "rotation": 90, "autoUv": false, "snapUv": false},
+								"down": {"texture": "#string", "uv": [6.5, 1.5, 9, 2], "rotation": 90, "autoUv": false, "snapUv": false}
+							},
+							"rotationX": 1,
+							"rotationY": -27,
+							"stepParentName": "",
+							"climateColorMap": "",
+							"gradientShade": false,
+							"renderPass": 0,
+							"seasonColorMap": ""
+						},
+						{
+							"name": "string 50",
+							"from": [-0.4, 0.093, -1.9017],
+							"to": [0.1, 1.793, 0.5983],
+							"rotationOrigin": [-0.4, 0.093, -0.4017],
+							"uv": [0, 0],
+							"shade": true,
+							"faces": {
+								"north": {"texture": "#string", "uv": [8.5, 0.5, 10, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+								"east": {"texture": "#string", "uv": [0, 0, 2.5, 1.5], "autoUv": false, "snapUv": false},
+								"south": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+								"west": {"texture": "#string", "uv": [2, 2.5, 4.5, 4], "autoUv": false, "snapUv": false},
+								"up": {"texture": "#string", "uv": [0, 0, 0.5, 2.5], "autoUv": false, "snapUv": false},
+								"down": {"texture": "#string", "uv": [0, 0, 0.5, 2.5], "autoUv": false, "snapUv": false}
+							},
+							"rotationX": -2,
+							"rotationY": 25,
+							"stepParentName": "",
+							"climateColorMap": "",
+							"gradientShade": false,
+							"renderPass": 0,
+							"seasonColorMap": ""
+						},
+						{
+							"name": "string 51",
+							"from": [0.4, 0.2552, -1.2053],
+							"to": [0.9, 1.7552, 0.7947],
+							"rotationOrigin": [0.4, 0.3052, 0.2947],
+							"uv": [0, 0],
+							"shade": true,
+							"faces": {
+								"north": {"texture": "#string", "uv": [5, 5.5, 6.5, 6], "rotation": 90, "autoUv": false, "snapUv": false},
+								"east": {"texture": "#string", "uv": [6, 2, 8, 3.5], "autoUv": false, "snapUv": false},
+								"south": {"texture": "#string", "uv": [10, 2.5, 11.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+								"west": {"texture": "#string", "uv": [3, 6, 5, 7.5], "autoUv": false, "snapUv": false},
+								"up": {"texture": "#string", "uv": [5, 0.5, 7, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+								"down": {"texture": "#string", "uv": [8.5, 0.5, 10.5, 1], "rotation": 90, "autoUv": false, "snapUv": false}
+							},
+							"rotationX": 1,
+							"rotationY": 73,
+							"stepParentName": "",
+							"climateColorMap": "",
+							"gradientShade": false,
+							"renderPass": 0,
+							"seasonColorMap": ""
+						},
+						{
+							"name": "string 52",
+							"from": [3.6, -0.03, -1.5],
+							"to": [4.1, 1.73, 0.5],
+							"rotationOrigin": [3.6, 0, 0],
+							"uv": [0, 0],
+							"shade": true,
+							"faces": {
+								"north": {"texture": "#string", "uv": [8.5, 0.5, 10, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+								"east": {"texture": "#string", "uv": [0, 0, 2, 1.5], "autoUv": false, "snapUv": false},
+								"south": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+								"west": {"texture": "#string", "uv": [2, 2.5, 4, 4], "autoUv": false, "snapUv": false},
+								"up": {"texture": "#string", "uv": [0, 0, 0.5, 2], "autoUv": false, "snapUv": false},
+								"down": {"texture": "#string", "uv": [0, 0, 0.5, 2], "autoUv": false, "snapUv": false}
+							},
+							"rotationX": -1,
+							"rotationY": 3,
+							"stepParentName": "",
+							"climateColorMap": "",
+							"gradientShade": false,
+							"renderPass": 0,
+							"seasonColorMap": ""
+						},
+						{
+							"name": "string 45_geo",
+							"from": [0, -0.05, -1.5],
+							"to": [0.5, 1.75, 0.3],
+							"rotationOrigin": [0, -0.05, -1.5],
+							"uv": [0, 0],
+							"shade": true,
+							"faces": {
+								"north": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+								"east": {"texture": "#string", "uv": [0, 2, 1.5, 3.5], "autoUv": false, "snapUv": false},
+								"south": {"texture": "#string", "uv": [0, 2.5, 1.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+								"west": {"texture": "#string", "uv": [2, 2.5, 3.5, 4], "autoUv": false, "snapUv": false},
+								"up": {"texture": "#string", "uv": [4.5, 0, 6, 0.5], "rotation": 90, "autoUv": false, "snapUv": false},
+								"down": {"texture": "#string", "uv": [2.5, 2, 4, 2.5], "rotation": 90, "autoUv": false, "snapUv": false}
+							},
+							"stepParentName": "",
+							"climateColorMap": "",
+							"gradientShade": false,
+							"renderPass": 0,
+							"seasonColorMap": ""
+						}
+					],
+					"stepParentName": ""
+				},
+				{
+					"name": "origin5",
+					"from": [-6.7293, 25.1141, 0],
+					"to": [-6.7293, 25.1141, 0],
+					"rotationOrigin": [-6.7293, 25.1141, 0],
+					"rotationZ": 37.5,
+					"children": [
+						{
+							"name": "origin6",
+							"from": [-16.53698, -0.72693, 0],
+							"to": [-16.53698, -0.72693, 0],
+							"rotationOrigin": [-16.53698, -0.72693, 0],
+							"rotationZ": 67.5,
+							"children": [
+								{
+									"name": "handle_4",
+									"from": [-4.5, 0.5, 0],
+									"to": [-4.5, 0.5, 0],
+									"rotationOrigin": [-4.5, 0.5, 0],
+									"children": [
+										{
+											"name": "handle 12",
+											"from": [-10.5, -0.5, -0.5],
+											"to": [0.5, 1, 1],
+											"rotationOrigin": [-9, 0, 0],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#handle", "uv": [1, 8.5, 11, 10], "autoUv": false, "snapUv": false},
+												"east": {"texture": "#handle", "uv": [3.5, 0.5, 5, 2], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#handle", "uv": [1.5, 3.5, 11.5, 5], "autoUv": false, "snapUv": false},
+												"west": {"texture": "#handle", "uv": [11, 10, 12.5, 11.5], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#handle", "uv": [4, 2.5, 14, 4], "autoUv": false, "snapUv": false},
+												"down": {"texture": "#handle", "uv": [1.5, 5, 11.5, 6.5], "autoUv": false, "snapUv": false}
+											},
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "handle 11_geo",
+											"from": [-0.5, -0.5, -0.5],
+											"to": [6.5, 1, 1],
+											"rotationOrigin": [-0.5, -0.5, -0.5],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#handle", "uv": [0, 5.5, 6, 7], "autoUv": false, "snapUv": false},
+												"east": {"texture": "#handle", "uv": [0.5, 0.5, 2, 2], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#handle", "uv": [0, 10.5, 6, 12], "autoUv": false, "snapUv": false},
+												"west": {"texture": "#handle", "uv": [14, 10, 15.5, 11.5], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#handle", "uv": [0, 4.5, 6, 6], "autoUv": false, "snapUv": false},
+												"down": {"texture": "#handle", "uv": [0, 5, 6, 6.5], "autoUv": false, "snapUv": false}
+											},
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										}
+									],
+									"stepParentName": ""
+								},
+								{
+									"name": "string_7",
+									"from": [-0.6, -0.1, 0.8],
+									"to": [-0.6, -0.1, 0.8],
+									"rotationOrigin": [-0.6, -0.1, 0.8],
+									"rotationY": 12,
+									"children": [
+										{
+											"name": "string 67",
+											"from": [-1.3278, -0.05, -1.9867],
+											"to": [-0.8278, 1.75, 0.0133],
+											"rotationOrigin": [-1.3278, 0, -0.4867],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [5, 5.5, 6.5, 6], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [6, 2, 8, 3.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [10, 2.5, 11.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [3, 6, 5, 7.5], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [5, 0.5, 7, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [8.5, 0.5, 10.5, 1], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationX": 2.2811,
+											"rotationY": -37.9917,
+											"rotationZ": 0.5275,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 68",
+											"from": [-0.154, -0.05, -1.7372],
+											"to": [0.346, 1.75, 0.2628],
+											"rotationOrigin": [-0.154, 0, -0.2372],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [0, 0.5, 1.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 0, 2, 1.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [2, 0.5, 3.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [0, 4, 2, 5.5], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [5, 1.5, 7, 2], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [6.5, 1.5, 8.5, 2], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationX": 2.2811,
+											"rotationY": -37.9917,
+											"rotationZ": 0.5275,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 69",
+											"from": [1.9781, -0.05, -1.2921],
+											"to": [2.4781, 1.75, 0.5079],
+											"rotationOrigin": [0.9781, 0, 0.2079],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 2, 1.5, 3.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [0, 2.5, 1.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [2, 2.5, 3.5, 4], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [4.5, 0, 6, 0.5], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [2.5, 2, 4, 2.5], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationX": 1.0223,
+											"rotationY": -11.9981,
+											"rotationZ": 0.2125,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 70",
+											"from": [-2.0541, -0.05, -1.9366],
+											"to": [-1.5541, 1.75, -0.1366],
+											"rotationOrigin": [-2.0541, 0, -0.4366],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [3, 4.5, 4.5, 5], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [1, 3, 2.5, 4.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [0, 7.5, 1.5, 8], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [3, 5.5, 4.5, 7], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [5.5, 0, 7, 0.5], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [5.5, 2, 7, 2.5], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationX": 1.0223,
+											"rotationY": -11.9981,
+											"rotationZ": 0.2125,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 66_geo",
+											"from": [0, -0.03, -1.5],
+											"to": [0.5, 1.73, 0.5],
+											"rotationOrigin": [0, -0.03, -1.5],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [8.5, 0.5, 10, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 0, 2, 1.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [2, 2.5, 4, 4], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [0, 0, 0.5, 2], "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [0, 0, 0.5, 2], "autoUv": false, "snapUv": false}
+											},
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										}
+									],
+									"stepParentName": ""
+								},
+								{
+									"name": "string_8",
+									"from": [-12.6, -0.1, 0.8],
+									"to": [-12.6, -0.1, 0.8],
+									"rotationOrigin": [-12.6, -0.1, 0.8],
+									"rotationX": 1,
+									"children": [
+										{
+											"name": "string 72",
+											"from": [2.8, 0, -1.5],
+											"to": [3.3, 1.8, 0.3],
+											"rotationOrigin": [2.7, 0, 0],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 2, 1.5, 3.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [0, 2.5, 1.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [2, 2.5, 3.5, 4], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [4.5, 0, 6, 0.5], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [2.5, 2, 4, 2.5], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationY": -11,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 73",
+											"from": [2.4, -0.05, -1.5],
+											"to": [2.9, 1.75, 0.5],
+											"rotationOrigin": [2.4, 0, 0],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [5, 5.5, 6.5, 6], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [6, 2, 8, 3.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [10, 2.5, 11.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [3, 6, 5, 7.5], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [5, 0.5, 7, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [8.5, 0.5, 10.5, 1], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationX": 1,
+											"rotationY": 28,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 74",
+											"from": [0.8, -0.0535, -1.7],
+											"to": [1.3, 1.7465, 0.3],
+											"rotationOrigin": [0.8, -0.0035, -0.2],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [0, 0.5, 1.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 0, 2, 1.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [2, 0.5, 3.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [0, 4, 2, 5.5], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [5, 1.5, 7, 2], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [6.5, 1.5, 8.5, 2], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationX": 1,
+											"rotationY": -32,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 75",
+											"from": [-0.6, 0.1465, -1.7035],
+											"to": [-0.1, 1.6465, 0.7965],
+											"rotationOrigin": [-0.6, 0.1965, -0.2035],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [0, 0.5, 1.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 0, 2.5, 1.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [2, 0.5, 3.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [0, 4, 2.5, 5.5], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [5, 1.5, 7.5, 2], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [6.5, 1.5, 9, 2], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationX": 1,
+											"rotationY": -27,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 76",
+											"from": [-0.4, 0.093, -1.9017],
+											"to": [0.1, 1.793, 0.5983],
+											"rotationOrigin": [-0.4, 0.093, -0.4017],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [8.5, 0.5, 10, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 0, 2.5, 1.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [2, 2.5, 4.5, 4], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [0, 0, 0.5, 2.5], "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [0, 0, 0.5, 2.5], "autoUv": false, "snapUv": false}
+											},
+											"rotationX": -2,
+											"rotationY": 25,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 77",
+											"from": [0.4, 0.2552, -1.2053],
+											"to": [0.9, 1.7552, 0.7947],
+											"rotationOrigin": [0.4, 0.3052, 0.2947],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [5, 5.5, 6.5, 6], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [6, 2, 8, 3.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [10, 2.5, 11.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [3, 6, 5, 7.5], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [5, 0.5, 7, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [8.5, 0.5, 10.5, 1], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationX": 1,
+											"rotationY": 73,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 78",
+											"from": [3.6, -0.03, -1.5],
+											"to": [4.1, 1.73, 0.5],
+											"rotationOrigin": [3.6, 0, 0],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [8.5, 0.5, 10, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 0, 2, 1.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [2, 2.5, 4, 4], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [0, 0, 0.5, 2], "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [0, 0, 0.5, 2], "autoUv": false, "snapUv": false}
+											},
+											"rotationX": -1,
+											"rotationY": 3,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 71_geo",
+											"from": [0, -0.05, -1.5],
+											"to": [0.5, 1.75, 0.3],
+											"rotationOrigin": [0, -0.05, -1.5],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 2, 1.5, 3.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [0, 2.5, 1.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [2, 2.5, 3.5, 4], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [4.5, 0, 6, 0.5], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [2.5, 2, 4, 2.5], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										}
+									],
+									"stepParentName": ""
+								}
+							],
+							"stepParentName": ""
+						},
+						{
+							"name": "handle_5",
+							"from": [-22.5, 0.5, 0],
+							"to": [-22.5, 0.5, 0],
+							"rotationOrigin": [-22.5, 0.5, 0],
+							"rotationZ": -8,
+							"children": [
+								{
+									"name": "string_9",
+									"from": [0.9103, -0.5842, 0.8],
+									"to": [0.9103, -0.5842, 0.8],
+									"rotationOrigin": [0.9103, -0.5842, 0.8],
+									"rotationX": 0.9998,
+									"rotationY": 0.0175,
+									"rotationZ": -1,
+									"children": [
+										{
+											"name": "string 59",
+											"from": [2.8, 0, -1.5],
+											"to": [3.3, 1.8, 0.3],
+											"rotationOrigin": [2.7, 0, 0],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 2, 1.5, 3.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [0, 2.5, 1.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [2, 2.5, 3.5, 4], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [4.5, 0, 6, 0.5], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [2.5, 2, 4, 2.5], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationY": -11,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 60",
+											"from": [2.4, -0.05, -1.5],
+											"to": [2.9, 1.75, 0.5],
+											"rotationOrigin": [2.4, 0, 0],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [5, 5.5, 6.5, 6], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [6, 2, 8, 3.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [10, 2.5, 11.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [3, 6, 5, 7.5], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [5, 0.5, 7, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [8.5, 0.5, 10.5, 1], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationX": 1,
+											"rotationY": 28,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 61",
+											"from": [0.8, -0.0535, -1.7],
+											"to": [1.3, 1.7465, 0.3],
+											"rotationOrigin": [0.8, -0.0035, -0.2],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [0, 0.5, 1.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 0, 2, 1.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [2, 0.5, 3.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [0, 4, 2, 5.5], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [5, 1.5, 7, 2], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [6.5, 1.5, 8.5, 2], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationX": 1,
+											"rotationY": -32,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 62",
+											"from": [-0.6, 0.1465, -1.7035],
+											"to": [-0.1, 1.6465, 0.7965],
+											"rotationOrigin": [-0.6, 0.1965, -0.2035],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [0, 0.5, 1.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 0, 2.5, 1.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [2, 0.5, 3.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [0, 4, 2.5, 5.5], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [5, 1.5, 7.5, 2], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [6.5, 1.5, 9, 2], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationX": 1,
+											"rotationY": -27,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 63",
+											"from": [-0.4, 0.093, -1.9017],
+											"to": [0.1, 1.793, 0.5983],
+											"rotationOrigin": [-0.4, 0.093, -0.4017],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [8.5, 0.5, 10, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 0, 2.5, 1.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [2, 2.5, 4.5, 4], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [0, 0, 0.5, 2.5], "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [0, 0, 0.5, 2.5], "autoUv": false, "snapUv": false}
+											},
+											"rotationX": -2,
+											"rotationY": 25,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 64",
+											"from": [0.4, 0.2552, -1.2053],
+											"to": [0.9, 1.7552, 0.7947],
+											"rotationOrigin": [0.4, 0.3052, 0.2947],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [5, 5.5, 6.5, 6], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [6, 2, 8, 3.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [10, 2.5, 11.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [3, 6, 5, 7.5], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [5, 0.5, 7, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [8.5, 0.5, 10.5, 1], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"rotationX": 1,
+											"rotationY": 73,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 65",
+											"from": [3.6, -0.03, -1.5],
+											"to": [4.1, 1.73, 0.5],
+											"rotationOrigin": [3.6, 0, 0],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [8.5, 0.5, 10, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 0, 2, 1.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [2, 2.5, 4, 4], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [0, 0, 0.5, 2], "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [0, 0, 0.5, 2], "autoUv": false, "snapUv": false}
+											},
+											"rotationX": -1,
+											"rotationY": 3,
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										},
+										{
+											"name": "string 58_geo",
+											"from": [0, -0.05, -1.5],
+											"to": [0.5, 1.75, 0.3],
+											"rotationOrigin": [0, -0.05, -1.5],
+											"uv": [0, 0],
+											"shade": true,
+											"faces": {
+												"north": {"texture": "#string", "uv": [1, 0.5, 2.5, 1], "rotation": 90, "autoUv": false, "snapUv": false},
+												"east": {"texture": "#string", "uv": [0, 2, 1.5, 3.5], "autoUv": false, "snapUv": false},
+												"south": {"texture": "#string", "uv": [0, 2.5, 1.5, 3], "rotation": 90, "autoUv": false, "snapUv": false},
+												"west": {"texture": "#string", "uv": [2, 2.5, 3.5, 4], "autoUv": false, "snapUv": false},
+												"up": {"texture": "#string", "uv": [4.5, 0, 6, 0.5], "rotation": 90, "autoUv": false, "snapUv": false},
+												"down": {"texture": "#string", "uv": [2.5, 2, 4, 2.5], "rotation": 90, "autoUv": false, "snapUv": false}
+											},
+											"stepParentName": "",
+											"climateColorMap": "",
+											"gradientShade": false,
+											"renderPass": 0,
+											"seasonColorMap": ""
+										}
+									],
+									"stepParentName": ""
+								},
+								{
+									"name": "handle 10_geo",
+									"from": [-0.5, -0.5, -0.5],
+									"to": [14.5, 1, 1],
+									"rotationOrigin": [-0.5, -0.5, -0.5],
+									"uv": [0, 0],
+									"shade": true,
+									"faces": {
+										"north": {"texture": "#handle", "uv": [1, 8.5, 16, 10], "autoUv": false, "snapUv": false},
+										"east": {"texture": "#handle", "uv": [3.5, 0.5, 5, 2], "autoUv": false, "snapUv": false},
+										"south": {"texture": "#handle", "uv": [1.5, 3.5, 16.5, 5], "autoUv": false, "snapUv": false},
+										"west": {"texture": "#handle", "uv": [11, 10, 12.5, 11.5], "autoUv": false, "snapUv": false},
+										"up": {"texture": "#handle", "uv": [4, 2.5, 19, 4], "autoUv": false, "snapUv": false},
+										"down": {"texture": "#handle", "uv": [1.5, 5, 16.5, 6.5], "autoUv": false, "snapUv": false}
+									},
+									"stepParentName": "",
+									"climateColorMap": "",
+									"gradientShade": false,
+									"renderPass": 0,
+									"seasonColorMap": ""
+								}
+							],
+							"stepParentName": ""
+						}
+					],
+					"stepParentName": ""
+				},
+				{
+					"name": "handle 8",
+					"from": [-23, 0, -0.5],
+					"to": [-8, 1.5, 1],
+					"rotationOrigin": [-22.5, 0.5, 0],
+					"uv": [0, 0],
+					"shade": true,
+					"faces": {
+						"north": {"texture": "#handle", "uv": [1, 8.5, 17, 10], "autoUv": false, "snapUv": false},
+						"east": {"texture": "#handle", "uv": [3.5, 0.5, 5, 2], "autoUv": false, "snapUv": false},
+						"south": {"texture": "#handle", "uv": [1.5, 3.5, 17.5, 5], "autoUv": false, "snapUv": false},
+						"west": {"texture": "#handle", "uv": [11, 10, 12.5, 11.5], "autoUv": false, "snapUv": false},
+						"up": {"texture": "#handle", "uv": [4, 2.5, 20, 4], "autoUv": false, "snapUv": false},
+						"down": {"texture": "#handle", "uv": [1.5, 5, 17.5, 6.5], "autoUv": false, "snapUv": false}
+					},
+					"stepParentName": "",
+					"climateColorMap": "",
+					"gradientShade": false,
+					"renderPass": 0,
+					"seasonColorMap": ""
+				}
+			],
+			"stepParentName": ""
+		}
+	],
+	"animations": []
+}

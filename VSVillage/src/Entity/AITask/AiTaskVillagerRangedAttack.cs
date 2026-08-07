@@ -62,9 +62,15 @@ public class AiTaskVillagerRangedAttack : AiTaskBaseTargetable
 		minVertDist = taskConfig["minVertDist"].AsFloat(2f);
 		maxDist = taskConfig["maxDist"].AsFloat(15f);
 		string projectileCode = taskConfig["projectile"].AsString();
-		projectileType = entity.World.GetEntityType(new AssetLocation(projectileCode));
+		if (projectileCode == null)
+			projectileCode = taskConfig["projectileCode"].AsString();
+		if (projectileCode != null)
+		{
+			string resolved = projectileCode.Replace("-*", "-iron");
+			projectileType = entity.World.GetEntityType(new AssetLocation(resolved));
+		}
 		if (projectileType == null && _isApplicableToThisEntity)
-			entity.World.Logger.Warning("[VsVillage] AiTaskVillagerRangedAttack: projectile entity type '{0}' not found - archer will not shoot. Check the 'projectile' key in villager.json.", projectileCode);
+			entity.World.Logger.Warning("[VsVillage] AiTaskVillagerRangedAttack: projectile entity type '{0}' not found - archer will not shoot.", projectileCode);
 		if (taskConfig["drawingsound"].Exists)
 		{
 			drawingsound = new AssetLocation(taskConfig["drawingsound"].AsString());
@@ -126,7 +132,7 @@ public class AiTaskVillagerRangedAttack : AiTaskBaseTargetable
 		if (entity is EntityVillager entityVillager)
 		{
 			entityVillager.RightHandItemSlot?.Itemstack?.Attributes?.SetInt("renderVariant", 1);
-			entityVillager.RightHandItemSlot.MarkDirty();
+			entityVillager.RightHandItemSlot?.MarkDirty();
 		}
 		startTimeStamp = 0f;
 		didThrow = false;
@@ -157,6 +163,11 @@ public class AiTaskVillagerRangedAttack : AiTaskBaseTargetable
 		float num = GameMath.AngleRadDistance(entity.Pos.Yaw, end);
 		entity.Pos.Yaw += GameMath.Clamp(num, (0f - curTurnRadPerSec) * dt, curTurnRadPerSec * dt);
 		entity.Pos.Yaw = entity.Pos.Yaw % ((float)Math.PI * 2f);
+
+		// Backpedal when the target is inside the minimum engagement range.
+		float xzDist = (float)Math.Sqrt(vec3f.X * vec3f.X + vec3f.Z * vec3f.Z);
+		entity.Controls.Backward = xzDist < minDist;
+
 		if ((double)Math.Abs(num) > 0.02)
 		{
 			return true;
@@ -176,13 +187,13 @@ public class AiTaskVillagerRangedAttack : AiTaskBaseTargetable
 		if (entity is EntityVillager && !didRenderswitch && startTimeStamp > (float)releaseAtMs / 2000f)
 		{
 			entity.RightHandItemSlot?.Itemstack?.Attributes?.SetInt("renderVariant", 3);
-			entity.RightHandItemSlot.MarkDirty();
+			entity.RightHandItemSlot?.MarkDirty();
 			didRenderswitch = true;
 		}
 		if (startTimeStamp > (float)releaseAtMs / 1000f && !didThrow && !entityInTheWay())
 		{
+			if (entity.World.ClassRegistry.CreateEntity(projectileType) is not EntityProjectile val) return true;
 			didThrow = true;
-			EntityProjectile val = (EntityProjectile)entity.World.ClassRegistry.CreateEntity(projectileType);
 			val.FiredBy = entity;
 			val.Damage = damage;
 			val.ProjectileStack = new ItemStack();
@@ -226,10 +237,11 @@ public class AiTaskVillagerRangedAttack : AiTaskBaseTargetable
 	public override void FinishExecute(bool cancelled)
 	{
 		base.FinishExecute(cancelled);
+		entity.Controls.Backward = false;
 		if (entity is EntityVillager)
 		{
 			entity.RightHandItemSlot?.Itemstack?.Attributes?.SetInt("renderVariant", 0);
-			entity.RightHandItemSlot.MarkDirty();
+			entity.RightHandItemSlot?.MarkDirty();
 		}
 	}
 

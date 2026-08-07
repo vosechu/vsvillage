@@ -18,6 +18,8 @@ public class AiTaskTravellingTraderStand : AiTaskBase
 
     private const int MaxTimesStuck = 4;
 
+    private const int MaxFailuresBeforeTeleport = 5;
+
     private VillagerAStarNew _pathfinder;
 
     private List<VillagerPathNode> _path;
@@ -36,6 +38,10 @@ public class AiTaskTravellingTraderStand : AiTaskBase
 
     private long _arrivedAt;
 
+    // Survives FinishExecute, unlike _timesStuck. The task re-fires every 1-2s and re-runs the
+    // same failing A*, so without a cross-run count an unreachable stall retries forever.
+    private int _consecutiveFailures;
+
     public AiTaskTravellingTraderStand(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
         : base(entity, taskConfig, aiConfig)
     {
@@ -53,6 +59,10 @@ public class AiTaskTravellingTraderStand : AiTaskBase
         {
             return false;
         }
+        // Departure (priority 8.5) outranks this task, but never race it: teleporting a
+        // leaving trader back to the stall would undo the departure entirely.
+        if (beh.IsLeaving) return false;
+
         BlockPos stall = beh.MarketStallPos;
         if (stall == null)
         {
@@ -82,28 +92,29 @@ public class AiTaskTravellingTraderStand : AiTaskBase
             return;
         }
         _target = stallPos.ToVec3d().Add(0.5, 0.0, 0.5);
-        if (entity.Pos.SquareDistanceTo(_target) < 2.25)
+        if (entity.Pos.SquareDistanceTo(_target) < ArrivalSq)
         {
             Arrive(beh);
             return;
         }
-        _pathfinder.blockAccessor.Begin();
-        _pathfinder.SetEntityCollisionBox(entity);
-        BlockPos start = _pathfinder.GetStartPos(entity.Pos.XYZ);
-        _path = _pathfinder.FindPath(start, stallPos, 20000);
-        _pathfinder.blockAccessor.Commit();
-        if (_path == null || _path.Count == 0)
+
+        if (TryPath(stallPos)) return;
+
+        _consecutiveFailures++;
+        entity.World.Logger.Warning($"[TT:{entity.EntityId}] TraderStand: no path to stall {stallPos} (attempt {_consecutiveFailures}).");
+
+        if (_consecutiveFailures >= MaxFailuresBeforeTeleport && TryTeleportToStall(stallPos))
         {
-            entity.World.Logger.Warning($"[TT:{entity.EntityId}] TraderStand: no path to stall {stallPos}. Will retry.");
-            _stuck = true;
+            _consecutiveFailures = 0;
+            if (entity.Pos.SquareDistanceTo(_target) < ArrivalSq)
+            {
+                Arrive(beh);
+                return;
+            }
+            if (TryPath(stallPos)) return;
         }
-        else
-        {
-            entity.World.Logger.Debug($"[TT:{entity.EntityId}] TraderStand: path found ({_path.Count} nodes) to {stallPos}.");
-            _pathIdx = 0;
-            _lastPos = entity.Pos.XYZ.Clone();
-            _stuckCheckTime = entity.World.ElapsedMilliseconds;
-        }
+
+        _stuck = true;
     }
 
     public override bool ContinueExecute(float dt)
@@ -159,6 +170,66 @@ public class AiTaskTravellingTraderStand : AiTaskBase
         }
     }
 
+    private bool TryPath(BlockPos stallPos)
+    {
+        try
+        {
+            _pathfinder.blockAccessor.Begin();
+            _pathfinder.SetEntityCollisionBox(entity);
+            BlockPos start = _pathfinder.GetStartPos(entity.Pos.XYZ);
+            _path = _pathfinder.FindPath(start, stallPos, 20000);
+        }
+        finally
+        {
+            _pathfinder.blockAccessor.Commit();
+        }
+
+        if (_path == null || _path.Count == 0) return false;
+
+        entity.World.Logger.Debug($"[TT:{entity.EntityId}] TraderStand: path found ({_path.Count} nodes) to {stallPos}.");
+        _pathIdx = 0;
+        _lastPos = entity.Pos.XYZ.Clone();
+        _stuckCheckTime = entity.World.ElapsedMilliseconds;
+        _consecutiveFailures = 0;
+        return true;
+    }
+
+    // This task extends AiTaskBase, so it inherits none of the waypoint/teleport recovery tiers
+    // AiTaskGotoAndInteract has. Without this an unreachable stall strands the trader all visit.
+    private bool TryTeleportToStall(BlockPos stallPos)
+    {
+        IBlockAccessor ba = entity.World.BlockAccessor;
+        for (int dy = 0; dy >= -2; dy--)
+        {
+            foreach (BlockFacing facing in BlockFacing.HORIZONTALS)
+            {
+                BlockPos cand = stallPos.AddCopy(facing.Normali.X, dy, facing.Normali.Z);
+                if (!IsStandable(ba, cand)) continue;
+
+                entity.TeleportTo(cand.ToVec3d().Add(0.5, 0.0, 0.5));
+                entity.World.Logger.Warning($"[TT:{entity.EntityId}] TraderStand: stall {stallPos} unreachable, teleported to {cand}.");
+                return true;
+            }
+        }
+        entity.World.Logger.Warning($"[TT:{entity.EntityId}] TraderStand: no standable spot beside stall {stallPos}; cannot recover.");
+        return false;
+    }
+
+    // Requires a solid floor below as well as clear body and head. KNOWN_ISSUES flags the missing
+    // floor check on the villager recovery teleport; do not repeat that here.
+    private static bool IsStandable(IBlockAccessor ba, BlockPos pos)
+    {
+        Block at = ba.GetBlock(pos);
+        Block above = ba.GetBlock(pos.UpCopy());
+        Block below = ba.GetBlock(pos.DownCopy());
+        if (at == null || above == null || below == null) return false;
+
+        bool bodyClear = at.CollisionBoxes == null || at.CollisionBoxes.Length == 0;
+        bool headClear = above.CollisionBoxes == null || above.CollisionBoxes.Length == 0;
+        bool grounded  = below.CollisionBoxes != null && below.CollisionBoxes.Length != 0;
+        return bodyClear && headClear && grounded;
+    }
+
     private void StepPath()
     {
         if (_path == null || _pathIdx >= _path.Count)
@@ -202,18 +273,21 @@ public class AiTaskTravellingTraderStand : AiTaskBase
     private void CheckIfStuck()
     {
         long now = entity.World.ElapsedMilliseconds;
-        if (now - _stuckCheckTime < 3000)
+        if (now - _stuckCheckTime < StuckCheckIntervalMs)
         {
             return;
         }
         Vec3d myPos = entity.Pos.XYZ;
         if (_lastPos != null && (double)myPos.DistanceTo(_lastPos) < 0.4)
         {
-            if (++_timesStuck >= 4)
+            if (++_timesStuck >= MaxTimesStuck)
             {
                 entity.World.Logger.Warning($"[TT:{entity.EntityId}] TraderStand: stuck after {_timesStuck} checks - giving up.");
                 _stuck = true;
                 _timesStuck = 0;
+                // Wedged on terrain counts toward the same budget as an unpathable stall,
+                // so a trader stuck against geometry still teleports out eventually.
+                _consecutiveFailures++;
             }
         }
         else

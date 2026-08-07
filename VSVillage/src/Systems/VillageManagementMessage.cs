@@ -46,4 +46,12 @@ public class VillageManagementMessage
 
 	[ProtoMember(11)]
 	public string VillagerType;
+
+	// Which watch of the guard post at StructureToAssign is being set (assignGuardPost only).
+	[ProtoMember(12)]
+	public EnumGuardShift GuardShift;
+
+	// Requested trader shop specialty for the workstation at StructureToAssign (changeShopType only).
+	[ProtoMember(13)]
+	public string ShopType;
 }

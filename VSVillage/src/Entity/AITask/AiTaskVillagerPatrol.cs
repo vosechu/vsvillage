@@ -32,9 +32,18 @@ public class AiTaskVillagerPatrol : AiTaskBase
 	//Pre-computed: false when this patrol entry doesn't apply to this entity type (e.g. soldier-only night patrol skipped by archers).
 	private readonly bool _isApplicableToThisEntity;
 
+	// Null when the entry has no guard gate. Assignment changes at runtime, so unlike the suffix
+	// gate above this cannot be precomputed.
+	private readonly EnumGuardShift? _guardShiftGate;
+
+	// Mini-patrol entries set this to circle the assigned post instead of roaming the village.
+	private readonly bool centerOnGuardPost;
+
 	public AiTaskVillagerPatrol(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
 		: base(entity, taskConfig, aiConfig)
 	{
+		_guardShiftGate = GuardDuty.ParseGate(taskConfig["guardShift"].AsString(null));
+		centerOnGuardPost = taskConfig["centerOnGuardPost"].AsBool();
 		if (taskConfig["moveSpeed"] != null)
 		{
 			moveSpeed = taskConfig["moveSpeed"].AsFloat(0.008f);
@@ -56,6 +65,10 @@ public class AiTaskVillagerPatrol : AiTaskBase
 	public override bool ShouldExecute()
 	{
 		if (!_isApplicableToThisEntity || !IsSoldierOrArcher())
+		{
+			return false;
+		}
+		if (!GuardDuty.GatePasses(entity, _guardShiftGate))
 		{
 			return false;
 		}
@@ -85,20 +98,41 @@ public class AiTaskVillagerPatrol : AiTaskBase
 			return;
 		}
 		bool foundTarget = false;
-		if (entity.World.Rand.NextDouble() < 0.7 && village.Workstations.Count > 0)
+		if (centerOnGuardPost)
 		{
-			List<BlockPos> workstationPositions = new List<BlockPos>(village.Workstations.Keys);
-			BlockPos ws = workstationPositions[entity.World.Rand.Next(workstationPositions.Count)];
-			targetPos = FindPatrolPoint(ws.ToVec3d().Add(0.5, 0.0, 0.5));
-			foundTarget = targetPos != null;
-		}
-		if (!foundTarget)
-		{
-			Entity[] villagerEntities = entity.World.GetEntitiesAround(entity.Pos.XYZ, (float)village.Radius + 10f, 6f, (Entity e) => e != entity && e.Alive && e.HasBehavior<EntityBehaviorVillager>());
-			if (villagerEntities.Length != 0)
+			// A mini-patrol circles the post only. The village-wide fallbacks below would send a
+			// guard roaming off mid-shift, so this branch never uses them.
+			BlockPos post = GuardDuty.PostOf(entity);
+			if (post != null)
 			{
-				Entity randomVillager = villagerEntities[entity.World.Rand.Next(villagerEntities.Length)];
-				targetPos = FindPatrolPoint(randomVillager.Pos.XYZ);
+				targetPos = FindPatrolPoint(post.ToVec3d().Add(0.5, 0.0, 0.5));
+			}
+		}
+		else
+		{
+			// Unassigned guards treat posts as check-in points: path there, then on somewhere else.
+			if (village.GuardPosts.Count > 0 && entity.World.Rand.NextDouble() < 0.4)
+			{
+				List<BlockPos> postPositions = new List<BlockPos>(village.GuardPosts.Keys);
+				BlockPos gp = postPositions[entity.World.Rand.Next(postPositions.Count)];
+				targetPos = FindPatrolPoint(gp.ToVec3d().Add(0.5, 0.0, 0.5));
+				foundTarget = targetPos != null;
+			}
+			if (!foundTarget && entity.World.Rand.NextDouble() < 0.7 && village.Workstations.Count > 0)
+			{
+				List<BlockPos> workstationPositions = new List<BlockPos>(village.Workstations.Keys);
+				BlockPos ws = workstationPositions[entity.World.Rand.Next(workstationPositions.Count)];
+				targetPos = FindPatrolPoint(ws.ToVec3d().Add(0.5, 0.0, 0.5));
+				foundTarget = targetPos != null;
+			}
+			if (!foundTarget)
+			{
+				Entity[] villagerEntities = entity.World.GetEntitiesAround(entity.Pos.XYZ, (float)village.Radius + 10f, 6f, (Entity e) => e != entity && e.Alive && e.HasBehavior<EntityBehaviorVillager>());
+				if (villagerEntities.Length != 0)
+				{
+					Entity randomVillager = villagerEntities[entity.World.Rand.Next(villagerEntities.Length)];
+					targetPos = FindPatrolPoint(randomVillager.Pos.XYZ);
+				}
 			}
 		}
 		if (!(targetPos == null))
@@ -125,6 +159,10 @@ public class AiTaskVillagerPatrol : AiTaskBase
 	public override bool ContinueExecute(float dt)
 	{
 		if (targetPos == null || stuck || currentPath == null)
+		{
+			return false;
+		}
+		if (!GuardDuty.GatePasses(entity, _guardShiftGate))
 		{
 			return false;
 		}

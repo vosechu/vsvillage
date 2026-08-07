@@ -43,11 +43,16 @@ public class AiTaskVillagerSleep : AiTaskBase
     // Avoids repeated string allocations and EndsWith calls on every AI tick.
     private readonly bool _isApplicableToThisEntity;
 
+    // Null when the entry has no guard gate. Assignment changes at runtime, so unlike the suffix
+    // gate above this cannot be precomputed.
+    private readonly EnumGuardShift? _guardShiftGate;
+
     public AiTaskVillagerSleep(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
         : base(entity, taskConfig, aiConfig)
     {
         moveSpeed = taskConfig["movespeed"].AsFloat(0.06f);
         offset = (float)entity.World.Rand.Next(taskConfig["minoffset"].AsInt(-50), taskConfig["maxoffset"].AsInt(50)) / 100f;
+        _guardShiftGate = GuardDuty.ParseGate(taskConfig["guardShift"].AsString(null));
         pathfinder = new VillagerAStarNew(entity.World.GetCachingBlockAccessor(synchronize: false, relight: false), entity.World, entity);
 
         string codePath = entity.Code?.Path ?? "";
@@ -61,6 +66,10 @@ public class AiTaskVillagerSleep : AiTaskBase
     public override bool ShouldExecute()
     {
         if (!_isApplicableToThisEntity) return false;
+
+        // A guard on shift must not sleep. Priority cannot do this: archer sleep is 9.0, above every
+        // combat task, so an ungated entry would hold the slot right through a night watch.
+        if (!GuardDuty.GatePasses(entity, _guardShiftGate)) return false;
 
         // Respect the duringDayTimeFrames configured in JSON (handles midnight wrap-around).
         if (duringDayTimeFrames == null || duringDayTimeFrames.Length == 0
@@ -183,6 +192,10 @@ public class AiTaskVillagerSleep : AiTaskBase
     public override bool ContinueExecute(float dt)
     {
         if (targetPos == null || stuck || currentPath == null) return false;
+
+        // Wakes a guard who was assigned a shift mid-sleep; this check sits ahead of the reachedBed
+        // return below, so it ends the task even while lying down.
+        if (!GuardDuty.GatePasses(entity, _guardShiftGate)) return false;
 
         if (duringDayTimeFrames == null || duringDayTimeFrames.Length == 0
             || !IntervalUtil.matchesCurrentTime(duringDayTimeFrames, entity.World, offset))

@@ -57,6 +57,10 @@ public class VillagerAStarNew
 
 	protected BlockPos tmpPos;
 
+	protected BlockPos tmpCornerA;
+
+	protected BlockPos tmpCornerB;
+
 	public List<string> traversableCodes;
 
 	// Single shared Random per pathfinder instance - avoids two new Random() calls per
@@ -76,6 +80,8 @@ public class VillagerAStarNew
 		steppableCodes = new List<string> { "stair", "path", "bed-", "farmland", "furrowedland", "slab", "carpet" };
 		tmpVec = new Vec3d();
 		tmpPos = new BlockPos(0);
+		tmpCornerA = new BlockPos(0);
+		tmpCornerB = new BlockPos(0);
 	}
 
 	public List<VillagerPathNode> FindPath(BlockPos start, BlockPos end, int searchDepth = 12000)
@@ -151,7 +157,8 @@ public class VillagerAStarNew
 			occupiedCells = null;
 			return;
 		}
-		occupiedCells = new HashSet<BlockPos>();
+		if (occupiedCells == null) occupiedCells = new HashSet<BlockPos>();
+		else occupiedCells.Clear();
 		Vec3d center = start.ToVec3d();
 		Vintagestory.API.Common.Entities.Entity[] nearby = world.GetEntitiesAround(center, 50f, 10f,
 			e => e != owner
@@ -244,9 +251,9 @@ public class VillagerAStarNew
 	// Diagonal NE move (x,z) -> (x+1,z+1) cuts between (x+1,z) and (x,z+1). True if either corner is a narrow barrier.
 	private bool DiagonalCornerBlocked(BlockPos toPos, Cardinal fromDir)
 	{
-		BlockPos cornerA = new BlockPos(toPos.X - fromDir.Normali.X, toPos.Y, toPos.Z);
-		BlockPos cornerB = new BlockPos(toPos.X, toPos.Y, toPos.Z - fromDir.Normali.Z);
-		return IsNarrowBarrier(cornerA) || IsNarrowBarrier(cornerB);
+		tmpCornerA.Set(toPos.X - fromDir.Normali.X, toPos.Y, toPos.Z);
+		tmpCornerB.Set(toPos.X, toPos.Y, toPos.Z - fromDir.Normali.Z);
+		return IsNarrowBarrier(tmpCornerA) || IsNarrowBarrier(tmpCornerB);
 	}
 
 	protected virtual bool traversable(VillagerPathNode node, BlockPos target, Cardinal fromDir, ref float extraCost)

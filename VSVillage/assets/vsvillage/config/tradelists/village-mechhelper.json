@@ -4,7 +4,7 @@
         "var": 6
     },
     "selling": {
-        "maxItems": 14,
+        "maxItems": 16,
         "list": [
             {
                 "code": "vsvillage:workstation-mayor-east",
@@ -63,11 +63,32 @@
                 "price": { "avg": 6, "var": 2 }
             },
             {
-                "code": "vsvillage:marketstall-east",
+                "code": "vsvillage:workstation-angler-east",
                 "type": "block",
                 "stacksize": 1,
                 "stock": { "avg": 2, "var": 1 },
-                "price": { "avg": 22, "var": 5 }
+                "price": { "avg": 6, "var": 2 }
+            },
+            {
+                "code": "vsvillage:workstation-woodworker-east",
+                "type": "block",
+                "stacksize": 1,
+                "stock": { "avg": 2, "var": 1 },
+                "price": { "avg": 6, "var": 2 }
+            },
+            {
+                "code": "vsvillage:fishingspot-east",
+                "type": "block",
+                "stacksize": 1,
+                "stock": { "avg": 2, "var": 1 },
+                "price": { "avg": 1, "var": 0 }
+            },
+            {
+                "code": "vsvillage:sawhorse-east",
+                "type": "block",
+                "stacksize": 1,
+                "stock": { "avg": 2, "var": 1 },
+                "price": { "avg": 6, "var": 2 }
             },
             {
                 "code": "vsvillage:brazier-extinct",
@@ -84,21 +105,14 @@
                 "price": { "avg": 6, "var": 2 }
             },
             {
+                "code": "vsvillage:guardpost-east",
+                "type": "block",
+                "stacksize": 1,
+                "stock": { "avg": 2, "var": 1 },
+                "price": { "avg": 8, "var": 2 }
+            },
+            {
                 "code": "vsvillage:villagebed-blueplaid-east",
-                "type": "block",
-                "stacksize": 1,
-                "stock": { "avg": 8, "var": 2 },
-                "price": { "avg": 2, "var": 1 }
-            },
-            {
-                "code": "vsvillage:villagebed-whiteplaid-east",
-                "type": "block",
-                "stacksize": 1,
-                "stock": { "avg": 8, "var": 2 },
-                "price": { "avg": 2, "var": 1 }
-            },
-            {
-                "code": "vsvillage:villagebed-pine-east",
                 "type": "block",
                 "stacksize": 1,
                 "stock": { "avg": 8, "var": 2 },
@@ -114,7 +128,7 @@
                 "type": "item",
                 "stacksize": 1,
                 "stock": { "avg": 4, "var": 1 },
-                "price": { "avg": 10, "var": 2 }
+                "price": { "avg": 2, "var": 0.4 }
             },
             {
                 "code": "game:jonasparts-connector01",
@@ -168,9 +182,9 @@
             {
                 "code": "game:metal-parts",
                 "type": "block",
-                "stacksize": 1,
+                "stacksize": 4,
                 "stock": { "avg": 6, "var": 2 },
-                "price": { "avg": 4, "var": 1 }
+                "price": { "avg": 1, "var": 0.25 }
             },
             {
                 "code": "game:metal-scraps",

@@ -1,7 +1,11 @@
 {
   "code": "travelling-guard",
   "class": "EntityTravellingGuard",
-  "tags": [ "humanoid", "human", "habitat-land" ],
+  "tags": [
+    "humanoid",
+    "human",
+    "habitat-land"
+  ],
   "canClimb": true,
   "eyeHeight": 1.4,
   "hitboxSize": {
@@ -12,14 +16,15 @@
     "x": 0.75,
     "y": 0.5
   },
-
   "variantGroups": [
     {
       "code": "sex",
-      "states": [ "male", "female" ]
+      "states": [
+        "male",
+        "female"
+      ]
     }
   ],
-
   "attributes": {
     "shouldSwivelFromMotion": false,
     "personality": "balanced",
@@ -46,102 +51,266 @@
       ]
     },
     "partialRandomOutfits": {
-      "skin-face": [ { "Code": "skin-face-guard" } ],
+      "skin-face": [
+        {
+          "Code": "skin-face-guard"
+        }
+      ],
       "eyebrowsByType": {
         "*-male": [
-          { "Code": "eyebrows-normal1" },
-          { "Code": "eyebrows-normal2" },
-          { "Code": "eyebrows-normal3" },
-          { "Code": "eyebrows-normal4" },
-          { "Code": "eyebrows-normal5" }
+          {
+            "Code": "eyebrows-normal1"
+          },
+          {
+            "Code": "eyebrows-normal2"
+          },
+          {
+            "Code": "eyebrows-normal3"
+          },
+          {
+            "Code": "eyebrows-normal4"
+          },
+          {
+            "Code": "eyebrows-normal5"
+          }
         ],
         "*-female": [
-          { "Code": "eyebrows-normal1" },
-          { "Code": "eyebrows-normal2" },
-          { "Code": "eyebrows-normal3" },
-          { "Code": "eyebrows-normal4" },
-          { "Code": "eyebrows-normal5" },
-          { "Code": "eyebrows-normal6" },
-          { "Code": "eyebrows-normal7" },
-          { "Code": "eyebrows-normal8" },
-          { "Code": "eyebrows-normal9" }
+          {
+            "Code": "eyebrows-normal1"
+          },
+          {
+            "Code": "eyebrows-normal2"
+          },
+          {
+            "Code": "eyebrows-normal3"
+          },
+          {
+            "Code": "eyebrows-normal4"
+          },
+          {
+            "Code": "eyebrows-normal5"
+          },
+          {
+            "Code": "eyebrows-normal6"
+          },
+          {
+            "Code": "eyebrows-normal7"
+          },
+          {
+            "Code": "eyebrows-normal8"
+          },
+          {
+            "Code": "eyebrows-normal9"
+          }
         ]
       },
       "eyelashes": [
-        { "Code": "eyelashes-normal1" },
-        { "Code": "eyelashes-normal2" }
+        {
+          "Code": "eyelashes-normal1"
+        },
+        {
+          "Code": "eyelashes-normal2"
+        }
       ],
       "faceextra": [
-        { "Code": "nothing-w10" },
-        { "Code": "faceextra-freckles1" },
-        { "Code": "faceextra-freckles2" },
-        { "Code": "faceextra-freckles3" },
-        { "Code": "faceextra-notenoughsleep1" }
+        {
+          "Code": "nothing-w10"
+        },
+        {
+          "Code": "faceextra-freckles1"
+        },
+        {
+          "Code": "faceextra-freckles2"
+        },
+        {
+          "Code": "faceextra-freckles3"
+        },
+        {
+          "Code": "faceextra-notenoughsleep1"
+        }
       ],
       "bodyskin": [
-        { "Code": "bodyskin-1" },
-        { "Code": "bodyskin-2" },
-        { "Code": "bodyskin-3" },
-        { "Code": "bodyskin-4" },
-        { "Code": "bodyskin-5" },
-        { "Code": "bodyskin-6" },
-        { "Code": "bodyskin-7" },
-        { "Code": "bodyskin-8" },
-        { "Code": "bodyskin-9" },
-        { "Code": "bodyskin-10" },
-        { "Code": "bodyskin-11" },
-        { "Code": "bodyskin-12" },
-        { "Code": "bodyskin-13" },
-        { "Code": "bodyskin-14" },
-        { "Code": "bodyskin-15" },
-        { "Code": "bodyskin-16" },
-        { "Code": "bodyskin-17" },
-        { "Code": "bodyskin-18" },
-        { "Code": "bodyskin-19" },
-        { "Code": "bodyskin-20" },
-        { "Code": "bodyskin-21" },
-        { "Code": "bodyskin-22" },
-        { "Code": "bodyskin-23" }
+        {
+          "Code": "bodyskin-1"
+        },
+        {
+          "Code": "bodyskin-2"
+        },
+        {
+          "Code": "bodyskin-3"
+        },
+        {
+          "Code": "bodyskin-4"
+        },
+        {
+          "Code": "bodyskin-5"
+        },
+        {
+          "Code": "bodyskin-6"
+        },
+        {
+          "Code": "bodyskin-7"
+        },
+        {
+          "Code": "bodyskin-8"
+        },
+        {
+          "Code": "bodyskin-9"
+        },
+        {
+          "Code": "bodyskin-10"
+        },
+        {
+          "Code": "bodyskin-11"
+        },
+        {
+          "Code": "bodyskin-12"
+        },
+        {
+          "Code": "bodyskin-13"
+        },
+        {
+          "Code": "bodyskin-14"
+        },
+        {
+          "Code": "bodyskin-15"
+        },
+        {
+          "Code": "bodyskin-16"
+        },
+        {
+          "Code": "bodyskin-17"
+        },
+        {
+          "Code": "bodyskin-18"
+        },
+        {
+          "Code": "bodyskin-19"
+        },
+        {
+          "Code": "bodyskin-20"
+        },
+        {
+          "Code": "bodyskin-21"
+        },
+        {
+          "Code": "bodyskin-22"
+        },
+        {
+          "Code": "bodyskin-23"
+        }
       ],
       "iris": [
-        { "Code": "iris-1" },
-        { "Code": "iris-2" },
-        { "Code": "iris-3" },
-        { "Code": "iris-4" },
-        { "Code": "iris-5" },
-        { "Code": "iris-6" },
-        { "Code": "iris-7" },
-        { "Code": "iris-8" },
-        { "Code": "iris-9" },
-        { "Code": "iris-10" },
-        { "Code": "iris-11" },
-        { "Code": "iris-12" },
-        { "Code": "iris-13" },
-        { "Code": "iris-14" },
-        { "Code": "iris-15" },
-        { "Code": "iris-16" },
-        { "Code": "iris-17" },
-        { "Code": "iris-18" },
-        { "Code": "iris-19" },
-        { "Code": "iris-20" },
-        { "Code": "iris-21" },
-        { "Code": "iris-22" },
-        { "Code": "iris-23" },
-        { "Code": "iris-24" },
-        { "Code": "iris-25" }
+        {
+          "Code": "iris-1"
+        },
+        {
+          "Code": "iris-2"
+        },
+        {
+          "Code": "iris-3"
+        },
+        {
+          "Code": "iris-4"
+        },
+        {
+          "Code": "iris-5"
+        },
+        {
+          "Code": "iris-6"
+        },
+        {
+          "Code": "iris-7"
+        },
+        {
+          "Code": "iris-8"
+        },
+        {
+          "Code": "iris-9"
+        },
+        {
+          "Code": "iris-10"
+        },
+        {
+          "Code": "iris-11"
+        },
+        {
+          "Code": "iris-12"
+        },
+        {
+          "Code": "iris-13"
+        },
+        {
+          "Code": "iris-14"
+        },
+        {
+          "Code": "iris-15"
+        },
+        {
+          "Code": "iris-16"
+        },
+        {
+          "Code": "iris-17"
+        },
+        {
+          "Code": "iris-18"
+        },
+        {
+          "Code": "iris-19"
+        },
+        {
+          "Code": "iris-20"
+        },
+        {
+          "Code": "iris-21"
+        },
+        {
+          "Code": "iris-22"
+        },
+        {
+          "Code": "iris-23"
+        },
+        {
+          "Code": "iris-24"
+        },
+        {
+          "Code": "iris-25"
+        }
       ],
       "lips": [
-        { "Code": "lips-normal1" },
-        { "Code": "lips-normal2" },
-        { "Code": "lips-normal3" },
-        { "Code": "lips-normal4" },
-        { "Code": "lips-normal5" },
-        { "Code": "lips-normal6" },
-        { "Code": "lips-normal7" },
-        { "Code": "lips-normal8" },
-        { "Code": "lips-normal9" },
-        { "Code": "lips-normal10" },
-        { "Code": "lips-normal11" }
+        {
+          "Code": "lips-normal1"
+        },
+        {
+          "Code": "lips-normal2"
+        },
+        {
+          "Code": "lips-normal3"
+        },
+        {
+          "Code": "lips-normal4"
+        },
+        {
+          "Code": "lips-normal5"
+        },
+        {
+          "Code": "lips-normal6"
+        },
+        {
+          "Code": "lips-normal7"
+        },
+        {
+          "Code": "lips-normal8"
+        },
+        {
+          "Code": "lips-normal9"
+        },
+        {
+          "Code": "lips-normal10"
+        },
+        {
+          "Code": "lips-normal11"
+        }
       ],
       "scar": [
         {
@@ -154,9 +323,15 @@
         }
       ],
       "sclera": [
-        { "Code": "sclera-normal1" },
-        { "Code": "sclera-normal2" },
-        { "Code": "sclera-normal3" }
+        {
+          "Code": "sclera-normal1"
+        },
+        {
+          "Code": "sclera-normal2"
+        },
+        {
+          "Code": "sclera-normal3"
+        }
       ],
       "tatoo": [
         {
@@ -182,75 +357,199 @@
       ],
       "hair-baseByType": {
         "*-male": [
-          { "Code": "hair-00" },
-          { "Code": "hair-01" },
-          { "Code": "hair-12" },
-          { "Code": "hair-13" },
-          { "Code": "hair-14" },
-          { "Code": "hair-15" },
-          { "Code": "hair-16" },
-          { "Code": "hair-18" },
-          { "Code": "hair-21" },
-          { "Code": "hair-23" },
-          { "Code": "hair-bald-horseshoe" },
-          { "Code": "hair-bald-none" },
-          { "Code": "hair-bald-tonsure" },
-          { "Code": "hair-medium-afro" },
-          { "Code": "hair-medium-basic" },
-          { "Code": "hair-medium-layered" },
-          { "Code": "hair-medium-ponytail" },
-          { "Code": "hair-short-indigenousbalding" },
-          { "Code": "hair-short-sideshave" },
-          { "Code": "hair-short-trimmed" }
+          {
+            "Code": "hair-00"
+          },
+          {
+            "Code": "hair-01"
+          },
+          {
+            "Code": "hair-12"
+          },
+          {
+            "Code": "hair-13"
+          },
+          {
+            "Code": "hair-14"
+          },
+          {
+            "Code": "hair-15"
+          },
+          {
+            "Code": "hair-16"
+          },
+          {
+            "Code": "hair-18"
+          },
+          {
+            "Code": "hair-21"
+          },
+          {
+            "Code": "hair-23"
+          },
+          {
+            "Code": "hair-bald-horseshoe"
+          },
+          {
+            "Code": "hair-bald-none"
+          },
+          {
+            "Code": "hair-bald-tonsure"
+          },
+          {
+            "Code": "hair-medium-afro"
+          },
+          {
+            "Code": "hair-medium-basic"
+          },
+          {
+            "Code": "hair-medium-layered"
+          },
+          {
+            "Code": "hair-medium-ponytail"
+          },
+          {
+            "Code": "hair-short-indigenousbalding"
+          },
+          {
+            "Code": "hair-short-sideshave"
+          },
+          {
+            "Code": "hair-short-trimmed"
+          }
         ],
         "*-female": [
-          { "Code": "hair-00" },
-          { "Code": "hair-04" },
-          { "Code": "hair-06" },
-          { "Code": "hair-08" },
-          { "Code": "hair-10" },
-          { "Code": "hair-13" },
-          { "Code": "hair-14" },
-          { "Code": "hair-15" },
-          { "Code": "hair-16" },
-          { "Code": "hair-18" },
-          { "Code": "hair-19" },
-          { "Code": "hair-20" },
-          { "Code": "hair-21" },
-          { "Code": "hair-22" },
-          { "Code": "hair-long-braid1" },
-          { "Code": "hair-long-braid2" },
-          { "Code": "hair-long-combed" },
-          { "Code": "hair-long-dreads2" },
-          { "Code": "hair-long-loose" },
-          { "Code": "hair-long-strands" },
-          { "Code": "hair-medium-ponytail" },
-          { "Code": "hair-short-bangs" },
-          { "Code": "hair-short-sidebraids1" }
+          {
+            "Code": "hair-00"
+          },
+          {
+            "Code": "hair-04"
+          },
+          {
+            "Code": "hair-06"
+          },
+          {
+            "Code": "hair-08"
+          },
+          {
+            "Code": "hair-10"
+          },
+          {
+            "Code": "hair-13"
+          },
+          {
+            "Code": "hair-14"
+          },
+          {
+            "Code": "hair-15"
+          },
+          {
+            "Code": "hair-16"
+          },
+          {
+            "Code": "hair-18"
+          },
+          {
+            "Code": "hair-19"
+          },
+          {
+            "Code": "hair-20"
+          },
+          {
+            "Code": "hair-21"
+          },
+          {
+            "Code": "hair-22"
+          },
+          {
+            "Code": "hair-long-braid1"
+          },
+          {
+            "Code": "hair-long-braid2"
+          },
+          {
+            "Code": "hair-long-combed"
+          },
+          {
+            "Code": "hair-long-dreads2"
+          },
+          {
+            "Code": "hair-long-loose"
+          },
+          {
+            "Code": "hair-long-strands"
+          },
+          {
+            "Code": "hair-medium-ponytail"
+          },
+          {
+            "Code": "hair-short-bangs"
+          },
+          {
+            "Code": "hair-short-sidebraids1"
+          }
         ]
       },
       "hair-base2": [],
       "hair-base3": [],
       "haircolor": [
-        { "Code": "aged" },
-        { "Code": "cordovan" },
-        { "Code": "darkpurple" },
-        { "Code": "ecru" },
-        { "Code": "eerieblack" },
-        { "Code": "harvestgold" },
-        { "Code": "heliotropegray" },
-        { "Code": "indigodye" },
-        { "Code": "lightgray" },
-        { "Code": "liver" },
-        { "Code": "mossgreen" },
-        { "Code": "oldburgundy" },
-        { "Code": "palatinatepurple" },
-        { "Code": "rosewood" },
-        { "Code": "russet" },
-        { "Code": "sanddune" },
-        { "Code": "silverchalice" },
-        { "Code": "slategray" },
-        { "Code": "wheat" }
+        {
+          "Code": "aged"
+        },
+        {
+          "Code": "cordovan"
+        },
+        {
+          "Code": "darkpurple"
+        },
+        {
+          "Code": "ecru"
+        },
+        {
+          "Code": "eerieblack"
+        },
+        {
+          "Code": "harvestgold"
+        },
+        {
+          "Code": "heliotropegray"
+        },
+        {
+          "Code": "indigodye"
+        },
+        {
+          "Code": "lightgray"
+        },
+        {
+          "Code": "liver"
+        },
+        {
+          "Code": "mossgreen"
+        },
+        {
+          "Code": "oldburgundy"
+        },
+        {
+          "Code": "palatinatepurple"
+        },
+        {
+          "Code": "rosewood"
+        },
+        {
+          "Code": "russet"
+        },
+        {
+          "Code": "sanddune"
+        },
+        {
+          "Code": "silverchalice"
+        },
+        {
+          "Code": "slategray"
+        },
+        {
+          "Code": "wheat"
+        }
       ],
       "beardByType": {
         "*-male": [
@@ -354,46 +653,91 @@
         ],
         "*-female": []
       },
-      "arm": [ { "Code": "arm-guard-bracers" } ],
+      "arm": [
+        {
+          "Code": "arm-guard-bracers"
+        }
+      ],
       "face": [],
-      "foot": [ { "Code": "foot-guard" } ],
-      "hand": [ { "Code": "hand-gloves" } ],
-      "head": [ { "Code": "head-guard" } ],
-      "lowerbody": [ { "Code": "lowerbody-pants-guard" } ],
+      "foot": [
+        {
+          "Code": "foot-guard"
+        }
+      ],
+      "hand": [
+        {
+          "Code": "hand-gloves"
+        }
+      ],
+      "head": [
+        {
+          "Code": "head-guard"
+        }
+      ],
+      "lowerbody": [
+        {
+          "Code": "lowerbody-pants-guard"
+        }
+      ],
       "neck": [],
-      "shoulder": [ { "Code": "shoulder-{sex}-shortsleeve-guard" } ],
-      "upperbody": [ { "Code": "upperbody-{sex}-shortsleeve-guard" } ],
+      "shoulder": [
+        {
+          "Code": "shoulder-{sex}-shortsleeve-guard"
+        }
+      ],
+      "upperbody": [
+        {
+          "Code": "upperbody-{sex}-shortsleeve-guard"
+        }
+      ],
       "upperbodyover": [],
-      "waist": [ { "Code": "waist-guard" } ]
+      "waist": [
+        {
+          "Code": "waist-guard"
+        }
+      ]
     }
   },
-
   "client": {
     "renderer": "Shape",
     "shapeByType": {
-      "*-male": { "base": "game:entity/humanoid/villager-male" },
-      "*-female": { "base": "game:entity/humanoid/villager-female" }
+      "*-male": {
+        "base": "game:entity/humanoid/villager-male"
+      },
+      "*-female": {
+        "base": "game:entity/humanoid/villager-female"
+      }
     },
     "behaviors": [
-      { "code": "villagerinventory" },
+      {
+        "code": "villagerinventory"
+      },
       {
         "code": "nametag",
         "showtagonlywhentargeted": true
       },
-      { "code": "repulseagents" },
+      {
+        "code": "repulseagents"
+      },
       {
         "code": "controlledphysics",
         "stepHeight": 1.2
       },
-      { "code": "interpolateposition" },
-      { "code": "TravellingGuard" }
+      {
+        "code": "interpolateposition"
+      },
+      {
+        "code": "TravellingGuard"
+      }
     ],
     "animations": [
       {
         "code": "idle",
         "animation": "idle",
         "blendMode": "average",
-        "triggeredBy": { "defaultAnim": true }
+        "triggeredBy": {
+          "defaultAnim": true
+        }
       },
       {
         "code": "die",
@@ -430,47 +774,51 @@
           "LowerArmLHelper": "addAverage"
         }
       },
-			{
-					"code": "spear-attack",
-					"animation": "balanced-spear-attack",
-					"blendMode": "Add",
-					"animationSounds": [{
-						"frame": 25,
-						"location": "tool/slash",
-						"pitch": { "avg": 1.0, "var": 0.25 }
-					}],
-					"elementWeight": {
-						"Neck": 100,
-						"Head": 100,
-						"LowerTorso": 100,
-						"UpperTorso": 100,
-						"UpperArmRHelper": 100,
-						"UpperArmR": 100,
-						"LowerArmRHelper": 100,
-						"LowerArmR": 100,
-						"UpperArmLHelper": 100,
-						"UpperArmL": 100,
-						"LowerArmLHelper": 100,
-						"LowerArmL": 100
-					},
-					"elementBlendMode": {
-						"Neck": "AddAverage",
-						"Head": "AddAverage",
-						"LowerTorso": "AddAverage",
-						"UpperTorso": "AddAverage",
-						"UpperArmRHelper": "AddAverage",
-						"LowerArmRHelper": "AddAverage",
-						"UpperArmR": "AddAverage",
-						"LowerArmR": "AddAverage",
-						"UpperArmLHelper": "AddAverage",
-						"LowerArmLHelper": "AddAverage",
-						"UpperArmL": "AddAverage",
-						"LowerArmL": "AddAverage"
-					}
-				}
+      {
+        "code": "spear-attack",
+        "animation": "balanced-spear-attack",
+        "blendMode": "Add",
+        "animationSounds": [
+          {
+            "frame": 25,
+            "location": "tool/slash",
+            "pitch": {
+              "avg": 1.0,
+              "var": 0.25
+            }
+          }
+        ],
+        "elementWeight": {
+          "Neck": 100,
+          "Head": 100,
+          "LowerTorso": 100,
+          "UpperTorso": 100,
+          "UpperArmRHelper": 100,
+          "UpperArmR": 100,
+          "LowerArmRHelper": 100,
+          "LowerArmR": 100,
+          "UpperArmLHelper": 100,
+          "UpperArmL": 100,
+          "LowerArmLHelper": 100,
+          "LowerArmL": 100
+        },
+        "elementBlendMode": {
+          "Neck": "AddAverage",
+          "Head": "AddAverage",
+          "LowerTorso": "AddAverage",
+          "UpperTorso": "AddAverage",
+          "UpperArmRHelper": "AddAverage",
+          "LowerArmRHelper": "AddAverage",
+          "UpperArmR": "AddAverage",
+          "LowerArmR": "AddAverage",
+          "UpperArmLHelper": "AddAverage",
+          "LowerArmLHelper": "AddAverage",
+          "UpperArmL": "AddAverage",
+          "LowerArmL": "AddAverage"
+        }
+      }
     ]
   },
-
   "server": {
     "attributes": {
       "pathfinder": {
@@ -479,7 +827,9 @@
       }
     },
     "behaviors": [
-      { "code": "villagerinventory" },
+      {
+        "code": "villagerinventory"
+      },
       {
         "code": "nametag",
         "showtagonlywhentargeted": true,
@@ -517,8 +867,9 @@
           ]
         }
       },
-      { "code": "repulseagents" },
-      { "code": "safeonhurt" },
+      {
+        "code": "repulseagents"
+      },
       {
         "code": "controlledphysics",
         "stepHeight": 1.2
@@ -555,7 +906,9 @@
         "hoursToDecay": 96,
         "decayedBlock": "drycarcass-humanoid1"
       },
-      { "code": "TravellingGuard" },
+      {
+        "code": "TravellingGuard"
+      },
       {
         "code": "activitydriven",
         "activityCollectionPathByType": {
@@ -575,7 +928,19 @@
           },
           {
             "code": "villagermeleeattack",
-            "entityCodes": [ "bandit-*", "lonehuntergoblin-*", "ork-*", "surfacegoblin-*", "drifter-*", "shiver-*", "bowtorn-*", "direwolf-*", "hellboar-*", "bear-*", "wolf-*" ],
+            "entityCodes": [
+              "bandit-*",
+              "lonehuntergoblin-*",
+              "ork-*",
+              "surfacegoblin-*",
+              "drifter-*",
+              "shiver-*",
+              "bowtorn-*",
+              "direwolf-*",
+              "hellboar-*",
+              "bear-*",
+              "wolf-*"
+            ],
             "priority": 9.0,
             "movespeed": 0.012,
             "damage": 12,
@@ -592,19 +957,31 @@
             "durationMs": 1300,
             "releaseAtMs": 1000,
             "seekingRange": 25,
-	    "whenInEmotionState": "aggressiveondamage",
+            "whenInEmotionState": "aggressiveondamage",
             "armedDamageMultiplier": 4.0
           },
           {
             "code": "villagerchaseentity",
-            "entityCodes": [ "bandit-*", "lonehuntergoblin-*", "ork-*", "surfacegoblin-*", "drifter-*", "shiver-*", "bowtorn-*", "direwolf-*", "hellboar-*", "bear-*", "wolf-*" ],
+            "entityCodes": [
+              "bandit-*",
+              "lonehuntergoblin-*",
+              "ork-*",
+              "surfacegoblin-*",
+              "drifter-*",
+              "shiver-*",
+              "bowtorn-*",
+              "direwolf-*",
+              "hellboar-*",
+              "bear-*",
+              "wolf-*"
+            ],
             "priority": 8.0,
             "seekingRange": 20,
             "maxFollowTime": 120,
             "maxdistance": 20,
             "mincooldown": 1000,
             "maxcooldown": 1500,
-	    "whenInEmotionState": "aggressiveondamage",
+            "whenInEmotionState": "aggressiveondamage",
             "movespeed": 0.012,
             "animation": "Run",
             "animationSpeed": 1.75
@@ -616,7 +993,7 @@
           {
             "code": "travellingguardfollow",
             "priority": 5.0,
-            "movespeed": 0.010,
+            "movespeed": 0.01,
             "animation": "Walk",
             "animationSpeed": 1.0,
             "mincooldown": 500,
@@ -635,6 +1012,5 @@
       }
     ]
   },
-
   "sounds": {}
 }

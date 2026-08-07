@@ -10,7 +10,9 @@ public class AiTaskVillagerCultivateCrops : AiTaskGotoAndInteract
 {
     private BlockEntityFarmland nearestFarmland;
 
-    private Dictionary<BlockPos, long> recentlyCultivatedFarmland;
+    // Shared across every farmer. Each used to keep its OWN cooldown dictionary, so four farmers
+    // happily re-worked the same tiles instead of spreading out over the field.
+    private static readonly Dictionary<BlockPos, long> recentlyCultivatedFarmland = new Dictionary<BlockPos, long>();
     // Reused per-call so the expired-key sweep doesn't allocate every tick.
     private readonly List<BlockPos> _expiredFarmlandKeys = new List<BlockPos>();
 
@@ -19,7 +21,6 @@ public class AiTaskVillagerCultivateCrops : AiTaskGotoAndInteract
     public AiTaskVillagerCultivateCrops(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
         : base(entity, taskConfig, aiConfig)
     {
-        recentlyCultivatedFarmland = new Dictionary<BlockPos, long>();
         farmlandCooldownMs = (taskConfig?["farmlandCooldownSeconds"]?.AsInt(60) ?? 60) * 1000L;
 
         // Replace the default nod with hoe-till so the base class plays the
@@ -42,7 +43,10 @@ public class AiTaskVillagerCultivateCrops : AiTaskGotoAndInteract
         // Search around the farmer's current position so she can wander between
         // her workstation and fields without the task constantly anchoring her
         // back home.
-        nearestFarmland = entity.Api.ModLoader.GetModSystem<POIRegistry>().GetNearestPoi(entity.Pos.XYZ, base.maxDistance, isValidFarmland) as BlockEntityFarmland;
+        // Search around this farmer's OWN workstation, not wherever she happens to stand. Searching
+        // from the entity made every farmer converge on the same nearest corner; anchoring on the
+        // workstation gives each one a natural zone of the field.
+        nearestFarmland = entity.Api.ModLoader.GetModSystem<POIRegistry>().GetNearestPoi(FarmSearchOrigin(), base.maxDistance, isValidFarmland) as BlockEntityFarmland;
         if (nearestFarmland == null)
         {
             return null;
@@ -71,6 +75,13 @@ public class AiTaskVillagerCultivateCrops : AiTaskGotoAndInteract
     {
         entity.AnimManager.StopAnimation("hoe-till");
         base.FinishExecute(cancelled);
+    }
+
+    // Workstation if assigned, else fall back to the villager so an unassigned farmer still works.
+    private Vec3d FarmSearchOrigin()
+    {
+        BlockPos ws = entity.GetBehavior<EntityBehaviorVillager>()?.Workstation;
+        return ws != null ? ws.ToVec3d().Add(0.5, 0.0, 0.5) : entity.Pos.XYZ;
     }
 
     private bool IsFarmer()

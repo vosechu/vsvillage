@@ -62,6 +62,10 @@ public class EntityBehaviorTravellingGuard : EntityBehavior
 		base.Initialize(properties, attributes);
 		if (entity.Api.Side == EnumAppSide.Server)
 		{
+			if (_tickListenerId != 0)
+			{
+				entity.World.UnregisterGameTickListener(_tickListenerId);
+			}
 			_tickListenerId = entity.World.RegisterGameTickListener(CheckDespawn, 10000);
 		}
 	}
@@ -99,7 +103,7 @@ public class EntityBehaviorTravellingGuard : EntityBehavior
 			Village village = entity.Api.ModLoader.GetModSystem<VillageManager>()?.GetVillage(villageId);
 			if (village != null)
 			{
-				double dist = entity.Pos.XYZ.DistanceTo(village.Pos.ToVec3d());
+				double dist = entity.Pos.XYZ.DistanceTo(village.EffectiveCenter());
 				if (dist > village.Radius + 10.0)
 				{
 					Log($"Outside village area ({dist:F0}) - despawning guard.");

@@ -71,7 +71,6 @@
                     "var": 1
                 }
             },
-           
             {
                 "code": "game:beeswax",
                 "type": "item",
@@ -138,34 +137,34 @@
                     "var": 2
                 },
                 "price": {
-                    "avg": 2,
-                    "var": 1
+                    "avg": 1,
+                    "var": 0.5
                 }
             },
             {
                 "code": "game:ore-sulfur",
                 "type": "item",
-                "stacksize": 4,
+                "stacksize": 8,
                 "stock": {
                     "avg": 6,
                     "var": 2
                 },
                 "price": {
-                    "avg": 2,
-                    "var": 1
+                    "avg": 1,
+                    "var": 0.5
                 }
             },
             {
                 "code": "game:saltpeter",
                 "type": "item",
-                "stacksize": 4,
+                "stacksize": 16,
                 "stock": {
                     "avg": 6,
                     "var": 2
                 },
                 "price": {
-                    "avg": 2,
-                    "var": 1
+                    "avg": 1,
+                    "var": 0.5
                 }
             },
             {
@@ -197,14 +196,14 @@
             {
                 "code": "game:fat",
                 "type": "item",
-                "stacksize": 4,
+                "stacksize": 8,
                 "stock": {
                     "avg": 6,
                     "var": 2
                 },
                 "price": {
                     "avg": 1,
-                    "var": 1
+                    "var": 1.0
                 }
             }
         ]

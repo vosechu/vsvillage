@@ -31,11 +31,44 @@ public class AiTaskVillagerChaseEntity : AiTaskGotoAndInteract
     private long lastTargetUpdateMs;
     private const long TargetUpdateIntervalMs = 800;
 
-    // Vertical detection cap. Ignores threats beyond this Y delta so guards don't chase cave drifters with no path.
-    private const float MaxVertDetection = 5f;
+    // Vertical detection band, deliberately asymmetric. Generous upward so attackers on
+    // rooftops, walls and slopes still get answered; tight downward so guards do not dive
+    // into mineshafts and quarries after drifters that happen to sit inside the village radius.
+    private const float MaxVertDetectionUp = 40f;
+    private const float MaxVertDetectionDown = 8f;
 
     // Call-for-help throttle: 5s gate, OnEntityHurt.
     private long lastCallForHelpMs;
+
+    // Retaliation: whoever hurt us or an ally is hunted for a window, bypassing both
+    // seekingRange and the entityCodes allow-list. Without it a villager attacked by
+    // something not on the list, or that backs off, simply forgets it happened.
+    private Entity _retaliationTarget;
+    private long _retaliationDeadlineMs;
+    private const long RetaliationWindowMs = 30000L;
+
+    // Radius for finding soldier allies to call. Was a hardcoded 15, far too small for a
+    // village of any size, so a soldier across the square never heard it.
+    private float callForHelpRange = 50f;
+
+    private void RememberAttacker(Entity attacker)
+    {
+        if (attacker == null || !attacker.Alive) return;
+        _retaliationTarget = attacker;
+        _retaliationDeadlineMs = entity.World.ElapsedMilliseconds + RetaliationWindowMs;
+    }
+
+    private bool IsRetaliationTarget(Entity e) =>
+        _retaliationTarget != null && _retaliationTarget == e
+        && entity.World.ElapsedMilliseconds < _retaliationDeadlineMs;
+
+    // Drops the retaliation target once dead or the window closes.
+    private void ExpireRetaliationTarget()
+    {
+        if (_retaliationTarget != null && (!_retaliationTarget.Alive
+            || entity.World.ElapsedMilliseconds >= _retaliationDeadlineMs))
+            _retaliationTarget = null;
+    }
 
     // Alarm-rally state: when true, this task is pathing to an allied soldier's position rather than a hostile.
     private bool _followingAlarm;
@@ -45,6 +78,7 @@ public class AiTaskVillagerChaseEntity : AiTaskGotoAndInteract
     {
         seekingRange = taskConfig["seekingRange"].AsFloat(20f);
         maxFollowTimeSec = taskConfig["maxFollowTime"].AsFloat(120f);
+        callForHelpRange = taskConfig["callForHelpRange"].AsFloat(50f);
 
         JsonObject[] codes = taskConfig["entityCodes"].AsArray();
         if (codes != null)
@@ -70,13 +104,15 @@ public class AiTaskVillagerChaseEntity : AiTaskGotoAndInteract
         // Honour entity-suffix allow-list (e.g. soldier-only tasks).
         if (!IsAllowedEntityType()) return null;
 
+        ExpireRetaliationTarget();
+
         // Keep existing live target. Yield to attack task if it's already within HandoffDistSq (otherwise we preempt mid-strike).
         if (targetEntity != null && targetEntity.Alive && InRange(targetEntity))
         {
             // Drop chase if target crossed outside village radius. Soldiers defend home,
             // they don't sprint into the wilderness after a fleeing drifter.
             if (!IsTargetInsideVillage(targetEntity)) { targetEntity = null; return null; }
-            if (entity.Pos.SquareDistanceTo(targetEntity.Pos) <= HandoffDistSq)
+            if (entity.Pos.SquareDistanceTo(targetEntity.Pos) <= ReengageDistSq)
                 return null;
             return targetEntity.Pos.XYZ;
         }
@@ -85,20 +121,30 @@ public class AiTaskVillagerChaseEntity : AiTaskGotoAndInteract
 
         // Scan for the nearest matching hostile.
         targetEntity = entity.World.GetNearestEntity(
-            entity.Pos.XYZ, seekingRange, MaxVertDetection,
-            e => e != entity && e.Alive && e.IsInteractable && MatchesCode(e) && IsTargetInsideVillage(e));
+            entity.Pos.XYZ, seekingRange, MaxVertDetectionUp,
+            e => e != entity && e.Alive && e.IsInteractable && WithinVerticalBand(e) && MatchesCode(e) && IsTargetInsideVillage(e));
 
         if (targetEntity != null)
         {
             // Hostile already in attack range, yield to attack task.
-            // BroadcastContactReport(targetEntity); // TODO: re-implement with village-radius scoped broadcast
-            if (entity.Pos.SquareDistanceTo(targetEntity.Pos) <= HandoffDistSq)
+            if (entity.Pos.SquareDistanceTo(targetEntity.Pos) <= ReengageDistSq)
             {
                 targetEntity = null;
                 return null;
             }
             chaseStartedAtMs = entity.World.ElapsedMilliseconds;
-            // BroadcastContactReport(targetEntity); // TODO: re-implement with village-radius scoped broadcast
+            _followingAlarm = false;
+            return targetEntity.Pos.XYZ;
+        }
+
+        // Nothing on the allow-list nearby: fall back to whoever hurt us or an ally.
+        if (_retaliationTarget != null && _retaliationTarget.Alive
+            && IsTargetInsideVillage(_retaliationTarget)
+            && WithinVerticalBand(_retaliationTarget)
+            && entity.Pos.SquareDistanceTo(_retaliationTarget.Pos) > ReengageDistSq)
+        {
+            targetEntity = _retaliationTarget;
+            chaseStartedAtMs = entity.World.ElapsedMilliseconds;
             _followingAlarm = false;
             return targetEntity.Pos.XYZ;
         }
@@ -124,7 +170,7 @@ public class AiTaskVillagerChaseEntity : AiTaskGotoAndInteract
         Village village = entity.GetBehavior<EntityBehaviorVillager>()?.Village;
         if (village?.Pos == null) return true;
         double radiusSq = village.Radius * (double)village.Radius;
-        return village.Pos.DistanceSqTo(target.Pos.X, target.Pos.Y, target.Pos.Z) <= radiusSq;
+        return village.Pos.HorDistanceSqTo(target.Pos.X, target.Pos.Z) <= radiusSq;
     }
 
     private Vec3d TryAlarmRally()
@@ -148,7 +194,7 @@ public class AiTaskVillagerChaseEntity : AiTaskGotoAndInteract
     private bool HostilePresentNear(Entity engager)
     {
         return entity.World.GetNearestEntity(
-            engager.Pos.XYZ, seekingRange, MaxVertDetection,
+            engager.Pos.XYZ, seekingRange, MaxVertDetectionUp,
             e => e != engager && e.Alive && e.IsInteractable && MatchesCode(e)) != null;
     }
 
@@ -164,6 +210,18 @@ public class AiTaskVillagerChaseEntity : AiTaskGotoAndInteract
     // Handoff distance squared, per profession. Soldier 2 blocks (matches vanilla minDist=2), archer 8 blocks (comfortable bow stand-off vs maxDist 15-16).
     private const double MeleeHandoffDistSq = 4.0;
     private const double RangedHandoffDistSq = 64.0;
+
+    // Re-engage threshold. Chase STOPS at HandoffDistSq but does not restart until the target is
+    // back beyond this, giving a hysteresis band. Without it a target that keeps moving made chase
+    // start and stop across a single threshold several times a second, which reads as stuttering.
+    private double ReengageDistSq => HandoffDistSq * 2.25;
+
+    // GetNearestEntity only takes a symmetric vertRange, so the downward half is enforced here.
+    private bool WithinVerticalBand(Entity e)
+    {
+        double dy = e.Pos.Y - entity.Pos.Y;
+        return dy <= MaxVertDetectionUp && dy >= -MaxVertDetectionDown;
+    }
 
     // Per-entity handoff distance² - archers stop sooner so they can shoot from safety.
     private double HandoffDistSq =>
@@ -283,13 +341,16 @@ public class AiTaskVillagerChaseEntity : AiTaskGotoAndInteract
 
         if (source.Type == EnumDamageType.Heal) return;
         if (cause == null && src == null) return;
-        if (entity.World.ElapsedMilliseconds - lastCallForHelpMs < 5000) return;
-
-        lastCallForHelpMs = entity.World.ElapsedMilliseconds;
+        // Remember the attacker BEFORE the call-for-help throttle, otherwise retaliation would
+        // silently inherit that 5s cooldown and drop hits that land inside it.
         Entity attacker = src ?? cause;
+        RememberAttacker(attacker);
+
+        if (entity.World.ElapsedMilliseconds - lastCallForHelpMs < 5000) return;
+        lastCallForHelpMs = entity.World.ElapsedMilliseconds;
 
         Entity[] allies = entity.World.GetEntitiesAround(
-            entity.Pos.XYZ, 15f, 4f,
+            entity.Pos.XYZ, callForHelpRange, 4f,
             e =>
             {
                 EntityBehaviorVillager bv = e.GetBehavior<EntityBehaviorVillager>();
@@ -308,6 +369,7 @@ public class AiTaskVillagerChaseEntity : AiTaskGotoAndInteract
 
     public void OnAllyAttacked(Entity byEntity)
     {
+        RememberAttacker(byEntity);
         if (byEntity != null && byEntity.Alive && (targetEntity == null || !targetEntity.Alive))
             targetEntity = byEntity;
     }
@@ -329,31 +391,9 @@ public class AiTaskVillagerChaseEntity : AiTaskGotoAndInteract
         // Horizontal squared + vertical clamp split, prevents tracking hostiles 20+ blocks underground via diagonal 3D distance.
         double dx = entity.Pos.X - e.Pos.X;
         double dz = entity.Pos.Z - e.Pos.Z;
-        if (Math.Abs(entity.Pos.Y - e.Pos.Y) > MaxVertDetection) return false;
+        if (!WithinVerticalBand(e)) return false;
         return (dx * dx + dz * dz) <= seekingRange * seekingRange * 2f;
     }
-
-    /*
-    // TODO: Re-implement BroadcastContactReport with village-radius scoped player filtering.
-    // Requires verifying Village.Pos and Village.Radius property names against the Village class.
-    private void BroadcastContactReport(Entity target)
-    {
-        if (entity.World.ElapsedMilliseconds - lastContactReportMs < 10000) return;
-        lastContactReportMs = entity.World.ElapsedMilliseconds;
-
-        ICoreServerAPI sapi = entity.World.Api as ICoreServerAPI;
-        if (sapi == null) return;
-
-        EntityBehaviorVillager bv = entity.GetBehavior<EntityBehaviorVillager>();
-        string villageName = bv?.Village?.Name ?? Lang.Get("vsvillage:trader-village-unknown");
-
-        string langKey = (entity.Code?.Path?.EndsWith("-archer") == true)
-            ? "vsvillage:archer-spotted-enemy"
-            : "vsvillage:soldier-spotted-enemy";
-
-        sapi.BroadcastMessageToAllGroups(Lang.Get(langKey, villageName, target.GetName()), EnumChatType.Notification);
-    }
-    */
 
     private bool MatchesCode(Entity e)
     {

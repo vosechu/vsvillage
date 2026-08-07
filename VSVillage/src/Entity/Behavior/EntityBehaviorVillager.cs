@@ -67,6 +67,46 @@ public class EntityBehaviorVillager : EntityBehavior
         }
     }
 
+    public BlockPos GuardPost
+    {
+        get
+        {
+            return entity.WatchedAttributes.GetBlockPos("guardpost");
+        }
+        set
+        {
+            if (value != null)
+            {
+                entity.WatchedAttributes.SetBlockPos("guardpost", value);
+            }
+            else
+            {
+                entity.WatchedAttributes.RemoveAttribute("guardpost");
+            }
+            entity.WatchedAttributes.MarkPathDirty("guardpost");
+        }
+    }
+
+    public EnumGuardShift GuardShift
+    {
+        get
+        {
+            return GuardDuty.ParseShift(entity.WatchedAttributes.GetString("guardshift"));
+        }
+        set
+        {
+            if (value != EnumGuardShift.none)
+            {
+                entity.WatchedAttributes.SetString("guardshift", value.ToString());
+            }
+            else
+            {
+                entity.WatchedAttributes.RemoveAttribute("guardshift");
+            }
+            entity.WatchedAttributes.MarkPathDirty("guardshift");
+        }
+    }
+
     public Village Village
     {
         get
@@ -199,6 +239,8 @@ public class EntityBehaviorVillager : EntityBehavior
                     Bed = null;
                 }
             }
+
+            ApplyShopType(village);
         }
         else
         {
@@ -208,6 +250,19 @@ public class EntityBehaviorVillager : EntityBehavior
                 "[VsVillage] Villager " + entity.EntityId + " (" + entity.Code?.Path +
                 ") has stale VillageId '" + savedVillageId + "' - village not found. Use Recover Villagers in the Management GUI.");
         }
+    }
+
+    // TradeProps is set from entity JSON during Initialize, which runs before this, so the
+    // stall's specialty has to be re-applied here. Rebuild only when the stock is stale,
+    // otherwise a reload would reshuffle every trader's inventory.
+    private void ApplyShopType(Village village)
+    {
+        if (Profession != EnumVillagerProfession.trader) return;
+
+        BlockPos wsPos = Workstation;
+        if (wsPos == null || !village.Workstations.TryGetValue(wsPos, out VillagerWorkstation ws)) return;
+
+        TraderShopType.ApplyForWorkstation(entity, ws.ShopType);
     }
 
     public override void OnEntityDeath(DamageSource damageSourceForDeath)
@@ -275,13 +330,21 @@ public class EntityBehaviorVillager : EntityBehavior
         {
             if (entity.Api is ICoreClientAPI coreClientAPI && coreClientAPI.Settings.Bool["showEntityDebugInfo"])
             {
-                infotext.AppendLine(Lang.Get("vsvillage:lives-in-debug", Lang.Get(VillageName), (Workstation != null) ? ManagementGui.BlockPosToString(Workstation, entity.Api) : Lang.Get("vsvillage:nowhere"), (Bed != null) ? ManagementGui.BlockPosToString(Bed, entity.Api) : Lang.Get("vsvillage:nowhere")));
+                infotext.AppendLine(Lang.Get("vsvillage:lives-in-debug", VillageName, (Workstation != null) ? ManagementGui.BlockPosToString(Workstation, entity.Api) : Lang.Get("vsvillage:nowhere"), (Bed != null) ? ManagementGui.BlockPosToString(Bed, entity.Api) : Lang.Get("vsvillage:nowhere")));
             }
             else
             {
-                infotext.AppendLine(Lang.Get("vsvillage:lives-in", Lang.Get(VillageName)));
+                infotext.AppendLine(Lang.Get("vsvillage:lives-in", VillageName));
             }
         }
         infotext.AppendLine(Lang.Get("vsvillage:management-profession", Lang.Get("vsvillage:management-profession-" + Profession)));
+
+        BlockPos post = GuardPost;
+        if (post != null && GuardShift != EnumGuardShift.none)
+        {
+            infotext.AppendLine(Lang.Get("vsvillage:guardpost-duty",
+                Lang.Get("vsvillage:guardpost-shift-" + GuardShift),
+                ManagementGui.BlockPosToString(post, entity.Api)));
+        }
     }
 }

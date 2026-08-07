@@ -30,11 +30,51 @@ public class AiTaskVillagerSeekEntity : AiTaskGotoAndInteract
     private long lastTargetUpdateMs;
     private const long TargetUpdateIntervalMs = 800;
 
-    // Vertical detection cap. Ignores threats beyond this Y delta so civilians don't pursue cave hostiles with no surface path.
-    private const float MaxVertDetection = 5f;
+    // Vertical detection band, deliberately asymmetric. Generous upward so attackers on
+    // rooftops, walls and slopes still get answered; tight downward so guards do not dive
+    // into mineshafts and quarries after drifters that happen to sit inside the village radius.
+    private const float MaxVertDetectionUp = 40f;
+    private const float MaxVertDetectionDown = 8f;
+
+    // GetNearestEntity only takes a symmetric vertRange, so the downward half is enforced here.
+    private bool WithinVerticalBand(Entity e)
+    {
+        double dy = e.Pos.Y - entity.Pos.Y;
+        return dy <= MaxVertDetectionUp && dy >= -MaxVertDetectionDown;
+    }
 
     // Ally call-for-help throttle.
     private long lastCallForHelp;
+
+    // Retaliation: whoever hurt us or an ally is hunted for a window, bypassing both
+    // seekingRange and the entityCodes allow-list. Without it a villager attacked by
+    // something not on the list, or that backs off, simply forgets it happened.
+    private Entity _retaliationTarget;
+    private long _retaliationDeadlineMs;
+    private const long RetaliationWindowMs = 30000L;
+
+    // Radius for finding soldier allies to call. Was a hardcoded 15, far too small for a
+    // village of any size, so a soldier across the square never heard it.
+    private float callForHelpRange = 50f;
+
+    private void RememberAttacker(Entity attacker)
+    {
+        if (attacker == null || !attacker.Alive) return;
+        _retaliationTarget = attacker;
+        _retaliationDeadlineMs = entity.World.ElapsedMilliseconds + RetaliationWindowMs;
+    }
+
+    private bool IsRetaliationTarget(Entity e) =>
+        _retaliationTarget != null && _retaliationTarget == e
+        && entity.World.ElapsedMilliseconds < _retaliationDeadlineMs;
+
+    // Drops the retaliation target once dead or the window closes.
+    private void ExpireRetaliationTarget()
+    {
+        if (_retaliationTarget != null && (!_retaliationTarget.Alive
+            || entity.World.ElapsedMilliseconds >= _retaliationDeadlineMs))
+            _retaliationTarget = null;
+    }
 
     public AiTaskVillagerSeekEntity(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
         : base(entity, taskConfig, aiConfig)
@@ -42,6 +82,7 @@ public class AiTaskVillagerSeekEntity : AiTaskGotoAndInteract
         seekingRange     = taskConfig["seekingRange"].AsFloat(20f);
         minRange         = taskConfig["minRange"].AsFloat(0f);
         maxFollowTimeSec = taskConfig["maxFollowTime"].AsFloat(60f);
+        callForHelpRange = taskConfig["callForHelpRange"].AsFloat(50f);
 
         JsonObject[] codes = taskConfig["entityCodes"].AsArray();
         if (codes != null)
@@ -66,6 +107,8 @@ public class AiTaskVillagerSeekEntity : AiTaskGotoAndInteract
     {
         if (!IsAllowedEntityType()) return null;
 
+        ExpireRetaliationTarget();
+
         // Keep existing live target if still valid AND still inside village.
         if (targetEntity != null && targetEntity.Alive && InRange(targetEntity))
         {
@@ -78,14 +121,32 @@ public class AiTaskVillagerSeekEntity : AiTaskGotoAndInteract
         // Scan for the nearest matching hostile. Vertical detection capped so we don't
         // acquire hostiles deep underground or up in the canopy with no surface path.
         targetEntity = entity.World.GetNearestEntity(
-            entity.Pos.XYZ, seekingRange, MaxVertDetection,
-            e => e != entity && e.Alive && e.IsInteractable && MatchesCode(e) && IsBeyondMinRange(e) && IsTargetInsideVillage(e));
+            entity.Pos.XYZ, seekingRange, MaxVertDetectionUp,
+            e => e != entity && e.Alive && e.IsInteractable && WithinVerticalBand(e) && MatchesCode(e) && IsBeyondMinRange(e) && IsTargetInsideVillage(e));
 
         if (targetEntity != null)
         {
+            // Already in strike range, leave it to the attack task and do not restart the approach.
+            if (entity.Pos.SquareDistanceTo(targetEntity.Pos) <= ReengageDistSq)
+            {
+                targetEntity = null;
+                return null;
+            }
             pursuitStartedAtMs = entity.World.ElapsedMilliseconds;
             return targetEntity.Pos.XYZ;
         }
+
+        // Nothing on the allow-list nearby: fall back to whoever hurt us or an ally.
+        if (_retaliationTarget != null && _retaliationTarget.Alive
+            && IsTargetInsideVillage(_retaliationTarget)
+            && WithinVerticalBand(_retaliationTarget)
+            && entity.Pos.SquareDistanceTo(_retaliationTarget.Pos) > ReengageDistSq)
+        {
+            targetEntity = _retaliationTarget;
+            pursuitStartedAtMs = entity.World.ElapsedMilliseconds;
+            return targetEntity.Pos.XYZ;
+        }
+
         return null;
     }
 
@@ -100,6 +161,10 @@ public class AiTaskVillagerSeekEntity : AiTaskGotoAndInteract
 
     // 2.0 blocks - align with vanilla AiTaskMeleeAttack minDist=2.
     private const double MeleeHandoffDistSq = 4.0; // 2.0 blocks
+
+    // Re-engage threshold (3.0 blocks). Seek STOPS at MeleeHandoffDistSq but must not restart
+    // until the target is back beyond this, or a moving target makes the task thrash.
+    private const double ReengageDistSq = MeleeHandoffDistSq * 2.25;
 
     public override bool ContinueExecute(float dt)
     {
@@ -167,7 +232,8 @@ public class AiTaskVillagerSeekEntity : AiTaskGotoAndInteract
 
         Entity attacker = src ?? cause;
 
-        // Retaliate: if we have no target or it's dead, lock onto our attacker.
+        // Remember the attacker regardless of current target, so the hunt survives this task cycle.
+        RememberAttacker(attacker);
         if (attacker != null && attacker.Alive && (targetEntity == null || !targetEntity.Alive))
             targetEntity = attacker;
 
@@ -176,7 +242,7 @@ public class AiTaskVillagerSeekEntity : AiTaskGotoAndInteract
         lastCallForHelp = entity.World.ElapsedMilliseconds;
 
         Entity[] allies = entity.World.GetEntitiesAround(
-            entity.Pos.XYZ, 15f, 4f,
+            entity.Pos.XYZ, callForHelpRange, 4f,
             e =>
             {
                 EntityBehaviorVillager bv = e.GetBehavior<EntityBehaviorVillager>();
@@ -196,6 +262,7 @@ public class AiTaskVillagerSeekEntity : AiTaskGotoAndInteract
 
     public void OnAllyAttacked(Entity byEntity)
     {
+        RememberAttacker(byEntity);
         if (byEntity != null && byEntity.Alive && (targetEntity == null || !targetEntity.Alive))
             targetEntity = byEntity;
     }
@@ -216,15 +283,25 @@ public class AiTaskVillagerSeekEntity : AiTaskGotoAndInteract
         // Horizontal squared + vertical clamp split, prevents tracking hostiles 20+ blocks underground via diagonal 3D distance.
         double dx = entity.Pos.X - e.Pos.X;
         double dz = entity.Pos.Z - e.Pos.Z;
-        if (Math.Abs(entity.Pos.Y - e.Pos.Y) > MaxVertDetection) return false;
+        if (!WithinVerticalBand(e)) return false;
         double distSq = dx * dx + dz * dz;
-        return distSq <= seekingRange * seekingRange * 2f && distSq >= minRange * minRange;
+        if (distSq < minRange * minRange) return false;
+
+        // Retaliation ignores the seek radius for its window, so an attacker that backs off
+        // is still pursued rather than instantly forgotten.
+        if (IsRetaliationTarget(e)) return true;
+
+        return distSq <= seekingRange * seekingRange * 2f;
     }
 
     private bool IsBeyondMinRange(Entity e)
     {
         if (minRange <= 0f) return true;
-        return entity.Pos.SquareDistanceTo(e.Pos) >= minRange * minRange;
+        // Horizontal-only, matching InRange's horizontal/vertical split - a target
+        // directly overhead/underfoot at true 3D minRange shouldn't count as "beyond".
+        double dx = entity.Pos.X - e.Pos.X;
+        double dz = entity.Pos.Z - e.Pos.Z;
+        return (dx * dx + dz * dz) >= minRange * minRange;
     }
 
     // Threats outside the village aren't worth pursuing - civilians defend home,
@@ -234,7 +311,7 @@ public class AiTaskVillagerSeekEntity : AiTaskGotoAndInteract
         Village village = entity.GetBehavior<EntityBehaviorVillager>()?.Village;
         if (village?.Pos == null) return true;
         double radiusSq = village.Radius * (double)village.Radius;
-        return village.Pos.DistanceSqTo(target.Pos.X, target.Pos.Y, target.Pos.Z) <= radiusSq;
+        return village.Pos.HorDistanceSqTo(target.Pos.X, target.Pos.Z) <= radiusSq;
     }
 
     private bool MatchesCode(Entity e)

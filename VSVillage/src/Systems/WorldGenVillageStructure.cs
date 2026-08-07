@@ -28,34 +28,44 @@ public class WorldGenVillageStructure
 
 	public WorldGenVillageStructure Init(ICoreServerAPI api, string modId)
 	{
-        var asset = api.Assets.Get(new AssetLocation(modId, "worldgen/vsvillage/" + Code.ToLowerInvariant() + ".json"));
-        BlockSchematicStructure val = asset?.ToObject<BlockSchematicStructure>();
-		if (val == null)
+		try
 		{
-			api.World.Logger.Warning("Could not load VillageStruce {0}", Code);
-			return this;
+			var asset = api.Assets.Get(new AssetLocation(modId, "worldgen/vsvillage/" + Code.ToLowerInvariant() + ".json"));
+			BlockSchematicStructure val = asset?.ToObject<BlockSchematicStructure>();
+			if (val == null)
+			{
+				api.World.Logger.Warning("Could not load VillageStruce {0}", Code);
+				return this;
+			}
+			Schematics = new BlockSchematicStructure[4];
+			val.FromFile = asset.Name;
+			val.Init(api.World.BlockAccessor);
+			val.TransformWhilePacked(api.World, EnumOrigin.BottomCenter, 90 * (4 - AttachmentPoint));
+			val.LoadMetaInformationAndValidate(api.World.BlockAccessor, api.World, val.FromFile);
+			Schematics[0] = val;
+			for (int i = 1; i < 4; i++)
+			{
+				Schematics[i] = val.ClonePacked() as BlockSchematicStructure;
+				Schematics[i].TransformWhilePacked(api.World, EnumOrigin.BottomCenter, i * 90);
+				Schematics[i].Init(api.World.BlockAccessor);
+				Schematics[i].LoadMetaInformationAndValidate(api.World.BlockAccessor, api.World, val.FromFile);
+			}
+			BlockSchematicStructure val2 = Schematics[0];
+			Schematics[0] = Schematics[2];
+			Schematics[2] = val2;
 		}
-		Schematics = new BlockSchematicStructure[4];
-		val.FromFile = asset.Name;
-		val.Init(api.World.BlockAccessor);
-		val.TransformWhilePacked(api.World, EnumOrigin.BottomCenter, 90 * (4 - AttachmentPoint));
-		val.LoadMetaInformationAndValidate(api.World.BlockAccessor, api.World, val.FromFile);
-		Schematics[0] = val;
-		for (int i = 1; i < 4; i++)
+		catch (System.Exception ex)
 		{
-			Schematics[i] = val.ClonePacked() as BlockSchematicStructure;
-			Schematics[i].TransformWhilePacked(api.World, EnumOrigin.BottomCenter, i * 90);
-			Schematics[i].Init(api.World.BlockAccessor);
-			Schematics[i].LoadMetaInformationAndValidate(api.World.BlockAccessor, api.World, val.FromFile);
+			// A single corrupt/bad schematic must not abort the whole structure-loading loop for every village.
+			api.World.Logger.Warning("[VsVillage] Failed to load village structure {0}: {1}", Code, ex.Message);
+			Schematics = null;
 		}
-		BlockSchematicStructure val2 = Schematics[0];
-		Schematics[0] = Schematics[2];
-		Schematics[2] = val2;
 		return this;
 	}
 
 	public void Generate(IBlockAccessor blockAccessor, IWorldAccessor worldForCollectibleResolve, BlockPos pos, int orientation)
 	{
+		if (Schematics == null || Schematics[orientation]?.blocksByPos == null) return;
 		Schematics[orientation].PlaceReplacingBlocks(blockAccessor, worldForCollectibleResolve, pos, EnumReplaceMode.ReplaceAllNoAir, new Dictionary<int, Dictionary<int, int>>(), null);
 		generateFoundation(blockAccessor, pos, Schematics[orientation], orientation);
 	}

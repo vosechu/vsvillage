@@ -9,6 +9,11 @@ public class AiTaskVillagerGotoWork : AiTaskGotoAndInteract
 {
     private float offset;
 
+    // Distance from the assigned post past which a villager heads home regardless of the usual
+    // time windows. Combat drags guards off after hostiles and nothing else pulls them back.
+    private readonly float strayDistance;
+    private readonly float strayVerticalDrop;
+
     private BlockPos workstationPos;
 
     // Suffix-gating (onlyForEntitySuffix / excludeEntitySuffixes) is now handled
@@ -18,6 +23,8 @@ public class AiTaskVillagerGotoWork : AiTaskGotoAndInteract
         : base(entity, taskConfig, aiConfig)
     {
         offset = (float)entity.World.Rand.Next(taskConfig["minoffset"].AsInt(-50), taskConfig["maxoffset"].AsInt(50)) / 100f;
+        strayDistance = taskConfig["strayDistance"].AsFloat(50f);
+        strayVerticalDrop = taskConfig["strayVerticalDrop"].AsFloat(15f);
     }
 
     protected override void ApplyInteractionEffect()
@@ -94,7 +101,27 @@ public class AiTaskVillagerGotoWork : AiTaskGotoAndInteract
         double hour = entity.World.Calendar.HourOfDay;
         if (hour < 7.0 || hour >= 20.0) return false;
         var beh = entity.GetBehavior<EntityBehaviorVillager>();
-        return beh != null && entity.World.ElapsedMilliseconds - beh.LastBusyAtMs > 30000;
+        if (beh == null) return false;
+
+        // Strayed too far from the post to be doing their job, so come back now rather than
+        // waiting for the next window. Patrol is lower priority, so this wins until they arrive.
+        if (HasStrayedFromPost(beh)) return true;
+
+        return entity.World.ElapsedMilliseconds - beh.LastBusyAtMs > 30000;
+    }
+
+    private bool HasStrayedFromPost(EntityBehaviorVillager beh)
+    {
+        BlockPos post = beh.Workstation;
+        if (post == null) return false;
+
+        double dx = entity.Pos.X - (post.X + 0.5);
+        double dz = entity.Pos.Z - (post.Z + 0.5);
+        if (dx * dx + dz * dz > strayDistance * strayDistance) return true;
+
+        // Underground: a guard that followed a drifter down a quarry is still inside the
+        // village radius but nowhere near its post, so horizontal distance alone misses it.
+        return post.Y - entity.Pos.Y > strayVerticalDrop;
     }
 
     private Vec3d getRandomPosNearby(Vec3d middle)

@@ -17,9 +17,11 @@ public class VsVillage : ModSystem
 		api.RegisterBlockEntityClass("VillagerWorkstation", typeof(BlockEntityVillagerWorkstation));
 		api.RegisterBlockEntityClass("VillagerWaypoint", typeof(BlockEntityVillagerWaypoint));
 		api.RegisterBlockEntityClass("VillagerBrazier", typeof(BlockEntityVillagerBrazier));
+		api.RegisterBlockEntityClass("VillagerGuardPost", typeof(BlockEntityVillagerGuardPost));
 		api.RegisterBlockClass("MayorWorkstation",  typeof(BlockMayorWorkstation));
 		api.RegisterBlockClass("VsWorkstation",     typeof(BlockVsWorkstation));
 		api.RegisterBlockClass("VsBed",             typeof(BlockVsBed));
+		api.RegisterBlockClass("VsGuardPost",       typeof(BlockVsGuardPost));
 		api.RegisterBlockClass("BuildingMarker",    typeof(BlockBuildingMarker));
 		api.RegisterBlockClass("BuildingScaffold",  typeof(BlockBuildingScaffold));
 		api.RegisterBlockEntityClass("BuildingMarker", typeof(BlockEntityBuildingMarker));
@@ -52,6 +54,7 @@ public class VsVillage : ModSystem
 		AiTaskRegistry.Register<AiTaskVillagerShepherdTend>("villagershepherdtend");
 		AiTaskRegistry.Register<AiTaskVillagerProfessionChat>("villagerprofessionchat");
 		AiTaskRegistry.Register<AiTaskVillagerPatrol>("villagerpatrol");
+		AiTaskRegistry.Register<AiTaskVillagerGuardPost>("villagerguardpost");
 		AiTaskRegistry.Register<AiTaskVillagerSmithIdle>("villagersmithidle");
 		AiTaskRegistry.Register<AiTaskVillagerSmithHammer>("villagersmithhammer");
 		AiTaskRegistry.Register<AiTaskVillagerProfessionIdle>("villagerprofessionidle");
@@ -63,6 +66,8 @@ public class VsVillage : ModSystem
 		AiTaskRegistry.Register<AiTaskVillagerBakerCollectBread>("villagerbakercollectbread");
 		AiTaskRegistry.Register<AiTaskVillagerBakerTendOven>("villagerbakertendoven");
 		AiTaskRegistry.Register<AiTaskVillagerFarmerHelp>("villagerfarmerhelp");
+		AiTaskRegistry.Register<AiTaskVillagerAnglerFish>("villageranglerfish");
+		AiTaskRegistry.Register<AiTaskVillagerWoodworkerSaw>("villagerwoodworkersaw");
 		AiTaskRegistry.Register<AiTaskTravellingTraderStand>("travellingtraderstand");
 		AiTaskRegistry.Register<AiTaskTravellingTraderLeave>("travellingtraderleave");
 		AiTaskRegistry.Register<AiTaskTravellingGuardFollow>("travellingguardfollow");

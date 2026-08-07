@@ -36,9 +36,7 @@ public class BlockBuildingMarker : Block
         _ => (BuildingCatalog.SmallMaxXZ, BuildingCatalog.SmallMaxY),
     };
 
-    // Offsets (dx, dy, dz) relative to the marker's own cell. Marker sits at the south-edge
-    // centre so the build volume extends north of it and the player keeps a clear south-side
-    // exit. X is centred (slight east bias on even widths). Y starts at marker level.
+    // Inner schematic extents; used by ClearBuildVolume fallback. Use ScaffoldCageBounds for preview/placement.
     public (int minDx, int maxDx, int minDy, int maxDy, int minDz, int maxDz) FootprintBounds
     {
         get
@@ -47,6 +45,18 @@ public class BlockBuildingMarker : Block
             int halfL = xzCap / 2;
             int halfR = (xzCap - 1) - halfL;
             return (-halfL, +halfR, 0, yCap - 1, -(xzCap - 1), 0);
+        }
+    }
+
+    // Scaffold cage: inner starts at z=-2, north wall at z=-(sz+2). Bucket-max sz so any schematic in the bucket is covered.
+    public (int minDx, int maxDx, int minDy, int maxDy, int minDz, int maxDz) ScaffoldCageBounds
+    {
+        get
+        {
+            (int xzCap, int yCap) = BucketBounds;
+            int halfL = xzCap / 2;
+            int halfR = (xzCap - 1) - halfL;
+            return (-(halfL + 1), halfR + 1, 0, yCap - 1, -(xzCap + 2), -1);
         }
     }
 
@@ -128,7 +138,7 @@ public class BlockBuildingMarker : Block
         if (!base.CanPlaceBlock(world, byPlayer, blockSel, ref failureCode)) return false;
 
         BlockPos markerPos = blockSel.Position;
-        var b = FootprintBounds;
+        var b = ScaffoldCageBounds;
 
         for (int dy = b.minDy; dy <= b.maxDy; dy++)
             for (int dx = b.minDx; dx <= b.maxDx; dx++)
@@ -184,7 +194,7 @@ public class BlockBuildingMarker : Block
         lastPreviewMs = now;
 
         BlockPos markerPos = bs.Position.AddCopy(bs.Face);
-        var b = FootprintBounds;
+        var b = ScaffoldCageBounds;
         IBlockAccessor ba = api.World.BlockAccessor;
 
         int cellCount = (b.maxDx - b.minDx + 1) * (b.maxDy - b.minDy + 1) * (b.maxDz - b.minDz + 1);

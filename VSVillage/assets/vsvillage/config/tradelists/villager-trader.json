@@ -4,191 +4,37 @@
         "var": 10
     },
     "selling": {
-        "maxItems": 14,
+        "maxItems": 16,
         "list": [
-            {
-                "code": "vsvillage:workstation-soldier-east",
-                "type": "block",
-                "stacksize": 1,
-                "stock": {
-                    "avg": 2,
-                    "var": 1
-                },
-                "price": {
-                    "avg": 6,
-                    "var": 2
-                }
-            },
-            {
-                "code": "vsvillage:workstation-farmer-east",
-                "type": "block",
-                "stacksize": 1,
-                "stock": {
-                    "avg": 2,
-                    "var": 1
-                },
-                "price": {
-                    "avg": 6,
-                    "var": 2
-                }
-            },
-            {
-                "code": "vsvillage:workstation-shepherd-east",
-                "type": "block",
-                "stacksize": 1,
-                "stock": {
-                    "avg": 2,
-                    "var": 1
-                },
-                "price": {
-                    "avg": 6,
-                    "var": 2
-                }
-            },
-            {
-                "code": "vsvillage:workstation-mayor-east",
-                "type": "block",
-                "stacksize": 1,
-                "stock": {
-                    "avg": 2,
-                    "var": 1
-                },
-                "price": {
-                    "avg": 6,
-                    "var": 2
-                }
-            },
-            {
-                "code": "vsvillage:workstation-smith-east",
-                "type": "block",
-                "stacksize": 1,
-                "stock": {
-                    "avg": 2,
-                    "var": 1
-                },
-                "price": {
-                    "avg": 6,
-                    "var": 2
-                }
-            },
-            {
-                "code": "vsvillage:workstation-herbalist-east",
-                "type": "block",
-                "stacksize": 1,
-                "stock": {
-                    "avg": 2,
-                    "var": 1
-                },
-                "price": {
-                    "avg": 6,
-                    "var": 2
-                }
-            },
-            {
-                "code": "vsvillage:workstation-trader-east",
-                "type": "block",
-                "stacksize": 1,
-                "stock": {
-                    "avg": 2,
-                    "var": 1
-                },
-                "price": {
-                    "avg": 6,
-                    "var": 2
-                }
-            },
             {
                 "code": "vsvillage:marketstall-east",
                 "type": "block",
                 "stacksize": 1,
-                "stock": {
-                    "avg": 2,
-                    "var": 1
-                },
-                "price": {
-                    "avg": 22,
-                    "var": 5
-                }
+                "stock": { "avg": 2, "var": 1 },
+                "price": { "avg": 22, "var": 5 }
             },
             {
-                "code": "vsvillage:workstation-baker-east",
+                "code": "vsvillage:workstation-builder-east",
                 "type": "block",
                 "stacksize": 1,
-                "stock": {
-                    "avg": 2,
-                    "var": 1
-                },
-                "price": {
-                    "avg": 6,
-                    "var": 2
-                }
-            },
-            {
-                "code": "vsvillage:brazier-extinct",
-                "type": "block",
-                "stacksize": 1,
-                "stock": {
-                    "avg": 2,
-                    "var": 1
-                },
-                "price": {
-                    "avg": 8,
-                    "var": 2
-                }
-            },
-            {
-                "code": "vsvillage:waypoint",
-                "type": "block",
-                "stacksize": 8,
-                "stock": {
-                    "avg": 2,
-                    "var": 1
-                },
-                "price": {
-                    "avg": 6,
-                    "var": 2
-                }
-            },
-            {
-                "code": "vsvillage:villagebed-blueplaid-east",
-                "type": "block",
-                "stacksize": 1,
-                "stock": {
-                    "avg": 8,
-                    "var": 2
-                },
-                "price": {
-                    "avg": 2,
-                    "var": 1
-                }
+                "stock": { "avg": 2, "var": 1 },
+                "price": { "avg": 6, "var": 2 }
             },
             {
                 "code": "vsvillage:villagebed-whiteplaid-east",
                 "type": "block",
                 "stacksize": 1,
-                "stock": {
-                    "avg": 8,
-                    "var": 2
-                },
-                "price": {
-                    "avg": 2,
-                    "var": 1
-                }
+                "stock": { "avg": 8, "var": 2 },
+                "price": { "avg": 2, "var": 1 }
             },
             {
                 "code": "vsvillage:villagebed-pine-east",
                 "type": "block",
                 "stacksize": 1,
-                "stock": {
-                    "avg": 8,
-                    "var": 2
-                },
-                "price": {
-                    "avg": 2,
-                    "var": 1
-                }
+                "stock": { "avg": 8, "var": 2 },
+                "price": { "avg": 2, "var": 1 }
             },
- {
+            {
                 "code": "game:feather",
                 "type": "item",
                 "stacksize": 8,
@@ -295,113 +141,67 @@
                 "code": "game:bread-spelt-perfect",
                 "type": "item",
                 "stacksize": 8,
-                "stock": {
-                    "avg": 4,
-                    "var": 1
-                },
-                "price": {
-                    "avg": 2,
-                    "var": 0.5
-                }
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 1, "var": 0.25 }
             },
             {
                 "code": "game:bread-rye-perfect",
                 "type": "item",
                 "stacksize": 8,
-                "stock": {
-                    "avg": 4,
-                    "var": 1
-                },
-                "price": {
-                    "avg": 2,
-                    "var": 0.5
-                }
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 1, "var": 0.25 }
             },
             {
                 "code": "game:bread-flax-perfect",
                 "type": "item",
                 "stacksize": 8,
-                "stock": {
-                    "avg": 4,
-                    "var": 1
-                },
-                "price": {
-                    "avg": 2,
-                    "var": 0.5
-                }
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 1, "var": 0.25 }
             },
             {
                 "code": "game:bread-rice-perfect",
                 "type": "item",
                 "stacksize": 8,
-                "stock": {
-                    "avg": 4,
-                    "var": 1
-                },
-                "price": {
-                    "avg": 2,
-                    "var": 0.5
-                }
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 1, "var": 0.25 }
             },
             {
                 "code": "game:redmeat-cooked",
                 "type": "item",
                 "stacksize": 8,
-                "stock": {
-                    "avg": 4,
-                    "var": 1
-                },
-                "price": {
-                    "avg": 2,
-                    "var": 0.5
-                }
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 1, "var": 0.25 }
             },
             {
                 "code": "game:poultry-cooked",
                 "type": "item",
                 "stacksize": 8,
-                "stock": {
-                    "avg": 4,
-                    "var": 1
-                },
-                "price": {
-                    "avg": 2,
-                    "var": 0.5
-                }
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 2, "var": 0.5 }
             },
             {
                 "code": "game:bushmeat-cooked",
                 "type": "item",
                 "stacksize": 8,
-                "stock": {
-                    "avg": 4,
-                    "var": 1
-                },
-                "price": {
-                    "avg": 1,
-                    "var": 0.5
-                }
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 1, "var": 0.5 }
             },
             {
                 "code": "game:fat",
                 "type": "item",
                 "stacksize": 3,
-                "stock": {
-                    "avg": 4,
-                    "var": 1
-                },
-                "price": {
-                    "avg": 2,
-                    "var": 0.5
-                }
+                "stock": { "avg": 4, "var": 1 },
+                "price": { "avg": 1, "var": 0.25 }
             },
- {
+            {
                 "code": "game:crate",
                 "type": "block",
                 "stacksize": 1,
                 "stock": { "avg": 2, "var": 0.5 },
                 "price": { "avg": 1, "var": 0.25 },
-                "attributes": { "type": "wood-aged" }
+                "attributes": {
+                    "type": "wood-aged"
+                }
             },
             {
                 "code": "game:chest-east",
@@ -409,105 +209,107 @@
                 "stacksize": 1,
                 "stock": { "avg": 3, "var": 0.75 },
                 "price": { "avg": 10, "var": 2.5 },
-                "attributes": { "type": "owl" }
+                "attributes": {
+                    "type": "owl"
+                }
             },
             {
                 "code": "game:lootvessel-seed",
                 "type": "block",
                 "stacksize": 1,
                 "stock": { "avg": 4, "var": 1 },
-                "price": { "avg": 11, "var": 2.75 }
+                "price": { "avg": 4, "var": 1.0 }
             },
             {
                 "code": "game:lootvessel-food",
                 "type": "block",
                 "stacksize": 1,
                 "stock": { "avg": 4, "var": 1 },
-                "price": { "avg": 9, "var": 2.25 }
+                "price": { "avg": 3, "var": 0.75 }
             },
             {
                 "code": "game:lootvessel-forage",
                 "type": "block",
                 "stacksize": 1,
                 "stock": { "avg": 4, "var": 1 },
-                "price": { "avg": 9, "var": 2.25 }
+                "price": { "avg": 3, "var": 0.75 }
             },
             {
                 "code": "game:lootvessel-ore",
                 "type": "block",
                 "stacksize": 1,
                 "stock": { "avg": 4, "var": 1 },
-                "price": { "avg": 9, "var": 2.25 }
+                "price": { "avg": 3, "var": 0.75 }
             },
             {
                 "code": "game:lootvessel-tool",
                 "type": "block",
                 "stacksize": 1,
                 "stock": { "avg": 4, "var": 1 },
-                "price": { "avg": 9, "var": 2.25 }
+                "price": { "avg": 3, "var": 0.75 }
             },
             {
                 "code": "game:lootvessel-farming",
                 "type": "block",
                 "stacksize": 1,
                 "stock": { "avg": 4, "var": 1 },
-                "price": { "avg": 9, "var": 2.25 }
+                "price": { "avg": 3, "var": 0.75 }
             },
             {
                 "code": "game:clothes-arm-merchant-bracelet",
                 "type": "item",
                 "stacksize": 1,
                 "stock": { "avg": 2, "var": 0.5 },
-                "price": { "avg": 3, "var": 0.75 }
+                "price": { "avg": 1, "var": 0.25 }
             },
             {
                 "code": "game:clothes-foot-merchant-shoes",
                 "type": "item",
                 "stacksize": 1,
                 "stock": { "avg": 2, "var": 0.5 },
-                "price": { "avg": 4, "var": 1 }
+                "price": { "avg": 1, "var": 0.25 }
             },
             {
                 "code": "game:clothes-head-merchant-hat",
                 "type": "item",
                 "stacksize": 1,
                 "stock": { "avg": 2, "var": 0.5 },
-                "price": { "avg": 4, "var": 1 }
+                "price": { "avg": 1, "var": 0.25 }
             },
             {
                 "code": "game:clothes-lowerbody-merchant-pants",
                 "type": "item",
                 "stacksize": 1,
                 "stock": { "avg": 2, "var": 0.5 },
-                "price": { "avg": 5, "var": 1.25 }
+                "price": { "avg": 2, "var": 0.5 }
             },
             {
                 "code": "game:clothes-neck-merchant-amulet",
                 "type": "item",
                 "stacksize": 1,
                 "stock": { "avg": 2, "var": 0.5 },
-                "price": { "avg": 4, "var": 1 }
+                "price": { "avg": 1, "var": 0.25 }
             },
             {
                 "code": "game:clothes-upperbody-merchant-shirt",
                 "type": "item",
                 "stacksize": 1,
                 "stock": { "avg": 2, "var": 0.5 },
-                "price": { "avg": 5, "var": 1.25 }
+                "price": { "avg": 2, "var": 0.5 }
             },
             {
                 "code": "game:clothes-waist-merchant-belt",
                 "type": "item",
                 "stacksize": 1,
                 "stock": { "avg": 2, "var": 0.5 },
-                "price": { "avg": 4, "var": 1 }
+                "price": { "avg": 1, "var": 0.25 }
             },
             {
                 "code": "game:hoovedwearables-blanket-merchant",
                 "type": "item",
                 "stacksize": 1,
                 "stock": { "avg": 1, "var": 0.25 },
-                "price": { "avg": 3, "var": 0.75 }
+                "price": { "avg": 1, "var": 0.25 }
             },
             {
                 "code": "game:hoovedwearables-blanket-alchemist",

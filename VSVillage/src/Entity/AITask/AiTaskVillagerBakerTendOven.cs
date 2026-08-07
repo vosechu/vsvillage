@@ -99,20 +99,42 @@ public class AiTaskVillagerBakerTendOven : AiTaskVillagerBakerBase
 
     // Oven tending logic - fuel + ignite branch only
 
-    // True if the oven is cold + empty + has no fuel - ready to be fueled
-    // and ignited. Dough-loading conditions are handled by CollectBread.
+    // Cold, unlit oven. Deliberately not gated on empty: a cold oven still holding dough or
+    // part-baked bread can never finish it, and the old empty-gate deadlocked both baker tasks.
     private bool OvenNeedsFueling(BlockEntityOven oven)
     {
-        return !oven.IsBurning
-            && oven.FuelSlot.Empty
-            && !oven.HasBakeables
-            && oven.ovenTemperature < minBakeTemp;
+        if (oven.IsBurning) return false;
+        if (oven.ovenTemperature >= minBakeTemp) return false;
+        return !HasFinishedBread(oven);
+    }
+
+    // Vanilla only advances baking above the browning point, so anything unfinished in a cold
+    // oven is stuck forever. Clear it (and any modded ash in the fuel slot) so it can relight.
+    private static void ClearStalledBakeables(BlockEntityOven oven)
+    {
+        bool changed = false;
+        for (int i = 0; i < oven.bakeableCapacity; i++)
+        {
+            ItemSlot slot = oven.Inventory[i];
+            if (slot.Empty) continue;
+            if (i == 0 && oven.HasFuel) continue;
+
+            string path = slot.Itemstack?.Collectible?.Code?.Path;
+            if (path != null && path.StartsWith("bread-") && !path.EndsWith("-partbaked")) continue;
+
+            slot.Itemstack = null;
+            slot.MarkDirty();
+            changed = true;
+        }
+        if (changed) oven.MarkDirty(true);
     }
 
     private void TryFuelAndIgnite(BlockEntityOven oven)
     {
         Item firewood = entity.World.GetItem(new AssetLocation("game:firewood"));
         if (firewood == null) return;
+
+        ClearStalledBakeables(oven);
 
         int fuelCapacity = oven.fuelitemCapacity;
         if (!oven.FuelSlot.Empty && oven.ovenTemperature < minBakeTemp)

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using ProtoBuf;
 using Vintagestory.API.Common;
+using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
 
@@ -38,6 +39,17 @@ public class Village
     [ProtoMember(9)]
     public List<BlockPos> ConstructionQueue = new List<BlockPos>();
 
+    [ProtoMember(10)]
+    public Dictionary<BlockPos, VillagerGuardPost> GuardPosts = new Dictionary<BlockPos, VillagerGuardPost>();
+
+    // Generated footprint, max-exclusive like the Cuboidi VillageGrid.getEnd describes. Non-null
+    // marks a worldgen village and is the exact land-claim box; player-founded villages leave it null.
+    [ProtoMember(11)]
+    public BlockPos ClaimStart;
+
+    [ProtoMember(12)]
+    public BlockPos ClaimEnd;
+
     public ICoreAPI Api;
 
     // Runtime-only flag - not persisted. True while a Gather is active.
@@ -47,6 +59,38 @@ public class Village
     public long GatherCallbackId = -1;
 
     public string Id => "village-" + Pos.ToString();
+
+    private long _centerYCacheTime = -1;
+    private int _centerYCache;
+
+    // Worldgen villages stored Pos.Y near 0, ~90 below real terrain. Pos can't be fixed in place
+    // since Id derives from it, so derive the true centre Y from POIs (fallback: terrain height).
+    public int EffectiveCenterY()
+    {
+        if (Pos == null) return 0;
+        long now = Api?.World?.ElapsedMilliseconds ?? 0;
+        if (_centerYCacheTime >= 0 && now - _centerYCacheTime < 5000) return _centerYCache;
+
+        int sum = 0, count = 0;
+        foreach (BlockPos p in Workstations.Keys) { if (p != null) { sum += p.Y; count++; } }
+        foreach (BlockPos p in Beds.Keys) { if (p != null) { sum += p.Y; count++; } }
+
+        if (count > 0)
+        {
+            _centerYCache = sum / count;
+            _centerYCacheTime = now;
+            return _centerYCache;
+        }
+        if (Api?.World != null)
+        {
+            _centerYCache = Api.World.BlockAccessor.GetTerrainMapheightAt(Pos);
+            _centerYCacheTime = now;
+            return _centerYCache;
+        }
+        return Pos.Y;
+    }
+
+    public Vec3d EffectiveCenter() => new Vec3d(Pos.X, EffectiveCenterY(), Pos.Z);
 
     // Hot path. One list alloc instead of the prior chain (ToList -> ConvertAll -> Where -> ToList = 3 lists + enumerator).
     public List<EntityBehaviorVillager> Villagers
@@ -82,8 +126,8 @@ public class Village
     }
 
     // Removes workstation/bed entries whose block entity no longer exists in the
-    // world. Only acts on chunks that are currently loaded - safe to call on startup.
-    private void ScrubGhostStructures()
+    // world. Only acts on chunks that are currently loaded - safe to call any time.
+    internal void ScrubGhostStructures()
     {
         if (Api == null) return;
         IBlockAccessor ba = Api.World.BlockAccessor;
@@ -116,6 +160,20 @@ public class Village
             }
         }
         foreach (BlockPos pos in deadBeds) Beds.Remove(pos);
+
+        List<BlockPos> deadGuardPosts = new List<BlockPos>();
+        foreach (BlockPos pos in GuardPosts.Keys)
+        {
+            if (pos == null) continue;
+            if (!ba.IsValidPos(pos)) continue;
+            if (ba.GetChunkAtBlockPos(pos) == null) continue;
+            if (ba.GetBlockEntity<BlockEntityVillagerGuardPost>(pos) == null)
+            {
+                deadGuardPosts.Add(pos);
+                Api.Logger.Warning("[VsVillage] Village " + Id + ": removing ghost guard post at " + pos);
+            }
+        }
+        foreach (BlockPos pos in deadGuardPosts) GuardPosts.Remove(pos);
     }
 
     private void ScrubNullKeys()
@@ -130,6 +188,12 @@ public class Village
         {
             Beds.Remove(key);
             Api.Logger.Warning("[VsVillage] Village " + Id + ": removed null-keyed Bed entry during Init.");
+        }
+
+        foreach (BlockPos key in GuardPosts.Keys.Where(k => k == null).ToList())
+        {
+            GuardPosts.Remove(key);
+            Api.Logger.Warning("[VsVillage] Village " + Id + ": removed null-keyed GuardPost entry during Init.");
         }
 
         Gatherplaces.RemoveWhere(k =>
@@ -167,24 +231,44 @@ public class Village
         return null;
     }
 
+    // Axis-aligned box, matching GetVillage and the POI registration checks rather than a
+    // radial test, so "inside the village" means the same thing everywhere.
+    public bool IsInside(double x, double z)
+    {
+        if (Pos == null) return false;
+        return Math.Abs(Pos.X - x) <= Radius && Math.Abs(Pos.Z - z) <= Radius;
+    }
+
+    // Picks the NEAREST free station, not the first in dictionary order. First-hit could hand a
+    // villager a station on the far side of the village, beyond what one A* budget can reach,
+    // which left them grinding an impossible path instead of working.
     public BlockPos FindFreeWorkstation(long villagerId, EnumVillagerProfession profession)
     {
+        Entity villager = Api.World.GetEntityById(villagerId);
+        Vec3d from = villager?.Pos?.XYZ;
+
+        VillagerWorkstation best = null;
+        double bestSq = double.MaxValue;
         foreach (VillagerWorkstation value in Workstations.Values)
         {
-            if (value.Profession == profession && (value.OwnerId == -1 || value.OwnerId == villagerId))
-            {
-                value.OwnerId = villagerId;
-                string text = Api.World.GetEntityById(villagerId)?.GetBehavior<EntityBehaviorNameTag>()?.DisplayName;
-                BlockEntityVillagerWorkstation blockEntity = Api.World.BlockAccessor.GetBlockEntity<BlockEntityVillagerWorkstation>(value.Pos);
-                if (blockEntity != null && !string.IsNullOrEmpty(text))
-                {
-                    blockEntity.OwnerName = text;
-                    blockEntity.MarkDirty();
-                }
-                return value.Pos;
-            }
+            if (value.Profession != profession || value.Pos == null) continue;
+            if (value.OwnerId != -1 && value.OwnerId != villagerId) continue;
+
+            if (from == null) { best = value; break; }
+            double sq = value.Pos.ToVec3d().SquareDistanceTo(from);
+            if (sq < bestSq) { bestSq = sq; best = value; }
         }
-        return null;
+        if (best == null) return null;
+
+        best.OwnerId = villagerId;
+        string text = villager?.GetBehavior<EntityBehaviorNameTag>()?.DisplayName;
+        BlockEntityVillagerWorkstation blockEntity = Api.World.BlockAccessor.GetBlockEntity<BlockEntityVillagerWorkstation>(best.Pos);
+        if (blockEntity != null && !string.IsNullOrEmpty(text))
+        {
+            blockEntity.OwnerName = text;
+            blockEntity.MarkDirty();
+        }
+        return best.Pos;
     }
 
     public void ClearBedOwner(long villagerId)
@@ -204,6 +288,17 @@ public class Village
         }
     }
 
+    // Village-side only. The owning entity's own GuardPost/GuardShift attributes are cleared by the
+    // caller when it is loaded, and self-heal via GuardDuty.ValidateAssignment when it is not.
+    public void ClearGuardOwner(long villagerId)
+    {
+        foreach (VillagerGuardPost post in GuardPosts.Values)
+        {
+            if (post.DayOwnerId == villagerId) post.DayOwnerId = -1L;
+            if (post.NightOwnerId == villagerId) post.NightOwnerId = -1L;
+        }
+    }
+
     public BlockPos FindRandomGatherplace()
     {
         if (Gatherplaces.Count == 0)
@@ -216,6 +311,7 @@ public class Village
     public void RemoveVillager(long villagerId)
     {
         VillagerSaveData.Remove(villagerId);
+        ClearGuardOwner(villagerId);
         foreach (VillagerBed value in Beds.Values)
         {
             if (value.OwnerId == villagerId)

@@ -64,7 +64,9 @@
             "villager-*-herbalist",
             "villager-*-trader",
             "villager-*-baker",
-            "villager-*-builder"
+            "villager-*-builder",
+            "villager-*-angler",
+            "villager-*-woodworker"
         ],
         "side": "server"
     },
@@ -86,7 +88,9 @@
             "villager-*-herbalist",
             "villager-*-trader",
             "villager-*-baker",
-            "villager-*-builder"
+            "villager-*-builder",
+            "villager-*-angler",
+            "villager-*-woodworker"
         ],
         "side": "server"
     },
@@ -103,7 +107,9 @@
             "villager-*-herbalist",
             "villager-*-trader",
             "villager-*-baker",
-            "villager-*-builder"
+            "villager-*-builder",
+            "villager-*-angler",
+            "villager-*-woodworker"
         ],
         "side": "server"
     },
@@ -120,7 +126,9 @@
             "villager-*-herbalist",
             "villager-*-trader",
             "villager-*-baker",
-            "villager-*-builder"
+            "villager-*-builder",
+            "villager-*-angler",
+            "villager-*-woodworker"
         ],
         "side": "server"
     },
@@ -142,7 +150,9 @@
             "villager-*-herbalist",
             "villager-*-trader",
             "villager-*-baker",
-            "villager-*-builder"
+            "villager-*-builder",
+            "villager-*-angler",
+            "villager-*-woodworker"
         ],
         "side": "server"
     },
@@ -159,7 +169,9 @@
             "villager-*-herbalist",
             "villager-*-trader",
             "villager-*-baker",
-            "villager-*-builder"
+            "villager-*-builder",
+            "villager-*-angler",
+            "villager-*-woodworker"
         ],
         "side": "server"
     }

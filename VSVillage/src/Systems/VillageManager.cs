@@ -1,3 +1,4 @@
+﻿using ProtoBuf;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -48,6 +49,175 @@ public class VillageManager : ModSystem
 				OnManagementMessage(fromPlayer, message, api);
 			});
 		RegisterAdminCommands(api);
+		api.Event.OnTestBlockAccess += OnTestBlockAccess;
+		api.Event.SaveGameLoaded += delegate
+		{
+			LoadClearedClaims(api);
+		};
+		// Backfills worlds generated before claims existed, and restores the claim for any
+		// generated village whose region has since been unloaded and loaded again.
+		api.Event.MapRegionLoaded += delegate(Vec2i mapCoord, IMapRegion region)
+		{
+			ClaimGeneratedVillages(api, region);
+		};
+	}
+
+	// Marks a claim as ours. LandClaim.OwnedByEntityId is persisted and copied by Clone but is
+	// read nowhere in the engine - not even TestPlayerAccess - so it identifies our claims without
+	// needing the village loaded, which for a worldgen village only happens in its gen session.
+	private const long VillageClaimTag = -8265L;
+
+	private const string ClearedClaimsKey = "vsvillage-clearedclaims";
+
+	// Footprints an admin cleared with /vsvillage unclaim, or that went with a destroyed village.
+	// Without this the map-region sweep would put the claim straight back.
+	private readonly HashSet<long> clearedVillageClaims = new HashSet<long>();
+
+	// Worldgen village claims set AllowUseEveryone so players can walk in and trade, but vanilla
+	// only reads that flag in GetBlockingLandClaimant - TestPlayerAccess still reports Denied, so
+	// looting the generated chests/toolracks and using the villagers' own fixtures stays blocked.
+	private EnumWorldAccessResponse OnTestBlockAccess(
+		IPlayer player, BlockSelection blockSel, EnumBlockAccessFlags accessType,
+		ref string claimant, EnumWorldAccessResponse response)
+	{
+		if (accessType != EnumBlockAccessFlags.Use) return response;
+		if (player == null || blockSel?.Position == null) return response;
+		// Same bypass vanilla applies before its own claim check, so this hook can't
+		// re-deny an admin the base game already let through.
+		if (player.HasPrivilege(Privilege.useblockseverywhere)
+		    && player.WorldData.CurrentGameMode == EnumGameMode.Creative) return response;
+
+		Block block = Api.World.BlockAccessor.GetBlock(blockSel.Position);
+		bool isGated = block is BlockMayorWorkstation || block is BlockVsWorkstation || block is BlockVsBed;
+		if (!isGated)
+		{
+			BlockEntity be = Api.World.BlockAccessor.GetBlockEntity(blockSel.Position);
+			isGated = be is IBlockEntityContainer || be is BlockEntityToolrack;
+		}
+		if (!isGated) return response;
+
+		LandClaim[] claims = Api.World.Claims.Get(blockSel.Position);
+		if (claims == null || claims.Length == 0) return response;
+
+		LandClaim blocking = null;
+		foreach (LandClaim claim in claims)
+		{
+			if (claim.OwnedByEntityId != VillageClaimTag) continue;
+			if (claim.TestPlayerAccess(player, EnumBlockAccessFlags.Use) != EnumPlayerAccessResult.Denied) return response;
+			blocking = claim;
+		}
+		if (blocking == null) return response;
+
+		claimant = blocking.LastKnownOwnerName ?? blocking.Description ?? "Village";
+		return EnumWorldAccessResponse.LandClaimed;
+	}
+
+	// Registers a claim for every generated village recorded in this region. The generator writes
+	// that record itself, so it is the one marker that survives without the village object - which
+	// for a worldgen village is never reloaded from disk once its session ends.
+	private void ClaimGeneratedVillages(ICoreServerAPI sapi, IMapRegion region)
+	{
+		if (region?.GeneratedStructures == null) return;
+		foreach (GeneratedStructure gs in region.GeneratedStructures)
+		{
+			if (gs.Group != "village" || gs.Location == null) continue;
+			// The village name is not in the structure record, so a village generated before this
+			// existed falls back to a generic label. Live ones already claimed under their own name.
+			RegisterVillageClaim(sapi, gs.Location.MinX, gs.Location.MinZ, gs.Location.MaxX, gs.Location.MaxZ,
+				Lang.Get("vsvillage:landclaim-village"));
+		}
+	}
+
+	public void RegisterVillageClaim(ICoreServerAPI sapi, Village village)
+	{
+		if (village?.ClaimStart == null || village.ClaimEnd == null) return;
+		RegisterVillageClaim(sapi, village.ClaimStart.X, village.ClaimStart.Z, village.ClaimEnd.X, village.ClaimEnd.Z, village.Name);
+	}
+
+	private void RegisterVillageClaim(ICoreServerAPI sapi, int x1, int z1, int x2, int z2, string name)
+	{
+		int minX = Math.Min(x1, x2), maxX = Math.Max(x1, x2);
+		int minZ = Math.Min(z1, z2), maxZ = Math.Max(z1, z2);
+		if (clearedVillageClaims.Contains(ClaimKey(minX, minZ))) return;
+		if (FindVillageClaim(sapi, minX, minZ, maxX, maxZ) != null) return;
+
+		sapi.World.Claims.Add(new LandClaim
+		{
+			Areas = new List<Cuboidi> { new Cuboidi(minX, 0, minZ, maxX, sapi.WorldManager.MapSizeY, maxZ) },
+			Description = name,
+			LastKnownOwnerName = name,
+			OwnedByEntityId = VillageClaimTag,
+			ProtectionLevel = 10,
+			AllowUseEveryone = true,
+			AllowTraverseEveryone = true
+		});
+	}
+
+	public bool UnregisterVillageClaim(ICoreServerAPI sapi, Village village)
+	{
+		if (village?.ClaimStart == null || village.ClaimEnd == null) return false;
+
+		int minX = Math.Min(village.ClaimStart.X, village.ClaimEnd.X);
+		int maxX = Math.Max(village.ClaimStart.X, village.ClaimEnd.X);
+		int minZ = Math.Min(village.ClaimStart.Z, village.ClaimEnd.Z);
+		int maxZ = Math.Max(village.ClaimStart.Z, village.ClaimEnd.Z);
+
+		LandClaim claim = FindVillageClaim(sapi, minX, minZ, maxX, maxZ);
+		if (claim == null) return false;
+		clearedVillageClaims.Add(ClaimKey(minX, minZ));
+		return sapi.World.Claims.Remove(claim);
+	}
+
+	// Requires both our tag and the exact box, so an unrelated claim overlapping the village
+	// centre is never picked up.
+	private static LandClaim FindVillageClaim(ICoreServerAPI sapi, int minX, int minZ, int maxX, int maxZ)
+	{
+		LandClaim[] claims = sapi.World.Claims.Get(new BlockPos((minX + maxX) / 2, 0, (minZ + maxZ) / 2));
+		if (claims == null) return null;
+
+		foreach (LandClaim claim in claims)
+		{
+			if (claim.OwnedByEntityId != VillageClaimTag) continue;
+			foreach (Cuboidi claimed in claim.Areas)
+			{
+				if (claimed.MinX == minX && claimed.MaxX == maxX
+				    && claimed.MinZ == minZ && claimed.MaxZ == maxZ) return claim;
+			}
+		}
+		return null;
+	}
+
+	private static long ClaimKey(int minX, int minZ)
+	{
+		return ((long)minX << 32) | (uint)minZ;
+	}
+
+	private void LoadClearedClaims(ICoreServerAPI sapi)
+	{
+		clearedVillageClaims.Clear();
+		try
+		{
+			VillageClaimState state = sapi.WorldManager.SaveGame.GetData<VillageClaimState>(ClearedClaimsKey);
+			if (state?.ClearedClaims == null) return;
+			foreach (long key in state.ClearedClaims) clearedVillageClaims.Add(key);
+
+			// Not assuming this runs before the first region load: drop anything the region
+			// sweep may already have put back.
+			foreach (LandClaim claim in sapi.World.Claims.All.ToList())
+			{
+				if (claim.OwnedByEntityId != VillageClaimTag) continue;
+				foreach (Cuboidi area in claim.Areas)
+				{
+					if (!clearedVillageClaims.Contains(ClaimKey(area.MinX, area.MinZ))) continue;
+					sapi.World.Claims.Remove(claim);
+					break;
+				}
+			}
+		}
+		catch (Exception ex)
+		{
+			sapi.Logger.Error("[VsVillage] Could not read cleared village claims; admin-removed claims may come back. " + ex.Message);
+		}
 	}
 
 	private void RegisterAdminCommands(ICoreServerAPI api)
@@ -129,6 +299,38 @@ public class VillageManager : ModSystem
 				return TextCommandResult.Success("Validation complete - see chat for results.");
 			})
 			.EndSubCommand();
+
+		root.BeginSubCommand("unclaim")
+			.WithDescription("Remove the village land claim covering your position. Leaves all other claims alone.")
+			.RequiresPlayer()
+			.RequiresPrivilege(Privilege.controlserver)
+			.HandleWith(args =>
+			{
+				IServerPlayer player = args.Caller.Player as IServerPlayer;
+				if (player?.Entity == null) return TextCommandResult.Error("No player entity.");
+
+				BlockPos pos = player.Entity.Pos.AsBlockPos;
+				LandClaim[] claims = api.World.Claims.Get(pos);
+				LandClaim target = null;
+				if (claims != null)
+				{
+					foreach (LandClaim claim in claims)
+					{
+						if (claim.OwnedByEntityId != VillageClaimTag) continue;
+						target = claim;
+						break;
+					}
+				}
+				if (target == null) return TextCommandResult.Error("No village land claim at your position.");
+
+				string name = target.Description ?? target.LastKnownOwnerName ?? "village";
+				if (!api.World.Claims.Remove(target))
+					return TextCommandResult.Error("Failed to remove the land claim on '" + name + "'.");
+
+				foreach (Cuboidi area in target.Areas) clearedVillageClaims.Add(ClaimKey(area.MinX, area.MinZ));
+				return TextCommandResult.Success("Removed the land claim on '" + name + "'.");
+			})
+			.EndSubCommand();
 	}
 
 	// Returns the village whose radius contains the player's position, or null.
@@ -137,14 +339,17 @@ public class VillageManager : ModSystem
 		if (player?.Entity == null) return null;
 		BlockPos playerPos = player.Entity.Pos.AsBlockPos;
 		Village closest = null;
-		double closestDist = double.MaxValue;
+		long closestDistSq = long.MaxValue;
 		foreach (Village v in Villages.Values)
 		{
 			if (v.Pos == null) continue;
-			double dist = v.Pos.DistanceTo(playerPos);
-			if (dist <= v.Radius && dist < closestDist)
+			int dx = Math.Abs(v.Pos.X - playerPos.X);
+			int dz = Math.Abs(v.Pos.Z - playerPos.Z);
+			if (dx > v.Radius || dz > v.Radius) continue;
+			long distSq = (long)dx * dx + (long)dz * dz;
+			if (distSq < closestDistSq)
 			{
-				closestDist = dist;
+				closestDistSq = distSq;
 				closest = v;
 			}
 		}
@@ -165,7 +370,7 @@ public class VillageManager : ModSystem
 
 		if (teleport)
 		{
-			Vec3d centre = v.Pos.ToVec3d().Add(0.5, 1.0, 0.5);
+			Vec3d centre = v.EffectiveCenter().Add(0.5, 1.0, 0.5);
 			foreach (EntityBehaviorVillager beh in v.Villagers)
 			{
 				if (beh?.entity == null || !beh.entity.Alive) continue;
@@ -192,7 +397,7 @@ public class VillageManager : ModSystem
 			if (pos == null || !ba.IsValidPos(pos) || ba.GetChunkAtBlockPos(pos) == null) continue;
 			if (ba.GetBlockEntity<BlockEntityVillagerWorkstation>(pos) == null)
 			{
-				player.SendMessage(GlobalConstants.GeneralChatGroup,
+				player.SendMessage(GlobalConstants.InfoLogChatGroup,
 					"[VsVillage] Ghost workstation at " + pos + " (owned by entity " + v.Workstations[pos].OwnerId + ")",
 					EnumChatType.Notification);
 				ghosts++;
@@ -203,14 +408,14 @@ public class VillageManager : ModSystem
 			if (pos == null || !ba.IsValidPos(pos) || ba.GetChunkAtBlockPos(pos) == null) continue;
 			if (ba.GetBlockEntity<BlockEntityVillagerBed>(pos) == null)
 			{
-				player.SendMessage(GlobalConstants.GeneralChatGroup,
+				player.SendMessage(GlobalConstants.InfoLogChatGroup,
 					"[VsVillage] Ghost bed at " + pos + " (owned by entity " + v.Beds[pos].OwnerId + ")",
 					EnumChatType.Notification);
 				ghosts++;
 			}
 		}
 		if (ghosts == 0)
-			player.SendMessage(GlobalConstants.GeneralChatGroup,
+			player.SendMessage(GlobalConstants.InfoLogChatGroup,
 				"[VsVillage] No ghost structures found in loaded chunks for '" + v.Name + "'.",
 				EnumChatType.Notification);
 	}
@@ -230,6 +435,9 @@ public class VillageManager : ModSystem
 			{
 				OnAssignmentContext(ctx, api);
 			});
+		// The client runs its own tryAccess before OnBlockInteractStart, and claims are broadcast
+		// to it. Without this the GUI would open locally and only fail once the packet lands.
+		api.Event.OnTestBlockAccess += OnTestBlockAccess;
 	}
 
 	public Village GetVillage(string id)
@@ -251,6 +459,8 @@ public class VillageManager : ModSystem
 				value?.Init(coreServerAPI);
 				if (value != null)
 				{
+					// Villages saved before names were resolved still hold the raw addon lang key.
+					value.Name = Lang.GetUnformatted(value.Name ?? "");
 					Villages.TryAdd(id, value);
 				}
 			}
@@ -275,12 +485,13 @@ public class VillageManager : ModSystem
 
 	public Village GetVillage(BlockPos pos)
 	{
-		// Euclidean to match GetVillageAtPlayer. Block-coord-square check used to disagree at corners.
+		// Axis-aligned box to match IsWithinVillageRadius and other village-registration checks.
 		foreach (Village value in Villages.Values)
 		{
+			if (value.Pos == null) continue;
 			int dx = value.Pos.X - pos.X;
 			int dz = value.Pos.Z - pos.Z;
-			if ((long)dx * dx + (long)dz * dz <= (long)value.Radius * value.Radius)
+			if (Math.Abs(dx) <= value.Radius && Math.Abs(dz) <= value.Radius)
 			{
 				return value;
 			}
@@ -290,6 +501,9 @@ public class VillageManager : ModSystem
 
 	private void OnSave(ICoreServerAPI sapi)
 	{
+		sapi.WorldManager.SaveGame.StoreData(ClearedClaimsKey,
+			new VillageClaimState { ClearedClaims = clearedVillageClaims.ToList() });
+
 		foreach (Village value in Villages.Values)
 		{
 			try
@@ -306,7 +520,11 @@ public class VillageManager : ModSystem
 	public void RemoveVillage(string id)
 	{
 		if (!Villages.TryRemove(id, out Village village)) return;
-		(Api as ICoreServerAPI)?.WorldManager.SaveGame.StoreData(id, null);
+		if (Api is ICoreServerAPI sapi)
+		{
+			UnregisterVillageClaim(sapi, village);
+			sapi.WorldManager.SaveGame.StoreData(id, null);
+		}
 		village.Workstations.Values.Foreach(delegate(VillagerWorkstation workstation)
 		{
 			Api.World.BlockAccessor.GetBlockEntity<BlockEntityVillagerWorkstation>(workstation.Pos)?.RemoveVillage();
@@ -336,15 +554,30 @@ public class VillageManager : ModSystem
 		new AssignVillagerGui(capi, ctx).TryOpen();
 	}
 
+	// Radius arrives straight off the wire from a GUI text field, so bound it. 500 is the agreed
+	// ceiling; past that the village-wide scans and fixture recovery get genuinely painful.
+	public const int MaxVillageRadius = 500;
+
+	private static int ClampRadius(int requested)
+	{
+		if (requested <= 0) return 20;
+		return requested > MaxVillageRadius ? MaxVillageRadius : requested;
+	}
+
 	private void OnManagementMessage(IServerPlayer fromPlayer, VillageManagementMessage message, ICoreServerAPI api)
 	{
 		switch (message.Operation)
 		{
 		case EnumVillageManagementOperation.create:
 		{
+			// The client opens the GUI off its own access test, which can't see this hook, so the
+			// packet is the only authoritative gate on founding a village inside a claim.
+			if (fromPlayer != null && message.Pos != null
+			    && !api.World.Claims.TryAccess(fromPlayer, message.Pos, EnumBlockAccessFlags.Use)) break;
+
 			Village village5 = new Village
 			{
-				Radius = ((message.Radius > 0) ? message.Radius : 20),
+				Radius = ClampRadius(message.Radius),
 				Pos = message.Pos,
 				Name = (string.IsNullOrEmpty(message.Name) ? "Lauras little Village" : message.Name)
 			};
@@ -486,7 +719,7 @@ public class VillageManager : ModSystem
 		{
 			Village village2 = GetVillage(message.Id);
 			if (village2 == null) { Api.Logger.Error("[VsVillage] changeStats: village '" + message.Id + "' not found."); break; }
-			village2.Radius = message.Radius;
+			village2.Radius = ClampRadius(message.Radius);
 			village2.Name = message.Name;
 			break;
 		}
@@ -501,7 +734,7 @@ public class VillageManager : ModSystem
 			// Look in a 60-block radius around the mayor workstation - same scope the
 			// Villager Horn uses when checking for an existing keeper, so the GUI and
 			// the horn agree on which mechhelper "belongs" to this village.
-			Vec3d centre = dmv.Pos.ToVec3d().Add(0.5, 0.5, 0.5);
+			Vec3d centre = dmv.EffectiveCenter().Add(0.5, 0.5, 0.5);
 			Entity[] keepers = api.World.GetEntitiesAround(centre, 60f, 20f,
 				e => e.Code?.Domain == "vsvillage" && e.Code?.Path == "village-mechhelper" && e.Alive);
 
@@ -521,7 +754,7 @@ public class VillageManager : ModSystem
 			poof.MinPos = centre;
 			api.World.SpawnParticles(poof);
 
-			fromPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
+			fromPlayer.SendMessage(GlobalConstants.InfoLogChatGroup,
 				dismissed > 0
 					? "[VsVillage] Dismissed " + dismissed + " Settlement Keeper(s) from '" + dmv.Name + "'."
 					: "[VsVillage] No Settlement Keeper found near '" + dmv.Name + "'.",
@@ -533,7 +766,7 @@ public class VillageManager : ModSystem
 			Village rv = GetVillage(message.Id);
 			if (rv == null) { Api.Logger.Error("[VsVillage] recoverOrphanedVillagers: village '" + message.Id + "' not found."); break; }
 
-			Vec3d rvCenter = rv.Pos.ToVec3d().Add(0.5, 0.5, 0.5);
+			Vec3d rvCenter = rv.EffectiveCenter().Add(0.5, 0.5, 0.5);
 			float rvRadius = (float)rv.Radius;
 			Entity[] candidates = api.World.GetEntitiesAround(rvCenter, rvRadius, rvRadius, e =>
 			{
@@ -564,7 +797,7 @@ public class VillageManager : ModSystem
 				Api.Logger.Notification("[VsVillage] Recovered orphaned villager " + e.EntityId + " into village '" + rv.Name + "'.");
 			}
 
-			fromPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
+			fromPlayer.SendMessage(GlobalConstants.InfoLogChatGroup,
 				"[VsVillage] Recovered " + recovered + " orphaned villager(s) into '" + rv.Name + "'.",
 				EnumChatType.Notification);
 			break;
@@ -574,12 +807,16 @@ public class VillageManager : ModSystem
 			Village rfv = GetVillage(message.Id);
 			if (rfv == null) { Api.Logger.Error("[VsVillage] recoverFixtures: village '" + message.Id + "' not found."); break; }
 
+			// Remove ghost dict entries before the walk so re-adds are clean.
+			rfv.ScrubGhostStructures();
+
 			int recovered = 0;
 			int r = rfv.Radius;
+			int cy = rfv.EffectiveCenterY();
 			int dim = rfv.Pos.dimension;
 			IBlockAccessor ba = api.World.BlockAccessor;
-			BlockPos minPos = new BlockPos(rfv.Pos.X - r, rfv.Pos.Y - r, rfv.Pos.Z - r, dim);
-			BlockPos maxPos = new BlockPos(rfv.Pos.X + r, rfv.Pos.Y + r, rfv.Pos.Z + r, dim);
+			BlockPos minPos = new BlockPos(rfv.Pos.X - r, cy - r, rfv.Pos.Z - r, dim);
+			BlockPos maxPos = new BlockPos(rfv.Pos.X + r, cy + r, rfv.Pos.Z + r, dim);
 			BlockPos tmp = new BlockPos(0, 0, 0, dim);
 
 			ba.WalkBlocks(minPos, maxPos, (block, x, y, z) =>
@@ -605,8 +842,24 @@ public class VillageManager : ModSystem
 				Api.Logger.Notification("[VsVillage] recoverFixtures: re-registered " + be.GetType().Name + " at " + tmp + " into '" + rfv.Name + "'.");
 			});
 
-			fromPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
-				"[VsVillage] Recovered " + recovered + " fixture(s) into '" + rfv.Name + "'.",
+			// Prune completely empty orphan villages left behind when a mayor block
+			// was broken without using the GUI destroy operation.
+			var pruned = new List<string>();
+			foreach (var kvp in Villages)
+			{
+				Village v = kvp.Value;
+				if (v == rfv) continue;
+				if (v.Workstations.Count == 0 && v.Beds.Count == 0 && v.Gatherplaces.Count == 0)
+				{
+					pruned.Add(kvp.Key);
+					Api.Logger.Notification("[VsVillage] recoverFixtures: pruning structureless orphan village '" + kvp.Key + "'.");
+				}
+			}
+			foreach (string key in pruned) RemoveVillage(key);
+
+			fromPlayer.SendMessage(GlobalConstants.InfoLogChatGroup,
+				"[VsVillage] Recovered " + recovered + " fixture(s) into '" + rfv.Name + "'"
+				+ (pruned.Count > 0 ? $", pruned {pruned.Count} orphan village(s)." : "."),
 				EnumChatType.Notification);
 			break;
 		}
@@ -666,6 +919,13 @@ public class VillageManager : ModSystem
 			BlockEntityVillagerWorkstation wsEntity = api.World.BlockAccessor.GetBlockEntity<BlockEntityVillagerWorkstation>(wsPos);
 			if (wsEntity != null) { wsEntity.OwnerName = newOwnerName; wsEntity.MarkDirty(); }
 
+			// The stall keeps its specialty, so an incoming trader takes it over rather
+			// than reverting the shop to the default list.
+			if (ws.Profession == EnumVillagerProfession.trader && newOwnerId != -1)
+			{
+				TraderShopType.ApplyForWorkstation(api.World.GetEntityById(newOwnerId), ws.ShopType);
+			}
+
 			Api.Logger.Debug("[VsVillage] Workstation at " + wsPos + " in '" + v.Name + "' assigned to entity " + newOwnerId + ".");
 			break;
 		}
@@ -722,6 +982,173 @@ public class VillageManager : ModSystem
 			Api.Logger.Debug("[VsVillage] Bed at " + bedPos + " in '" + v.Name + "' assigned to entity " + newOwnerId + ".");
 			break;
 		}
+		case EnumVillageManagementOperation.assignGuardPost:
+		{
+			Village v = GetVillage(message.Id);
+			if (v == null) { Api.Logger.Error("[VsVillage] assignGuardPost: village '" + message.Id + "' not found."); break; }
+			BlockPos postPos = message.StructureToAssign;
+			if (postPos == null || !v.GuardPosts.TryGetValue(postPos, out VillagerGuardPost post))
+			{
+				Api.Logger.Error("[VsVillage] assignGuardPost: no guard post at " + postPos + " in village '" + v.Name + "'.");
+				break;
+			}
+			EnumGuardShift shift = message.GuardShift;
+			if (shift == EnumGuardShift.none)
+			{
+				Api.Logger.Error("[VsVillage] assignGuardPost: no watch specified for post at " + postPos + ".");
+				break;
+			}
+			long newOwnerId = message.AssigneeEntityId;
+
+			// Validate the requester owns a villager in this village.
+			if (newOwnerId != -1 && !v.VillagerSaveData.ContainsKey(newOwnerId))
+			{
+				fromPlayer.SendIngameError("assignment-invalid-villager", null);
+				break;
+			}
+
+			if (newOwnerId != -1 && !GuardDuty.CanStandWatch(v.VillagerSaveData[newOwnerId].Profession))
+			{
+				fromPlayer.SendIngameError("assignment-requirements-not-met", Lang.Get("vsvillage:guardpost-requires-soldier"));
+				break;
+			}
+
+			// Free the outgoing guard of this watch.
+			long oldOwnerId = post.OwnerFor(shift);
+			if (oldOwnerId != -1 && oldOwnerId != newOwnerId) ReleaseGuardAttributes(oldOwnerId);
+
+			if (newOwnerId != -1)
+			{
+				// One guard holds exactly one watch at one post. Clearing every other slot first is
+				// what stops the same guard being booked onto both day and night.
+				foreach (VillagerGuardPost other in v.GuardPosts.Values)
+				{
+					if (other.DayOwnerId == newOwnerId) other.DayOwnerId = -1L;
+					if (other.NightOwnerId == newOwnerId) other.NightOwnerId = -1L;
+				}
+
+				EntityBehaviorVillager newBeh = Api.World.GetEntityById(newOwnerId)?.GetBehavior<EntityBehaviorVillager>();
+				if (newBeh != null)
+				{
+					newBeh.GuardPost = postPos;
+					newBeh.GuardShift = shift;
+				}
+			}
+
+			post.SetOwnerFor(shift, newOwnerId);
+
+			BlockEntityVillagerGuardPost postEntity = api.World.BlockAccessor.GetBlockEntity<BlockEntityVillagerGuardPost>(postPos);
+			postEntity?.MarkDirty();
+
+			Api.Logger.Debug("[VsVillage] Guard post at " + postPos + " in '" + v.Name + "' " + shift + " watch assigned to entity " + newOwnerId + ".");
+			break;
+		}
+		case EnumVillageManagementOperation.changeShopType:
+		{
+			Village v = GetVillage(message.Id);
+			if (v == null) { Api.Logger.Error("[VsVillage] changeShopType: village '" + message.Id + "' not found."); break; }
+			BlockPos shopPos = message.StructureToAssign;
+			if (shopPos == null || !v.Workstations.TryGetValue(shopPos, out VillagerWorkstation shopWs))
+			{
+				Api.Logger.Error("[VsVillage] changeShopType: no workstation at " + shopPos + " in village '" + v.Name + "'.");
+				break;
+			}
+			if (fromPlayer?.InventoryManager == null)
+			{
+				Api.Logger.Error("[VsVillage] changeShopType: sender has no inventory manager.");
+				break;
+			}
+			if (shopWs.Profession != EnumVillagerProfession.trader)
+			{
+				fromPlayer.SendIngameError("shoptype-wrong-workstation", null);
+				break;
+			}
+			string requestedType = message.ShopType;
+			if (!TraderShopType.IsKnown(requestedType))
+			{
+				fromPlayer.SendIngameError("shoptype-invalid", null);
+				break;
+			}
+			// Re-picking the current type is free rather than a wasted payment.
+			if (TraderShopType.Sanitize(shopWs.ShopType) == requestedType) break;
+			// Never charge for a list that will fail to load when it comes time to apply it.
+			if (!TraderShopType.ListExists(api.Assets, requestedType))
+			{
+				Api.Logger.Error("[VsVillage] changeShopType: no tradelist asset for shop type '" + requestedType + "'.");
+				fromPlayer.SendIngameError("shoptype-invalid", null);
+				break;
+			}
+
+			Entity shopOwner = (shopWs.OwnerId != -1L) ? Api.World.GetEntityById(shopWs.OwnerId) : null;
+			// Swapping the stock out from under an open trade dialog desyncs it.
+			if (shopOwner != null && shopOwner.WatchedAttributes.HasAttribute("tradingPlayerUID"))
+			{
+				fromPlayer.SendIngameError("shoptype-busy", null);
+				break;
+			}
+
+			int shopCost = TraderShopType.CostFor(shopWs.ShopTypeChanges);
+			if (CountRustyGears(fromPlayer) < shopCost)
+			{
+				fromPlayer.SendIngameError("shoptype-not-enough-gears", null, shopCost);
+				break;
+			}
+			TakeRustyGears(fromPlayer, shopCost);
+
+			shopWs.ShopType = requestedType;
+			shopWs.ShopTypeChanges++;
+
+			BlockEntityVillagerWorkstation shopEntity = api.World.BlockAccessor.GetBlockEntity<BlockEntityVillagerWorkstation>(shopPos);
+			if (shopEntity != null) { shopEntity.ShopType = requestedType; shopEntity.MarkDirty(); }
+
+			// An unloaded trader picks this up in EntityBehaviorVillager's post-load init instead.
+			if (shopOwner != null) TraderShopType.ApplyForWorkstation(shopOwner, requestedType);
+
+			fromPlayer.Entity?.World.PlaySoundFor(new AssetLocation("sounds/effect/cashregister"), fromPlayer, randomizePitch: false, 32f, 0.25f);
+			Api.Logger.Debug("[VsVillage] Trader workstation at " + shopPos + " in '" + v.Name + "' set to shop type '" + requestedType + "' for " + shopCost + " gears.");
+			break;
+		}
+		}
+	}
+
+	// Unloaded guards keep the stale attributes; GuardDuty.ValidateAssignment clears those on next tick.
+	private void ReleaseGuardAttributes(long ownerId)
+	{
+		EntityBehaviorVillager beh = Api.World.GetEntityById(ownerId)?.GetBehavior<EntityBehaviorVillager>();
+		if (beh == null) return;
+		beh.GuardPost = null;
+		beh.GuardShift = EnumGuardShift.none;
+	}
+
+	private static int CountRustyGears(IServerPlayer player)
+	{
+		int total = 0;
+		foreach (IInventory inv in player.InventoryManager.Inventories.Values)
+		{
+			if (inv.ClassName == "creative") continue;
+			foreach (ItemSlot slot in inv)
+			{
+				if (slot?.Itemstack?.Collectible?.Code?.Path == "gear-rusty") total += slot.Itemstack.StackSize;
+			}
+		}
+		return total;
+	}
+
+	private static void TakeRustyGears(IServerPlayer player, int amount)
+	{
+		int taken = 0;
+		foreach (IInventory inv in player.InventoryManager.Inventories.Values)
+		{
+			if (inv.ClassName == "creative") continue;
+			foreach (ItemSlot slot in inv)
+			{
+				if (taken >= amount) break;
+				if (slot?.Itemstack?.Collectible?.Code?.Path != "gear-rusty") continue;
+				ItemStack removed = slot.TakeOut(Math.Min(slot.Itemstack.StackSize, amount - taken));
+				slot.MarkDirty();
+				taken += removed.StackSize;
+			}
+			if (taken >= amount) break;
 		}
 	}
 
@@ -900,4 +1327,10 @@ public class VillageManager : ModSystem
 		}
 		return result;
 	}
+}
+
+[ProtoContract]
+internal class VillageClaimState
+{
+	[ProtoMember(1)] public List<long> ClearedClaims { get; set; } = new List<long>();
 }

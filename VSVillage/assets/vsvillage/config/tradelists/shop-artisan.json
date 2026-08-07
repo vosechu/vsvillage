@@ -1,0 +1,1156 @@
+{
+    "money": {
+        "avg": 24,
+        "var": 4.8
+    },
+    "selling": {
+        "maxItems": 8,
+        "list": [
+            {
+                "code": "game:storagevessel-red-fired",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 6,
+                    "var": 1.5
+                },
+                "price": {
+                    "avg": 4,
+                    "var": 1
+                },
+                "attributes": {
+                    "type": "normal"
+                }
+            },
+            {
+                "code": "game:storagevessel-copper",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 4,
+                    "var": 1
+                },
+                "price": {
+                    "avg": 8,
+                    "var": 2
+                },
+                "attributes": {
+                    "type": "normal"
+                }
+            },
+            {
+                "code": "game:storagevessel-earthen",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 2,
+                    "var": 0.5
+                },
+                "price": {
+                    "avg": 8,
+                    "var": 2
+                },
+                "attributes": {
+                    "type": "normal"
+                }
+            },
+            {
+                "code": "game:storagevessel-ashforest",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 4,
+                    "var": 1
+                },
+                "price": {
+                    "avg": 6,
+                    "var": 1.5
+                },
+                "attributes": {
+                    "type": "normal"
+                }
+            },
+            {
+                "code": "game:storagevessel-rain",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 6,
+                    "var": 1.5
+                },
+                "attributes": {
+                    "type": "normal"
+                }
+            },
+            {
+                "code": "game:storagevessel-rime",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 6,
+                    "var": 1.5
+                },
+                "price": {
+                    "avg": 7,
+                    "var": 1.75
+                },
+                "attributes": {
+                    "type": "normal"
+                }
+            },
+            {
+                "code": "game:storagevessel-undergrowth",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 4,
+                    "var": 1
+                },
+                "price": {
+                    "avg": 7,
+                    "var": 1.75
+                },
+                "attributes": {
+                    "type": "normal"
+                }
+            },
+            {
+                "code": "game:storagevessel-oxblood",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 2,
+                    "var": 0.5
+                },
+                "price": {
+                    "avg": 8,
+                    "var": 2
+                },
+                "attributes": {
+                    "type": "normal"
+                }
+            },
+            {
+                "code": "game:storagevessel-seasalt",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 2,
+                    "var": 0.5
+                },
+                "price": {
+                    "avg": 8,
+                    "var": 2
+                },
+                "attributes": {
+                    "type": "normal"
+                }
+            },
+            {
+                "code": "game:storagevessel-honeydew",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 4,
+                    "var": 1
+                },
+                "price": {
+                    "avg": 6,
+                    "var": 1.5
+                },
+                "attributes": {
+                    "type": "normal"
+                }
+            },
+            {
+                "code": "game:storagevessel-beehive",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 4,
+                    "var": 1
+                },
+                "price": {
+                    "avg": 7,
+                    "var": 1.75
+                },
+                "attributes": {
+                    "type": "normal"
+                }
+            },
+            {
+                "code": "game:crock-blue-fired",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 8,
+                    "var": 2
+                },
+                "price": {
+                    "avg": 3,
+                    "var": 0.75
+                }
+            },
+            {
+                "code": "game:flowerpot-red-fired",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 10,
+                    "var": 2.5
+                },
+                "price": {
+                    "avg": 2,
+                    "var": 0.5
+                }
+            },
+            {
+                "code": "game:flowerpot-amber",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 6,
+                    "var": 1.5
+                },
+                "price": {
+                    "avg": 4,
+                    "var": 1
+                }
+            },
+            {
+                "code": "game:flowerpot-boneash",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 5,
+                    "var": 1.25
+                },
+                "price": {
+                    "avg": 3,
+                    "var": 0.75
+                }
+            },
+            {
+                "code": "game:flowerpot-celadon",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 6,
+                    "var": 1.5
+                },
+                "price": {
+                    "avg": 3,
+                    "var": 0.75
+                }
+            },
+            {
+                "code": "game:flowerpot-copper",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 4,
+                    "var": 1
+                },
+                "price": {
+                    "avg": 6,
+                    "var": 1.5
+                }
+            },
+            {
+                "code": "game:flowerpot-earthern",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 4,
+                    "var": 1
+                },
+                "price": {
+                    "avg": 6,
+                    "var": 1.5
+                }
+            },
+            {
+                "code": "game:flowerpot-moss",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 7,
+                    "var": 1.75
+                },
+                "price": {
+                    "avg": 5,
+                    "var": 1.25
+                }
+            },
+            {
+                "code": "game:flowerpot-ochre",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 7,
+                    "var": 1.75
+                },
+                "price": {
+                    "avg": 5,
+                    "var": 1.25
+                }
+            },
+            {
+                "code": "game:flowerpot-rutile",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 5,
+                    "var": 1.25
+                },
+                "price": {
+                    "avg": 5,
+                    "var": 1.25
+                }
+            },
+            {
+                "code": "game:flowerpot-seasalt",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 2,
+                    "var": 0.5
+                },
+                "price": {
+                    "avg": 7,
+                    "var": 1.75
+                }
+            },
+            {
+                "code": "game:flowerpot-tenmoku",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 5,
+                    "var": 1.25
+                },
+                "price": {
+                    "avg": 5,
+                    "var": 1.25
+                }
+            },
+            {
+                "code": "game:clayplanter-cream-fired",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 8,
+                    "var": 2
+                },
+                "price": {
+                    "avg": 3,
+                    "var": 0.75
+                }
+            },
+            {
+                "code": "game:clayplanter-amber",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 6,
+                    "var": 1.5
+                },
+                "price": {
+                    "avg": 5,
+                    "var": 1.25
+                }
+            },
+            {
+                "code": "game:clayplanter-ashforest",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 5,
+                    "var": 1.25
+                },
+                "price": {
+                    "avg": 5,
+                    "var": 1.25
+                }
+            },
+            {
+                "code": "game:clayplanter-copper",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 4,
+                    "var": 1
+                },
+                "price": {
+                    "avg": 7,
+                    "var": 1.75
+                }
+            },
+            {
+                "code": "game:clayplanter-earthern",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 4,
+                    "var": 1
+                },
+                "price": {
+                    "avg": 7,
+                    "var": 1.75
+                }
+            },
+            {
+                "code": "game:clayplanter-ochre",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 7,
+                    "var": 1.75
+                },
+                "price": {
+                    "avg": 6,
+                    "var": 1.5
+                }
+            },
+            {
+                "code": "game:clayplanter-rime",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 5,
+                    "var": 1.25
+                },
+                "price": {
+                    "avg": 6,
+                    "var": 1.5
+                }
+            },
+            {
+                "code": "game:clayplanter-tenmoku",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 5,
+                    "var": 1.25
+                },
+                "price": {
+                    "avg": 6,
+                    "var": 1.5
+                }
+            },
+            {
+                "code": "game:clayplanter-undergrowth",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 5,
+                    "var": 1.25
+                },
+                "price": {
+                    "avg": 6,
+                    "var": 1.5
+                }
+            },
+            {
+                "code": "game:tapestry-north",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 5,
+                    "var": 1.25
+                },
+                "attributes": {
+                    "type": "ambush1"
+                }
+            },
+            {
+                "code": "game:tapestry-north",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 5,
+                    "var": 1.25
+                },
+                "attributes": {
+                    "type": "ambush2"
+                }
+            },
+            {
+                "code": "game:tapestry-north",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 5,
+                    "var": 1.25
+                },
+                "attributes": {
+                    "type": "ambush3"
+                }
+            },
+            {
+                "code": "game:tapestry-north",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 5,
+                    "var": 1.25
+                },
+                "attributes": {
+                    "type": "nightfall1"
+                }
+            },
+            {
+                "code": "game:tapestry-north",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 5,
+                    "var": 1.25
+                },
+                "attributes": {
+                    "type": "nightfall2"
+                }
+            },
+            {
+                "code": "game:tapestry-north",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 5,
+                    "var": 1.25
+                },
+                "attributes": {
+                    "type": "nightfall3"
+                }
+            },
+            {
+                "code": "game:tapestry-north",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 7,
+                    "var": 1.75
+                },
+                "attributes": {
+                    "type": "themorning1"
+                }
+            },
+            {
+                "code": "game:tapestry-north",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 7,
+                    "var": 1.75
+                },
+                "attributes": {
+                    "type": "themorning2"
+                }
+            },
+            {
+                "code": "game:tapestry-north",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 7,
+                    "var": 1.75
+                },
+                "attributes": {
+                    "type": "themorning3"
+                }
+            },
+            {
+                "code": "game:tapestry-north",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 6,
+                    "var": 1.5
+                },
+                "attributes": {
+                    "type": "seraphim1"
+                }
+            },
+            {
+                "code": "game:tapestry-north",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 6,
+                    "var": 1.5
+                },
+                "attributes": {
+                    "type": "seraphim2"
+                }
+            },
+            {
+                "code": "game:tapestry-north",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 6,
+                    "var": 1.5
+                },
+                "attributes": {
+                    "type": "seraphim3"
+                }
+            },
+            {
+                "code": "game:tapestry-north",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 8,
+                    "var": 2
+                },
+                "attributes": {
+                    "type": "salvation11"
+                }
+            },
+            {
+                "code": "game:tapestry-north",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 8,
+                    "var": 2
+                },
+                "attributes": {
+                    "type": "salvation12"
+                }
+            },
+            {
+                "code": "game:tapestry-north",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 8,
+                    "var": 2
+                },
+                "attributes": {
+                    "type": "salvation21"
+                }
+            },
+            {
+                "code": "game:tapestry-north",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 8,
+                    "var": 2
+                },
+                "attributes": {
+                    "type": "salvation22"
+                }
+            },
+            {
+                "code": "game:tapestry-north",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 8,
+                    "var": 2
+                },
+                "attributes": {
+                    "type": "tempstorm11"
+                }
+            },
+            {
+                "code": "game:tapestry-north",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 8,
+                    "var": 2
+                },
+                "attributes": {
+                    "type": "tempstorm12"
+                }
+            },
+            {
+                "code": "game:tapestry-north",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 8,
+                    "var": 2
+                },
+                "attributes": {
+                    "type": "tempstorm21"
+                }
+            },
+            {
+                "code": "game:tapestry-north",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 8,
+                    "var": 2
+                },
+                "attributes": {
+                    "type": "tempstorm22"
+                }
+            },
+            {
+                "code": "game:claytile-fired-center-red",
+                "type": "item",
+                "stacksize": 16,
+                "stock": {
+                    "avg": 8,
+                    "var": 2
+                },
+                "price": {
+                    "avg": 8,
+                    "var": 2
+                }
+            },
+            {
+                "code": "game:claytile-fired-circle-red",
+                "type": "item",
+                "stacksize": 16,
+                "stock": {
+                    "avg": 8,
+                    "var": 2
+                },
+                "price": {
+                    "avg": 8,
+                    "var": 2
+                }
+            },
+            {
+                "code": "game:claytile-fired-plain-red",
+                "type": "item",
+                "stacksize": 16,
+                "stock": {
+                    "avg": 8,
+                    "var": 2
+                },
+                "price": {
+                    "avg": 8,
+                    "var": 2
+                }
+            }
+        ]
+    },
+    "buying": {
+        "maxItems": 8,
+        "list": [
+            {
+                "code": "game:clay-blue",
+                "type": "item",
+                "stacksize": 64,
+                "stock": {
+                    "avg": 3,
+                    "var": 0.75
+                },
+                "price": {
+                    "avg": 1,
+                    "var": 0.25
+                }
+            },
+            {
+                "code": "game:clay-fire",
+                "type": "item",
+                "stacksize": 32,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 1,
+                    "var": 0.25
+                }
+            },
+            {
+                "code": "game:fat",
+                "type": "item",
+                "stacksize": 8,
+                "stock": {
+                    "avg": 2,
+                    "var": 0.5
+                },
+                "price": {
+                    "avg": 1,
+                    "var": 0.25
+                }
+            },
+            {
+                "code": "game:beeswax",
+                "type": "item",
+                "stacksize": 6,
+                "stock": {
+                    "avg": 2,
+                    "var": 0.5
+                },
+                "price": {
+                    "avg": 1,
+                    "var": 0.25
+                }
+            },
+            {
+                "code": "game:ore-lapislazuli",
+                "type": "item",
+                "stacksize": 20,
+                "stock": {
+                    "avg": 4,
+                    "var": 1
+                },
+                "price": {
+                    "avg": 1,
+                    "var": 0.25
+                }
+            },
+            {
+                "code": "game:peatbrick",
+                "type": "block",
+                "stacksize": 24,
+                "stock": {
+                    "avg": 2,
+                    "var": 0.5
+                },
+                "price": {
+                    "avg": 1,
+                    "var": 0.25
+                }
+            },
+            {
+                "code": "game:charcoal",
+                "type": "item",
+                "stacksize": 12,
+                "stock": {
+                    "avg": 4,
+                    "var": 1
+                },
+                "price": {
+                    "avg": 1,
+                    "var": 0.25
+                }
+            },
+            {
+                "code": "game:storagevessel-chthonic",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 12,
+                    "var": 3
+                },
+                "attributes": {
+                    "type": "normal"
+                }
+            },
+            {
+                "code": "game:gem-emerald-rough",
+                "type": "item",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 6,
+                    "var": 1.5
+                },
+                "attributes": {
+                    "potential": "high"
+                }
+            },
+            {
+                "code": "game:gem-emerald-rough",
+                "type": "item",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 5,
+                    "var": 1.25
+                },
+                "attributes": {
+                    "potential": "medium"
+                }
+            },
+            {
+                "code": "game:gem-emerald-rough",
+                "type": "item",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 4,
+                    "var": 1.0
+                },
+                "attributes": {
+                    "potential": "low"
+                }
+            },
+            {
+                "code": "game:gem-diamond-rough",
+                "type": "item",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 5,
+                    "var": 1.25
+                },
+                "attributes": {
+                    "potential": "high"
+                }
+            },
+            {
+                "code": "game:gem-diamond-rough",
+                "type": "item",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 4,
+                    "var": 1.0
+                },
+                "attributes": {
+                    "potential": "medium"
+                }
+            },
+            {
+                "code": "game:gem-diamond-rough",
+                "type": "item",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 3,
+                    "var": 0.75
+                },
+                "attributes": {
+                    "potential": "low"
+                }
+            },
+            {
+                "code": "game:gem-olivine_peridot-rough",
+                "type": "item",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 5,
+                    "var": 1.25
+                },
+                "attributes": {
+                    "potential": "high"
+                }
+            },
+            {
+                "code": "game:gem-olivine_peridot-rough",
+                "type": "item",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 4,
+                    "var": 1.0
+                },
+                "attributes": {
+                    "potential": "medium"
+                }
+            },
+            {
+                "code": "game:gem-olivine_peridot-rough",
+                "type": "item",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 3,
+                    "var": 0.75
+                },
+                "attributes": {
+                    "potential": "low"
+                }
+            },
+            {
+                "code": "game:storagevessel-loam",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 9,
+                    "var": 2.25
+                },
+                "attributes": {
+                    "type": "normal"
+                }
+            },
+            {
+                "code": "game:clayplanter-loam",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 4,
+                    "var": 1
+                },
+                "price": {
+                    "avg": 7,
+                    "var": 1.75
+                }
+            },
+            {
+                "code": "game:clayplanter-cthonic",
+                "type": "block",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 4,
+                    "var": 1
+                },
+                "price": {
+                    "avg": 10,
+                    "var": 2.5
+                }
+            },
+            {
+                "code": "game:clothes-upperbody-reindeer-herder-collared-shirt",
+                "type": "item",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 12,
+                    "var": 3
+                }
+            },
+            {
+                "code": "game:clothes-upperbodyover-reindeer-herder-fur-coat",
+                "type": "item",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 14,
+                    "var": 3.5
+                }
+            },
+            {
+                "code": "game:hoovedwearables-blanket-herder",
+                "type": "item",
+                "stacksize": 1,
+                "stock": {
+                    "avg": 1,
+                    "var": 0.25
+                },
+                "price": {
+                    "avg": 10,
+                    "var": 2.5
+                }
+            }
+        ]
+    }
+}

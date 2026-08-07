@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
+using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
 using Vintagestory.API.Datastructures;
@@ -17,6 +18,11 @@ public static class VillagerHireRequirementChecker
     private const int VillageScanYPad = 10;
 
     private const int FarmlandPerFarmer = 20;
+
+    // Farmland is counted this far around each farmer workstation. Wide enough for a real field,
+    // small enough that the cost is independent of village radius.
+    private const int FarmlandScanRadius = 32;
+    private const int FarmlandScanYPad = 12;
     private const int AnimalsPerShepherd = 5;
 
     private const int MaxSmithsPerRoom = 2;
@@ -55,6 +61,8 @@ public static class VillagerHireRequirementChecker
             EnumVillagerProfession.soldier => CheckSoldier(workstationPos, village, api),
             EnumVillagerProfession.baker => CheckBaker(workstationPos, village, api),
             EnumVillagerProfession.builder => CheckBuilder(workstationPos, village, api),
+            EnumVillagerProfession.angler => CheckAngler(workstationPos, api),
+            EnumVillagerProfession.woodworker => CheckWoodworker(workstationPos, api),
             _ => null,
         };
     }
@@ -71,6 +79,8 @@ public static class VillagerHireRequirementChecker
             EnumVillagerProfession.soldier => CheckSoldier(wsPos, village, api),
             EnumVillagerProfession.baker => CheckBaker(wsPos, village, api),
             EnumVillagerProfession.builder => CheckBuilder(wsPos, village, api),
+            EnumVillagerProfession.angler => CheckAngler(wsPos, api),
+            EnumVillagerProfession.woodworker => CheckWoodworker(wsPos, api),
             _ => null
         };
     }
@@ -99,9 +109,9 @@ public static class VillagerHireRequirementChecker
         PenScanResult pen = ScanPen(wsPos, api);
 
         if (!pen.IsEnclosed)
-            return $"Shepherd workstation must be placed inside a pen enclosed by fence or gate blocks " +
-                   $"(no larger than {MaxPenRadius * 2 + 1}x{MaxPenRadius * 2 + 1} blocks). " +
-                   $"Place the workstation inside the fence line.";
+            return $"Shepherd workstation must be inside a pen enclosed by fence or gate blocks " +
+                   $"(no larger than {MaxPenRadius * 2 + 1}x{MaxPenRadius * 2 + 1} blocks), " +
+                   $"or inside an enclosed barn. Place it inside the fence line or the building.";
 
         if (!pen.HasTrough)
             return "The pen must contain at least one animal trough.";
@@ -129,10 +139,14 @@ public static class VillagerHireRequirementChecker
             .Count(ws => ws.Profession == EnumVillagerProfession.farmer && ws.OwnerId != -1);
         int required = (existingFarmers + 1) * FarmlandPerFarmer;
 
-        int found = CountBlocksInVillage(village, "farmland", api.World);
+        // Counted per farmer workstation rather than village-wide, matching how CheckShepherd
+        // sums per pen. The village-wide scan grew with the square of the radius (~119M block
+        // reads at radius 500) and let one distant field justify farmers who could never reach it.
+        int found = CountFarmlandNearFarmers(village, wsPos, api.World);
         if (found < required)
-            return $"Your village needs at least {required} farmland blocks to support {existingFarmers + 1} farmer(s). " +
-                   $"Found {found} within the village boundary. Till more soil or expand your fields.";
+            return $"Your village needs at least {required} farmland blocks within {FarmlandScanRadius} blocks " +
+                   $"of its farmer workstations to support {existingFarmers + 1} farmer(s). Found {found}. " +
+                   $"Till more soil near each workstation, or spread your farmers across the fields.";
 
         return null;
     }
@@ -143,9 +157,9 @@ public static class VillagerHireRequirementChecker
         PenScanResult localPen = ScanPen(wsPos, api);
 
         if (!localPen.IsEnclosed)
-            return $"Shepherd workstation must be placed inside a pen enclosed by fence or gate blocks " +
-                   $"(no larger than {MaxPenRadius * 2 + 1}x{MaxPenRadius * 2 + 1} blocks). " +
-                   $"Place the workstation inside the fence line.";
+            return $"Shepherd workstation must be inside a pen enclosed by fence or gate blocks " +
+                   $"(no larger than {MaxPenRadius * 2 + 1}x{MaxPenRadius * 2 + 1} blocks), " +
+                   $"or inside an enclosed barn. Place it inside the fence line or the building.";
 
         if (!localPen.HasTrough)
             return "The pen must contain at least one animal trough.";
@@ -168,21 +182,18 @@ public static class VillagerHireRequirementChecker
 
         IBlockAccessor ba = api.World.BlockAccessor;
         int totalTroughs = 0;
-        var mergedCells = new HashSet<(int x, int z)>();
+        var seenEntityIds = new HashSet<long>();
+        int totalAnimals = 0;
 
         foreach (BlockPos pos in shepherdPositions)
         {
-            HashSet<(int x, int z)> cells = GetPenCells(pos, ba);
-            if (cells.Count == 0) continue; // unenclosed - skip
+            HashSet<(int x, int z)> cells = GetPenCells(pos, api);
+            if (cells.Count == 0) continue;
 
             if (PenHasTrough(cells, pos, ba)) totalTroughs++;
 
-            foreach (var cell in cells)
-                mergedCells.Add(cell);
+            totalAnimals += CountAnimalsInCells(cells, pos, api, seenEntityIds);
         }
-
-        // Single deduplicated animal count across all pen cells.
-        int totalAnimals = CountAnimalsInCells(mergedCells, wsPos, village, api);
 
         int requiredTroughs = existingShepherds + 1;
         if (totalTroughs < requiredTroughs)
@@ -215,10 +226,10 @@ public static class VillagerHireRequirementChecker
     }
 
     // True if animalPos is inside the pen footprint reachable from wsPos via the same BFS the hire check validated.
-    public static bool IsAnimalInShepherdPen(BlockPos wsPos, BlockPos animalPos, IBlockAccessor ba)
+    public static bool IsAnimalInShepherdPen(BlockPos wsPos, BlockPos animalPos, ICoreAPI api)
     {
         if (wsPos == null || animalPos == null) return false;
-        HashSet<(int x, int z)> cells = GetPenCells(wsPos, ba);
+        HashSet<(int x, int z)> cells = GetPenCells(wsPos, api);
         if (cells.Count == 0) return false;
         return cells.Contains((animalPos.X, animalPos.Z));
     }
@@ -228,22 +239,23 @@ public static class VillagerHireRequirementChecker
     private static PenScanResult ScanPen(BlockPos wsPos, ICoreAPI api)
     {
         IBlockAccessor ba = api.World.BlockAccessor;
-        HashSet<(int x, int z)> cells = GetPenCells(wsPos, ba);
+        HashSet<(int x, int z)> cells = GetPenCells(wsPos, api);
 
         if (cells.Count == 0)
             return new PenScanResult(false, false, 0);
 
         bool hasTrough = PenHasTrough(cells, wsPos, ba);
-        int animalCount = CountAnimalsInCells(cells, wsPos, null, api);
+        int animalCount = CountAnimalsInCells(cells, wsPos, api);
 
         return new PenScanResult(true, hasTrough, animalCount);
     }
 
     // Returns the XZ cell footprint of the pen reachable from wsPos by BFS,
-    // bounded by fence/gate blocks and MaxPenRadius.
-    // Returns an empty set if the pen is unenclosed (BFS escapes the radius).
-    private static HashSet<(int x, int z)> GetPenCells(BlockPos wsPos, IBlockAccessor ba)
+    // bounded by fence/gate blocks and MaxPenRadius. Falls back to the enclosing room so a
+    // barn counts as a pen; returns empty if the workstation is neither fenced in nor indoors.
+    private static HashSet<(int x, int z)> GetPenCells(BlockPos wsPos, ICoreAPI api)
     {
+        IBlockAccessor ba = api.World.BlockAccessor;
         var visited = new HashSet<(int x, int z)>();
         var queue = new Queue<(int x, int z)>();
 
@@ -264,7 +276,7 @@ public static class VillagerHireRequirementChecker
 
                 if (Math.Abs(nx - wsPos.X) > MaxPenRadius ||
                     Math.Abs(nz - wsPos.Z) > MaxPenRadius)
-                    return new HashSet<(int x, int z)>(); // unenclosed
+                    return GetBarnCells(wsPos, api); // not fenced in - may still be an enclosed barn
 
                 if (visited.Contains((nx, nz))) continue;
                 visited.Add((nx, nz));
@@ -287,6 +299,33 @@ public static class VillagerHireRequirementChecker
         return visited;
     }
 
+    // Barn support: solid walls are not pen barriers, so the fence BFS always escapes indoors.
+    // Uses the room the workstation is in, which still demands a properly enclosed building.
+    private static HashSet<(int x, int z)> GetBarnCells(BlockPos wsPos, ICoreAPI api)
+    {
+        var cells = new HashSet<(int x, int z)>();
+        // Probe the air above the workstation: Room.Contains tests the flood fill's visited-air
+        // bitmask, so the air cell is the reliable anchor for extracting the footprint.
+        Room room = GetRoom(wsPos.UpCopy(), api);
+        if (room?.Location == null) return cells;
+
+        Cuboidi loc = room.Location;
+        BlockPos probe = new BlockPos(wsPos.dimension);
+        for (int x = loc.X1; x <= loc.X2; x++)
+        {
+            for (int z = loc.Z1; z <= loc.Z2; z++)
+            {
+                // Room.Contains is a per-position bitmask, so this is the true footprint, not the box.
+                for (int y = loc.Y1; y <= loc.Y2; y++)
+                {
+                    probe.Set(x, y, z);
+                    if (room.Contains(probe)) { cells.Add((x, z)); break; }
+                }
+            }
+        }
+        return cells;
+    }
+
     // Checks whether any block in the Y column (wsPos.Y +/- PenYScan) at any
     // cell in the set contains a trough.
     private static bool PenHasTrough(HashSet<(int x, int z)> cells, BlockPos wsPos, IBlockAccessor ba)
@@ -304,16 +343,14 @@ public static class VillagerHireRequirementChecker
     }
 
     // Counts livestock animals whose XZ position falls within the cell set.
-    // Uses the village centre for the broad entity query when available, wsPos otherwise.
-    private static int CountAnimalsInCells(HashSet<(int x, int z)> cells, BlockPos wsPos, Village village, ICoreAPI api)
+    private static int CountAnimalsInCells(HashSet<(int x, int z)> cells, BlockPos wsPos, ICoreAPI api, HashSet<long> seenIds = null)
     {
         if (cells.Count == 0) return 0;
 
-        BlockPos searchCenter = village?.Pos ?? wsPos;
-        float searchRadius = (village?.Radius ?? MaxPenRadius) + 2f;
+        float searchRadius = MaxPenRadius + 2f;
         float searchHeight = PenYScan + 14f;
 
-        Vec3d centerVec = new Vec3d(searchCenter.X + 0.5, searchCenter.Y + 0.5, searchCenter.Z + 0.5);
+        Vec3d centerVec = new Vec3d(wsPos.X + 0.5, wsPos.Y + 0.5, wsPos.Z + 0.5);
         Entity[] nearby = api.World.GetEntitiesAround(centerVec, searchRadius, searchHeight);
 
         int count = 0;
@@ -323,6 +360,7 @@ public static class VillagerHireRequirementChecker
             BlockPos ePos = e.Pos.XYZ.AsBlockPos;
             if (!cells.Contains((ePos.X, ePos.Z))) continue;
             if (Math.Abs(ePos.Y - wsPos.Y) > PenYScan + 2) continue;
+            if (seenIds != null && !seenIds.Add(e.EntityId)) continue;
             count++;
         }
         return count;
@@ -379,6 +417,7 @@ public static class VillagerHireRequirementChecker
             return (hit.Total, hit.Keys, hit.Values);
 
         BlockPos center = village.Pos;
+        int centerY = village.EffectiveCenterY();
         int r = village.Radius;
         // Y-pad scales with village radius capped at 75. Matches marketstall scan.
         // Prior hardcoded 10 missed terraced fields and mountain villages.
@@ -396,7 +435,7 @@ public static class VillagerHireRequirementChecker
             {
                 int dz = z - center.Z;
                 if (dx * dx + dz * dz > r * r) continue;
-                for (int y = center.Y - yPad; y <= center.Y + yPad; y++)
+                for (int y = centerY - yPad; y <= centerY + yPad; y++)
                 {
                     tmp.Set(x, y, z);
                     Block b = ba.GetBlock(tmp);
@@ -435,48 +474,41 @@ public static class VillagerHireRequirementChecker
         if (village?.Pos == null) return (0, new List<string>(), new List<int>());
 
         IBlockAccessor ba = api.World.BlockAccessor;
-
-        // Union all pen cell footprints first - overlapping pens share cells, not animals.
-        var mergedCells = new HashSet<(int x, int z)>();
-        BlockPos anyWsPos = null;
+        var seenEntityIds = new HashSet<long>();
+        var animalCounts = new Dictionary<string, int>();
+        int total = 0;
 
         foreach (VillagerWorkstation ws in village.Workstations.Values)
         {
             if (ws.Profession != EnumVillagerProfession.shepherd || ws.Pos == null) continue;
-            HashSet<(int x, int z)> cells = GetPenCells(ws.Pos, ba);
+            HashSet<(int x, int z)> cells = GetPenCells(ws.Pos, api);
             if (cells.Count == 0) continue;
-            foreach (var cell in cells)
-                mergedCells.Add(cell);
-            anyWsPos ??= ws.Pos;
+
+            float pr = MaxPenRadius + 2f;
+            float ph = PenYScan + 14f;
+            Vec3d penCenter = new Vec3d(ws.Pos.X + 0.5, ws.Pos.Y + 0.5, ws.Pos.Z + 0.5);
+            Entity[] penNearby = api.World.GetEntitiesAround(penCenter, pr, ph);
+
+            foreach (Entity e in penNearby)
+            {
+                if (!IsLivestockEntity(e)) continue;
+                BlockPos ePos = e.Pos.XYZ.AsBlockPos;
+                if (!cells.Contains((ePos.X, ePos.Z))) continue;
+                if (Math.Abs(ePos.Y - ws.Pos.Y) > PenYScan + 2) continue;
+                if (!seenEntityIds.Add(e.EntityId)) continue;
+
+                total++;
+                string epath = e.Code?.Path ?? "unknown";
+                string first = epath.Split('-')[0];
+                if (first.Length == 0) first = "unknown";
+                string name = char.ToUpper(first[0]) + first.Substring(1);
+                animalCounts.TryGetValue(name, out int cnt);
+                animalCounts[name] = cnt + 1;
+            }
         }
 
-        if (mergedCells.Count == 0 || anyWsPos == null)
+        if (total == 0)
             return (0, new List<string>(), new List<int>());
-
-        // Single entity query over the village boundary.
-        float searchRadius = village.Radius + 2f;
-        float searchHeight = VillageScanYPad + 14f;
-        Vec3d centerVec = new Vec3d(village.Pos.X + 0.5, village.Pos.Y + 0.5, village.Pos.Z + 0.5);
-        Entity[] nearby = api.World.GetEntitiesAround(centerVec, searchRadius, searchHeight);
-
-        var animalCounts = new Dictionary<string, int>();
-        int total = 0;
-
-        foreach (Entity e in nearby)
-        {
-            if (!IsLivestockEntity(e)) continue;
-            BlockPos ePos = e.Pos.XYZ.AsBlockPos;
-            if (!mergedCells.Contains((ePos.X, ePos.Z))) continue;
-            if (Math.Abs(ePos.Y - anyWsPos.Y) > PenYScan + 2) continue;
-
-            total++;
-            string epath = e.Code?.Path ?? "unknown";
-            string first = epath.Split('-')[0];
-            if (first.Length == 0) first = "unknown";
-            string name = char.ToUpper(first[0]) + first.Substring(1);
-            animalCounts.TryGetValue(name, out int cnt);
-            animalCounts[name] = cnt + 1;
-        }
 
         var keys = new List<string>(animalCounts.Keys);
         var values = new List<int>();
@@ -644,6 +676,19 @@ public static class VillagerHireRequirementChecker
 
     // Shared block/room helpers
 
+    // Vanilla caps the room flood fill at MAXROOMSIZE (14) per axis and counts the refused
+    // step as an exit. Location is an inclusive cuboid so SizeX is max-min, hence >= 13.
+    private static bool HitVanillaSizeCap(Room room)
+    {
+        Cuboidi loc = room.Location;
+        if (loc == null) return false;
+        return loc.SizeX >= 13 || loc.SizeY >= 13 || loc.SizeZ >= 13;
+    }
+
+    // Vanilla counts one sky/non-sky sample per XZ column, so this is a roof test.
+    // Matches EntityBehaviorBodyTemperature's own "is this sheltered" check.
+    private static bool IsMostlyRoofed(Room room) => room.NonSkylightCount > room.SkylightCount;
+
     private static Room GetRoom(BlockPos pos, ICoreAPI api)
     {
         try
@@ -651,7 +696,11 @@ public static class VillagerHireRequirementChecker
             Room room = api.ModLoader.GetModSystem<RoomRegistry>()?.GetRoomForPosition(pos);
             if (room == null) return null;
             if (!room.Contains(pos)) return null;
-            if (room.ExitCount > 0) return null;
+            // ExitCount counts literal open blocks, but vanilla also registers one per direction
+            // once the flood fill hits MAXROOMSIZE, so a genuinely sealed big room reads as open.
+            // Forgive that ONLY when the room actually hit the cap and is mostly roofed; anything
+            // at or under the cap keeps the strict walls-and-roof rule exactly as before.
+            if (room.ExitCount > 0 && !(HitVanillaSizeCap(room) && IsMostlyRoofed(room))) return null;
             return room;
         }
         catch
@@ -755,6 +804,43 @@ public static class VillagerHireRequirementChecker
             (b != null && b.LightHsv[2] > 0));
     }
 
+    // Farmland within FarmlandScanRadius of each farmer workstation, deduped so overlapping
+    // workstations cannot count the same tile twice and pass a quota they do not really meet.
+    // Bounded by workstation count, NOT by village radius.
+    private static int CountFarmlandNearFarmers(Village village, BlockPos candidateWs, IWorldAccessor world)
+    {
+        var positions = village.Workstations.Values
+            .Where(ws => ws.Profession == EnumVillagerProfession.farmer && ws.Pos != null)
+            .Select(ws => ws.Pos)
+            .ToList();
+        if (candidateWs != null && !positions.Any(p => p.Equals(candidateWs))) positions.Add(candidateWs);
+
+        IBlockAccessor ba = world.BlockAccessor;
+        var counted = new HashSet<(int x, int y, int z)>();
+        BlockPos tmp = new BlockPos(0);
+        int r = FarmlandScanRadius;
+
+        foreach (BlockPos ws in positions)
+        {
+            for (int dx = -r; dx <= r; dx++)
+            {
+                for (int dz = -r; dz <= r; dz++)
+                {
+                    if (dx * dx + dz * dz > r * r) continue;
+                    for (int dy = -FarmlandScanYPad; dy <= FarmlandScanYPad; dy++)
+                    {
+                        int x = ws.X + dx, y = ws.Y + dy, z = ws.Z + dz;
+                        if (counted.Contains((x, y, z))) continue;
+                        tmp.Set(x, y, z);
+                        Block b = ba.GetBlock(tmp);
+                        if (b?.Code?.Path?.Contains("farmland") == true) counted.Add((x, y, z));
+                    }
+                }
+            }
+        }
+        return counted.Count;
+    }
+
     private static int CountBlocksInVillage(Village village, string codeFragment, IWorldAccessor world)
     {
         long now = world.ElapsedMilliseconds;
@@ -763,6 +849,7 @@ public static class VillagerHireRequirementChecker
             return hit.Count;
 
         BlockPos center = village.Pos;
+        int centerY = village.EffectiveCenterY();
         int r = village.Radius;
         // Y-pad scales with village radius capped at 75. Matches marketstall scan.
         // Prior hardcoded 10 missed terraced fields and mountain villages.
@@ -778,7 +865,7 @@ public static class VillagerHireRequirementChecker
             {
                 int dz = z - center.Z;
                 if (dx * dx + dz * dz > r * r) continue;
-                for (int y = center.Y - yPad; y <= center.Y + yPad; y++)
+                for (int y = centerY - yPad; y <= centerY + yPad; y++)
                 {
                     tmp.Set(x, y, z);
                     Block b = ba.GetBlock(tmp);
@@ -878,5 +965,213 @@ public static class VillagerHireRequirementChecker
             }
         }
         return count;
+    }
+
+    // === Angler ===
+
+    private const int AnglerFishingSpotRadius = 30;
+    private const int AnglerSearchRadius = 70;
+    private const int AnglerWaterScanDown = 12;
+    private const int AnglerWaterScanUp = 6;
+    private const int MinFishableWaterColumns = 30;
+    private const int MinDeepFishableWaterColumns = 15;
+    private const int FishEntitySearchYPad = 18;
+    private const long FishScanCacheTtlMs = 60000;
+    private const int FishScanCacheSoftCap = 256;
+
+    private struct FishScanEntry { public long Stamp; public FishableWaterScanResult Result; }
+    private static readonly Dictionary<(int dimension, int x, int y, int z), FishScanEntry> _fishScanCache = new();
+
+    // Hire passes with either a water-adjacent fishingspot block (no volume requirement, so
+    // small docked ponds work) or a body of water meeting the ScanFishableWater thresholds.
+    private static string CheckAngler(BlockPos wsPos, ICoreAPI api)
+    {
+        if (HasFishingSpotAdjacentToWater(wsPos, api)) return null;
+        if (HasValidFishableWaterNearby(wsPos, api)) return null;
+        return Lang.Get("vsvillage:hire-requirement-angler", AnglerFishingSpotRadius, AnglerSearchRadius);
+    }
+
+    public static bool HasFishingSpotAdjacentToWater(BlockPos wsPos, ICoreAPI api)
+    {
+        IBlockAccessor ba = api.World.BlockAccessor;
+        int r = AnglerFishingSpotRadius;
+        BlockPos tmp = new BlockPos(0);
+        for (int dx = -r; dx <= r; dx++)
+        {
+            int sq = dx * dx;
+            for (int dz = -r; dz <= r; dz++)
+            {
+                int sqsum = sq + dz * dz;
+                if (sqsum > r * r) continue;
+                for (int dy = -3; dy <= 3; dy++)
+                {
+                    tmp.Set(wsPos.X + dx, wsPos.Y + dy, wsPos.Z + dz);
+                    Block b = ba.GetBlock(tmp);
+                    if (b?.Code?.Path?.Contains("fishingspot") != true) continue;
+                    if (FishingSpotHasWaterEdge(tmp, ba)) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static bool FishingSpotHasWaterEdge(BlockPos spotPos, IBlockAccessor ba)
+    {
+        BlockPos probe = new BlockPos(0);
+        for (int i = 0; i < 4; i++)
+        {
+            int dx = i == 0 ? 1 : i == 1 ? -1 : 0;
+            int dz = i == 2 ? 1 : i == 3 ? -1 : 0;
+            probe.Set(spotPos.X + dx, spotPos.Y, spotPos.Z + dz);
+            if (IsWaterFamilyBlock(ba.GetBlock(probe)) || IsWaterFamilyBlock(ba.GetBlock(probe, BlockLayersAccess.Fluid))) return true;
+            probe.Set(spotPos.X + dx, spotPos.Y - 1, spotPos.Z + dz);
+            if (IsWaterFamilyBlock(ba.GetBlock(probe)) || IsWaterFamilyBlock(ba.GetBlock(probe, BlockLayersAccess.Fluid))) return true;
+        }
+        return false;
+    }
+
+    private static bool IsWaterFamilyBlock(Block block)
+    {
+        string p = block?.Code?.Path;
+        if (string.IsNullOrEmpty(p)) return false;
+        return p.StartsWith("water-", StringComparison.OrdinalIgnoreCase)
+            || p.StartsWith("saltwater-", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static bool HasValidFishableWaterNearby(BlockPos wsPos, ICoreAPI api)
+    {
+        return ScanFishableWater(wsPos, api).IsValid;
+    }
+
+    private readonly struct FishableWaterScanResult
+    {
+        public readonly int FreshwaterColumns;
+        public readonly int SaltwaterColumns;
+        public readonly int DeepColumns;
+        public readonly int NearbyFishEntities;
+
+        public int TotalFishableColumns => FreshwaterColumns + SaltwaterColumns;
+        public bool IsValid => NearbyFishEntities > 0 || (TotalFishableColumns >= MinFishableWaterColumns && DeepColumns >= MinDeepFishableWaterColumns);
+
+        public FishableWaterScanResult(int freshwaterColumns, int saltwaterColumns, int deepColumns, int nearbyFishEntities)
+        {
+            FreshwaterColumns = freshwaterColumns;
+            SaltwaterColumns = saltwaterColumns;
+            DeepColumns = deepColumns;
+            NearbyFishEntities = nearbyFishEntities;
+        }
+    }
+
+    private static FishableWaterScanResult ScanFishableWater(BlockPos wsPos, ICoreAPI api)
+    {
+        if (wsPos == null || api?.World == null)
+            return new FishableWaterScanResult(0, 0, 0, 0);
+
+        long now = api.World.ElapsedMilliseconds;
+        var cacheKey = (wsPos.dimension, wsPos.X, wsPos.Y, wsPos.Z);
+        if (_fishScanCache.TryGetValue(cacheKey, out FishScanEntry cached)
+            && now - cached.Stamp <= FishScanCacheTtlMs)
+        {
+            return cached.Result;
+        }
+
+        IBlockAccessor ba = api.World.BlockAccessor;
+        int freshwaterColumns = 0;
+        int saltwaterColumns = 0;
+        int deepColumns = 0;
+        BlockPos tmp = new BlockPos(0);
+        BlockPos below = new BlockPos(0);
+
+        for (int x = wsPos.X - AnglerSearchRadius; x <= wsPos.X + AnglerSearchRadius; x++)
+        {
+            int dx = x - wsPos.X;
+            for (int z = wsPos.Z - AnglerSearchRadius; z <= wsPos.Z + AnglerSearchRadius; z++)
+            {
+                int dz = z - wsPos.Z;
+                if (dx * dx + dz * dz > AnglerSearchRadius * AnglerSearchRadius) continue;
+
+                bool hasFresh = false;
+                bool hasSalt = false;
+                bool hasDeep = false;
+
+                for (int y = wsPos.Y - AnglerWaterScanDown; y <= wsPos.Y + AnglerWaterScanUp; y++)
+                {
+                    tmp.Set(x, y, z);
+                    Block block = ba.GetBlock(tmp);
+
+                    if (IsFishableFreshwater(block))
+                    {
+                        hasFresh = true;
+                        below.Set(x, y - 1, z);
+                        hasDeep |= IsFishableWater(ba.GetBlock(below));
+                    }
+                    else if (IsFishableSaltwater(block))
+                    {
+                        hasSalt = true;
+                        below.Set(x, y - 1, z);
+                        hasDeep |= IsFishableWater(ba.GetBlock(below));
+                    }
+
+                    if ((hasFresh || hasSalt) && hasDeep)
+                        break;
+                }
+
+                if (hasFresh) freshwaterColumns++;
+                if (hasSalt) saltwaterColumns++;
+                if ((hasFresh || hasSalt) && hasDeep) deepColumns++;
+            }
+        }
+
+        Vec3d center = wsPos.ToVec3d().Add(0.5, 0.5, 0.5);
+        int fishCount = api.World.GetEntitiesAround(center, AnglerSearchRadius, FishEntitySearchYPad, IsFishEntity).Length;
+
+        FishableWaterScanResult result = new FishableWaterScanResult(
+            freshwaterColumns, saltwaterColumns, deepColumns, fishCount);
+
+        if (_fishScanCache.Count >= FishScanCacheSoftCap)
+        {
+            foreach (var staleKey in _fishScanCache
+                .Where(kvp => now - kvp.Value.Stamp > FishScanCacheTtlMs)
+                .Select(kvp => kvp.Key)
+                .ToList())
+            {
+                _fishScanCache.Remove(staleKey);
+            }
+            if (_fishScanCache.Count >= FishScanCacheSoftCap) _fishScanCache.Clear();
+        }
+        _fishScanCache[cacheKey] = new FishScanEntry { Stamp = now, Result = result };
+        return result;
+    }
+
+    private static bool IsFishEntity(Entity entity)
+    {
+        string path = entity?.Code?.Path;
+        return entity?.Alive == true && !string.IsNullOrEmpty(path) && path.StartsWith("fish-", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsFishableWater(Block block)
+    {
+        return IsFishableFreshwater(block) || IsFishableSaltwater(block);
+    }
+
+    private static bool IsFishableFreshwater(Block block)
+    {
+        return block?.Code?.Path?.Contains("water-still") == true;
+    }
+
+    private static bool IsFishableSaltwater(Block block)
+    {
+        return block?.Code?.Path?.Contains("saltwater-still") == true;
+    }
+
+    // === Woodworker ===
+
+    private const int WoodworkerSawhorseRadius = 6;
+
+    private static string CheckWoodworker(BlockPos wsPos, ICoreAPI api)
+    {
+        if (!HasBlockNearby(wsPos, WoodworkerSawhorseRadius, "sawhorse", api.World))
+            return Lang.Get("vsvillage:hire-requirement-woodworker", WoodworkerSawhorseRadius);
+        return null;
     }
 }

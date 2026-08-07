@@ -16,6 +16,8 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
     // === Config ===
     private readonly List<string> threatCodes = new List<string>();
     private readonly List<string> excludeSuffixes = new List<string>();
+    private readonly string onlyForEntitySuffix;
+    private readonly bool useShelter;
     private float seekingRange = 20f;
     private float fleeingDistance = 30f;
     private float moveSpeed = 0.015f;
@@ -62,6 +64,9 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
         fleeingDistance = taskConfig["fleeingDistance"].AsFloat(30f);
         moveSpeed = taskConfig["movespeed"].AsFloat(0.015f);
         fleeDurationMs = taskConfig["fleeDurationMs"].AsInt(12000);
+        _fleeScanIntervalMs = taskConfig["scanIntervalMs"].AsInt(300);
+        onlyForEntitySuffix = taskConfig["onlyForEntitySuffix"].AsString(null);
+        useShelter = taskConfig["useShelter"].AsBool(true);
 
         JsonObject[] codes = taskConfig["entityCodes"].AsArray();
         if (codes != null)
@@ -82,6 +87,10 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
             entity.World.GetCachingBlockAccessor(synchronize: false, relight: false),
             entity.World, entity);
     }
+
+    // === Scan throttle ===
+    private long _lastFleeScanMs;
+    private int _fleeScanIntervalMs = 300;
 
     // === Sleep-window hurt gate ===
 
@@ -114,14 +123,21 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
         if (threatCodes.Count == 0) return false;
         if (cooldownUntilMs > entity.World.ElapsedMilliseconds) return false;
 
-        // Skip for entity types that never flee (soldiers, archers).
         string myPath = entity.Code?.Path ?? "";
+        if (onlyForEntitySuffix != null && !myPath.EndsWith(onlyForEntitySuffix, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        // Skip entity types excluded from this particular flee task.
         foreach (string sfx in excludeSuffixes)
-            if (myPath.EndsWith(sfx)) return false;
+            if (myPath.EndsWith(sfx, StringComparison.OrdinalIgnoreCase)) return false;
 
         // Asleep villagers don't preemptively flee from prowling hostiles. Only run if
         // a hit has actually landed recently, otherwise they should keep sleeping.
         if (IsSleepHours() && !RecentlyHurt()) return false;
+
+        long nowFlee = entity.World.ElapsedMilliseconds;
+        if (nowFlee - _lastFleeScanMs < _fleeScanIntervalMs) return false;
+        _lastFleeScanMs = nowFlee;
 
         threat = entity.World.GetNearestEntity(
             entity.Pos.XYZ, seekingRange, MaxVertDetection,
@@ -150,7 +166,8 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
 
         // First try to find a shelter (barracks → bed room). If neither is
         // reachable, fall through to the original PANIC flee behaviour.
-        TryAcquireShelter();
+        if (useShelter)
+            TryAcquireShelter();
 
         if (shelterPos != null)
         {
@@ -275,7 +292,7 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
 
         // 2. Mayor station as the central village fallback. Almost always present.
         if (shelterPos == null && village?.Pos != null)
-            shelterPos = FindStandingPosNear(village.Pos.ToVec3d());
+            shelterPos = FindStandingPosNear(village.EffectiveCenter());
 
         // 3. Bed room (a standing tile next to the villager's bed).
         if (shelterPos == null && vb?.Bed != null)
@@ -424,7 +441,7 @@ public class AiTaskVillagerFleeEntity : AiTaskBase
                 (int)(myPos.Z + fdz * legDist));
 
             // Stay inside village radius. Skip any angle that lands outside.
-            if (village?.Pos != null && village.Pos.DistanceSqTo(dest.X, dest.Y, dest.Z) > villageRadiusSq) continue;
+            if (village?.Pos != null && village.Pos.HorDistanceSqTo(dest.X, dest.Z) > villageRadiusSq) continue;
 
             List<VillagerPathNode> path = pathfinder.FindPath(startPos, dest, 1200);
             if (path != null && path.Count > 1)

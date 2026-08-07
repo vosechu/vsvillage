@@ -91,7 +91,7 @@ public class AiTaskTravellingTraderLeave : AiTaskBase
         }
 
         // If already outside 55 blocks of village centre, just despawn now.
-        double currentDist = entity.Pos.XYZ.DistanceTo(village.Pos.ToVec3d());
+        double currentDist = entity.Pos.XYZ.DistanceTo(village.EffectiveCenter());
         if (currentDist > ExitDist)
         {
             entity.World.Logger.Debug($"[TravellingTraderLeave:{entity.EntityId}] Already outside village - notifying behavior.");
@@ -189,7 +189,7 @@ public class AiTaskTravellingTraderLeave : AiTaskBase
     {
         IBlockAccessor ba = entity.World.BlockAccessor;
         Vec3d myPos = entity.Pos.XYZ;
-        Vec3d centre = village.Pos.ToVec3d();
+        Vec3d centre = village.EffectiveCenter();
         double baseAngle = Math.Atan2(myPos.Z - centre.Z, myPos.X - centre.X);
         for (int attempt = 0; attempt < 10; attempt++)
         {
@@ -198,7 +198,7 @@ public class AiTaskTravellingTraderLeave : AiTaskBase
             double angle = baseAngle + sign * spread;
             int tx = village.Pos.X + (int)(Math.Cos(angle) * ExitDist);
             int tz = village.Pos.Z + (int)(Math.Sin(angle) * ExitDist);
-            BlockPos surface = FindSurface(ba, new BlockPos(tx, village.Pos.Y, tz, 0));
+            BlockPos surface = FindSurface(ba, new BlockPos(tx, village.EffectiveCenterY(), tz, 0));
             if (surface != null)
             {
                 return surface;

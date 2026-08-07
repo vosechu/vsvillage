@@ -59,7 +59,7 @@ public class AiTaskMechHelperReturnToBase : AiTaskGotoAndInteract
         foreach (Village v in vm.Villages.Values)
         {
             if (v.Pos == null) continue;
-            double d = selfPos.SquareDistanceTo(v.Pos.ToVec3d());
+            double d = selfPos.SquareDistanceTo(v.EffectiveCenter());
             if (d < bestD)
             {
                 bestD = d;

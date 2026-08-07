@@ -22,7 +22,9 @@
                 "herbalist",
                 "trader",
                 "baker",
-                "builder"
+                "builder",
+                "angler",
+                "woodworker"
             ]
         },
         {

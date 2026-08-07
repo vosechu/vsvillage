@@ -128,11 +128,62 @@ public static class DoorPathHelper
 		return p.Contains("opened") || p.Contains("open");
 	}
 
-	// Delayed close with queue-awareness for doors (gates close immediately). Doors re-schedule up to MaxScheduleDepth
-	// times when a trailing villager is within TrailingVillagerRadius, so queued villagers don't get doors slammed.
+	// Doors always get this long to stay open regardless of the caller-supplied delay - villagers/queues
+	// need more breathing room than a flat 3-5s. Gates use the caller-supplied delay, scaled by cluster width.
+	public const int DoorAutoCloseMs = 8000;
+
+	// Counts adjacent door/gate cells in the 3x3x3 cube around pos (inclusive of centre).
+	// Used to scale gate close delay - wider multi-cell gates need longer for villagers to pass through.
+	private static int CountGateClusterSize(IBlockAccessor ba, BlockPos pos)
+	{
+		int n = 0;
+		BlockPos scan = new BlockPos(0);
+		for (int dx = -ClusterScanRadius; dx <= ClusterScanRadius; dx++)
+		for (int dy = -ClusterScanRadius; dy <= ClusterScanRadius; dy++)
+		for (int dz = -ClusterScanRadius; dz <= ClusterScanRadius; dz++)
+		{
+			scan.Set(pos.X + dx, pos.Y + dy, pos.Z + dz);
+			if (IsDoorOrGate(ba.GetBlock(scan))) n++;
+		}
+		return n;
+	}
+
+	// Delayed close with queue-awareness for doors (gates close on their scaled delay, no trailing-villager check
+	// since gate delay is already widened for cluster size). Doors re-schedule up to MaxScheduleDepth times when
+	// a trailing villager is within TrailingVillagerRadius, so queued villagers don't get doors slammed.
 	public static void ScheduleDoorClose(EntityAgent caller, BlockPos doorPos, int delayMs)
 	{
 		if (caller == null || doorPos == null) return;
+		IBlockAccessor ba = caller.World.BlockAccessor;
+		Block block = ba.GetBlock(doorPos);
+
+		if (block is BlockMultiblock mb)
+		{
+			BlockPos anchorPos = doorPos.AddCopy(mb.OffsetInv);
+			Block anchorBlock = ba.GetBlock(anchorPos);
+			if (IsDoorOrGate(anchorBlock))
+			{
+				doorPos = anchorPos;
+				block = anchorBlock;
+			}
+		}
+
+		if (!IsDoorOrGate(block)) return;
+
+		bool isDoor = IsDoor(block);
+		if (isDoor)
+		{
+			delayMs = DoorAutoCloseMs;
+		}
+		else
+		{
+			int clusterSize = CountGateClusterSize(ba, doorPos);
+			if (clusterSize > 1)
+			{
+				delayMs *= (clusterSize + 1) / 2; // ceil(N/2)
+			}
+		}
+
 		ScheduleCloseWithDepth(caller, doorPos, delayMs, depth: 0);
 	}
 

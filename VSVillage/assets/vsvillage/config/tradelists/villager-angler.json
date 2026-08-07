@@ -1,0 +1,86 @@
+{
+    "money": {
+        "avg": 15,
+        "var": 5
+    },
+    "selling": {
+        "maxItems": 6,
+        "list": [
+            {
+                "code": "game:fishraw-saltwater-herring-atlantic-adult",
+                "type": "item",
+                "stacksize": 4,
+                "stock": { "avg": 8, "var": 3 },
+                "price": { "avg": 1, "var": 0.5 }
+            },
+            {
+                "code": "game:fishraw-saltwater-mackerel-atlantic-adult",
+                "type": "item",
+                "stacksize": 4,
+                "stock": { "avg": 6, "var": 3 },
+                "price": { "avg": 1, "var": 0.5 }
+            },
+            {
+                "code": "game:fishraw-freshwater-trout-rainbow-adult",
+                "type": "item",
+                "stacksize": 2,
+                "stock": { "avg": 4, "var": 2 },
+                "price": { "avg": 3, "var": 1 }
+            },
+            {
+                "code": "game:fishraw-freshwater-salmon-coho-adult",
+                "type": "item",
+                "stacksize": 2,
+                "stock": { "avg": 4, "var": 2 },
+                "price": { "avg": 3, "var": 1 }
+            },
+            {
+                "code": "game:fishraw-freshwater-perch-yellow-adult",
+                "type": "item",
+                "stacksize": 4,
+                "stock": { "avg": 6, "var": 3 },
+                "price": { "avg": 1, "var": 0.5 }
+            },
+            {
+                "code": "game:fishraw-freshwater-carp-common-adult",
+                "type": "item",
+                "stacksize": 4,
+                "stock": { "avg": 6, "var": 3 },
+                "price": { "avg": 1, "var": 0.5 }
+            }
+        ]
+    },
+    "buying": {
+        "maxItems": 4,
+        "list": [
+            {
+                "code": "game:grain-rice",
+                "type": "item",
+                "stacksize": 8,
+                "stock": { "avg": 12, "var": 4 },
+                "price": { "avg": 1, "var": 0.5 }
+            },
+            {
+                "code": "game:salt",
+                "type": "item",
+                "stacksize": 8,
+                "stock": { "avg": 8, "var": 3 },
+                "price": { "avg": 1, "var": 0.5 }
+            },
+            {
+                "code": "game:fat",
+                "type": "item",
+                "stacksize": 4,
+                "stock": { "avg": 6, "var": 2 },
+                "price": { "avg": 1, "var": 0.5 }
+            },
+            {
+                "code": "game:fishingbait-dough",
+                "type": "item",
+                "stacksize": 4,
+                "stock": { "avg": 6, "var": 2 },
+                "price": { "avg": 1, "var": 0.5 }
+            }
+        ]
+    }
+}

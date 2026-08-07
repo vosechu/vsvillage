@@ -6,5 +6,10 @@
     "ingameerror-not-enough-gears": "Hiring a villager costs 5 gears, you don't seem to have enough.",
     "ingameerror-not-enough-food": "There is not enough people providing food in the village, try hiring more shepherds and farmers.",
     "ingameerror-not-enough-workstations": "There is no free workstation for that type of villager.",
-    "ingameerror-not-enough-beds": "There is no free bed for this villager."
+    "ingameerror-not-enough-beds": "There is no free bed for this villager.",
+
+    "ingameerror-shoptype-not-enough-gears": "Changing this shop's type costs {0} gears, you don't seem to have enough.",
+    "ingameerror-shoptype-busy": "Someone is trading with this shop right now. Try again once they are done.",
+    "ingameerror-shoptype-invalid": "That is not a shop type this trader can take on.",
+    "ingameerror-shoptype-wrong-workstation": "Only trader workstations have a shop type."
 }

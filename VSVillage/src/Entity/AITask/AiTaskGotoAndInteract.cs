@@ -42,11 +42,20 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
     // if still blocked, fall back to a path that ignores crowd avoidance.
     private long blockedSinceMs;
     private bool blockedRepathTried;
+
+    // Consecutive AttemptRepath failures. Past the cap the task abandons instead of rerunning a
+    // full-budget A* every 3s, which pinned the server whenever a target was unreachable.
+    private int repathFailures;
+    private const int MaxRepathFailures = 3;
     private bool crowdAvoidanceDisabledForThisPath;
 
     // Scheduled gather tasks (mayor meetup, brazier socialize) override to false
     // because N villagers converging on one point would deadlock the avoidance.
     protected virtual bool RespectCrowdAvoidance => true;
+
+    // Sentry tasks override to true to stay at the target instead of ending when the interact
+    // animation stops. Such a task must end itself; nothing below will end it for it.
+    protected virtual bool HoldAtTarget => false;
 
     // Far from the workstation: subclasses can call this from GetTargetPos to redirect
     // there first. Avoids long bedroom-to-workpiece pathfinds that fail under crowd
@@ -203,6 +212,7 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
         }
         blockedSinceMs = 0;
         blockedRepathTried = false;
+        repathFailures = 0;
         crowdAvoidanceDisabledForThisPath = false;
         base.StartExecute();
     }
@@ -290,8 +300,9 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
             // interactAnim which can be sticky/looping - without this cap the
             // task never ends and the villager freezes at the destination for
             // the rest of the day.
-            if (entity.World.ElapsedMilliseconds - targetReachedAtMs > maxInteractionMs)
+            if (!HoldAtTarget && entity.World.ElapsedMilliseconds - targetReachedAtMs > maxInteractionMs)
                 return false;
+            if (HoldAtTarget) return true;
             return entity.AnimManager.IsAnimationActive(interactAnim.Code);
         }
         if (!targetReached && targetPos != null && currentPath != null)
@@ -582,11 +593,23 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
             currentPath = newPath;
             currentPathIndex = 0;
             stuck = false;
+            repathFailures = 0;
+            return;
         }
-        else
+
+        // Tier 2, same ladder StartExecute uses. The waypoint graph exists precisely for hops the
+        // direct A* budget cannot span; the retry path never used it, so a villager with a distant
+        // target reran a doomed exhaustive search every 3s while waypoints sat unused.
+        if (TryWaypointRoute(startPos, targetPos.AsBlockPos))
         {
-            entity.World.Logger.Warning("[VsVillage] Pathfinder: no alternative path found for entity " + entity.EntityId);
+            repathFailures = 0;
+            return;
         }
+
+        entity.World.Logger.Warning("[VsVillage] Pathfinder: no alternative path found for entity " + entity.EntityId);
+
+        // Abandon so the priority system can switch tasks, the same idiom HandlePathTraversal uses.
+        if (++repathFailures >= MaxRepathFailures) stuck = true;
     }
 
     // Fallback used after one avoidance-aware repath fails to clear the blockage.
@@ -627,9 +650,9 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
         // Only fire when villager is outside the village. Targets unreachable from
         // inside (walled-off bed) don't benefit from a mid-village teleport.
         double radiusSq = village.Radius * (double)village.Radius;
-        if (village.Pos.DistanceSqTo(entity.Pos.X, entity.Pos.Y, entity.Pos.Z) < radiusSq) return false;
+        if (village.Pos.HorDistanceSqTo(entity.Pos.X, entity.Pos.Z) < radiusSq) return false;
 
-        Vec3d dest = FindStandingPosNearMayor(village.Pos.ToVec3d());
+        Vec3d dest = FindStandingPosNearMayor(village.EffectiveCenter());
         if (dest == null) return false;
 
         entity.TeleportTo(dest);

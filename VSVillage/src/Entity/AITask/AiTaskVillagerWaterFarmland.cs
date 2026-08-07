@@ -10,14 +10,14 @@ public class AiTaskVillagerWaterFarmland : AiTaskGotoAndInteract
 {
 	private BlockEntityFarmland nearestFarmland;
 
-	private Dictionary<BlockPos, long> recentlyWateredFarmland;
+	// Shared across every farmer, same reason as the cultivate cooldown.
+	private static readonly Dictionary<BlockPos, long> recentlyWateredFarmland = new Dictionary<BlockPos, long>();
 
 	private long waterCooldownMs;
 
 	public AiTaskVillagerWaterFarmland(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
 		: base(entity, taskConfig, aiConfig)
 	{
-		recentlyWateredFarmland = new Dictionary<BlockPos, long>();
 		waterCooldownMs = ((taskConfig["waterCooldownSeconds"] != null) ? (taskConfig["waterCooldownSeconds"].AsInt(30) * 1000) : 30000);
 	}
 
@@ -33,7 +33,10 @@ public class AiTaskVillagerWaterFarmland : AiTaskGotoAndInteract
 		POIRegistry poiReg = entity.Api.ModLoader.GetModSystem<POIRegistry>();
 		BlockEntityFarmland driestFarmland = null;
 		float lowestMoisture = float.MaxValue;
-		poiReg.GetNearestPoi(entity.Pos.XYZ, base.maxDistance, delegate(IPointOfInterest poi)
+		// Anchored on the farmer's own workstation so farmers split the field between them.
+		BlockPos ownWs = entity.GetBehavior<EntityBehaviorVillager>()?.Workstation;
+		Vec3d searchFrom = ownWs != null ? ownWs.ToVec3d().Add(0.5, 0.0, 0.5) : entity.Pos.XYZ;
+		poiReg.GetNearestPoi(searchFrom, base.maxDistance, delegate(IPointOfInterest poi)
 		{
 			if (!(poi is BlockEntityFarmland blockEntityFarmland))
 			{

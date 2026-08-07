@@ -40,4 +40,8 @@ public class VillageAssignmentContext
 	// -1 means no stats available (other professions, or beds).
 	[ProtoMember(6)]
 	public int WorkstationResourceCount = -1;
+
+	// True when the clicked block is a guard post. Mutually exclusive with IsBed.
+	[ProtoMember(7)]
+	public bool IsGuardPost;
 }

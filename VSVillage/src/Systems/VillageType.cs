@@ -43,4 +43,7 @@ public class VillageType
 
 	[JsonProperty]
 	public float MaxForest = 1f;
+
+	[JsonProperty]
+	public int MaxHeightRange = 28;
 }

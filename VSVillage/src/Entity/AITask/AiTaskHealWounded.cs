@@ -1,4 +1,4 @@
-using Vintagestory.API.Common;
+﻿using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
@@ -109,12 +109,12 @@ public class AiTaskHealWounded : AiTaskGotoAndInteract
 		{
 			if (woundedEntity.Alive)
 			{
+				// No SourceEntity: GetCauseEntity falls back to it, so third-party aggro AI
+				// reads the herbalist as an attacker. Vanilla heal items set neither field.
 				woundedEntity.ReceiveDamage(new DamageSource
 				{
 					DamageTier = 0,
-					HitPosition = woundedEntity.Pos.XYZ,
 					Source = EnumDamageSource.Internal,
-					SourceEntity = entity,
 					Type = EnumDamageType.Heal
 				}, 100f);
 			}

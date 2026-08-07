@@ -8,9 +8,9 @@
 	"textureSizes": {
 	},
 	"textures": {
-		"back": "block/wood/sign/back",
-		"sign": "block/wood/signpost/front",
-		"paper": "item/lore/item-paper"
+		"back": "game:block/wood/sign/back",
+		"sign": "game:block/wood/signpost/front",
+		"paper": "game:item/lore/item-paper"
 	},
 	"elements": [
 		{

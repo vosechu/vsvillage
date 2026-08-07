@@ -101,23 +101,23 @@ public class AiTaskVillagerWander : AiTaskBase
 			double dist  = 2.0 + entity.World.Rand.NextDouble() * effectiveRange;
 			BlockPos candidate = wanderCenter.AddCopy((int)(Math.Cos(angle) * dist), 0, (int)(Math.Sin(angle) * dist));
 
-			// Find the surface at that XZ position.
-			for (int dy = 5; dy >= -5; dy--)
-			{
-				BlockPos check = candidate.AddCopy(0, dy, 0);
-				if (entity.World.BlockAccessor.GetBlock(check).SideSolid[BlockFacing.UP.Index]
-					&& (entity.World.BlockAccessor.GetBlock(check.UpCopy()).CollisionBoxes == null
-						|| entity.World.BlockAccessor.GetBlock(check.UpCopy()).CollisionBoxes.Length == 0))
-				{
-					candidate = check.UpCopy();
-					break;
-				}
-			}
+			// Find the surface at that XZ position. Uneven terrain (cliffs, valleys) can put
+			// the true surface well outside a stale wanderCenter Y, so scan a wide vertical
+			// range and skip this candidate entirely rather than pathfind to a bad Y.
+			BlockPos surface = FindSurfaceY(candidate);
+			if (surface == null) continue;
+			candidate = surface;
 
-			pathfinder.blockAccessor.Begin();
-			pathfinder.SetEntityCollisionBox(entity);
-			currentPath = pathfinder.FindPath(startPos, candidate, 500);
-			pathfinder.blockAccessor.Commit();
+			try
+			{
+				pathfinder.blockAccessor.Begin();
+				pathfinder.SetEntityCollisionBox(entity);
+				currentPath = pathfinder.FindPath(startPos, candidate, 500);
+			}
+			finally
+			{
+				pathfinder.blockAccessor.Commit();
+			}
 
 			if (currentPath != null && currentPath.Count > 5)
 			{
@@ -235,15 +235,38 @@ public class AiTaskVillagerWander : AiTaskBase
 		stuckCheckTime = now;
 	}
 
+	private BlockPos FindSurfaceY(BlockPos candidate)
+	{
+		BlockPos check = candidate.Copy();
+		for (int y = (int)entity.Pos.Y + 20; y >= 0; y--)
+		{
+			check.Y = y;
+			if (entity.World.BlockAccessor.GetBlock(check).SideSolid[BlockFacing.UP.Index]
+				&& (entity.World.BlockAccessor.GetBlock(check.UpCopy()).CollisionBoxes == null
+					|| entity.World.BlockAccessor.GetBlock(check.UpCopy()).CollisionBoxes.Length == 0))
+			{
+				return check.UpCopy();
+			}
+		}
+		return null;
+	}
+
 	private void AttemptRepath()
 	{
 		if (targetPos == null) return;
 
-		pathfinder.blockAccessor.Begin();
-		pathfinder.SetEntityCollisionBox(entity);
-		BlockPos startPos = pathfinder.GetStartPos(entity.Pos.XYZ);
-		List<VillagerPathNode> newPath = pathfinder.FindPath(startPos, targetPos.AsBlockPos, 500);
-		pathfinder.blockAccessor.Commit();
+		List<VillagerPathNode> newPath;
+		try
+		{
+			pathfinder.blockAccessor.Begin();
+			pathfinder.SetEntityCollisionBox(entity);
+			BlockPos startPos = pathfinder.GetStartPos(entity.Pos.XYZ);
+			newPath = pathfinder.FindPath(startPos, targetPos.AsBlockPos, 500);
+		}
+		finally
+		{
+			pathfinder.blockAccessor.Commit();
+		}
 		if (newPath != null && newPath.Count > 0)
 		{
 			currentPath = newPath;

@@ -64,10 +64,14 @@ public abstract class AiTaskVillagerBakerBase : AiTaskGotoAndInteract
         return false;
     }
 
-    // Returns true if the oven has at least one empty bakeable slot.
+    // Vanilla oven slot 0 is the fuel slot AND bakeable slot 0 - it "cannot hold both fuel
+    // and baking items at the same time". Dough there blocks refuelling, so never write it.
+    protected const int FirstDoughSlot = 1;
+
+    // Returns true if the oven has at least one empty dough slot (slot 0 excluded, it is fuel).
     protected static bool HasEmptyBakeableSlot(BlockEntityOven oven)
     {
-        for (int i = 0; i < oven.bakeableCapacity; i++)
+        for (int i = FirstDoughSlot; i < oven.bakeableCapacity; i++)
             if (oven.Inventory[i].Empty) return true;
         return false;
     }
@@ -100,7 +104,7 @@ public abstract class AiTaskVillagerBakerBase : AiTaskGotoAndInteract
         if (doughItem == null) return;
 
         bool changed = false;
-        for (int i = 0; i < oven.bakeableCapacity; i++)
+        for (int i = FirstDoughSlot; i < oven.bakeableCapacity; i++)
         {
             ItemSlot slot = oven.Inventory[i];
             if (slot.Empty)

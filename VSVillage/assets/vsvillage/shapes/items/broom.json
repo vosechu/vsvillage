@@ -8,11 +8,10 @@
 	"textureSizes": {
 	},
 	"textures": {
-"string": "item/resource/string",
-		"material": "block/metal/ingot/copper",
-		"handle": "item/tool/handle",
-"bundle": "block/hay/bundle",
-		"string": "item/resource/string"
+"string": "game:item/resource/string",
+		"material": "game:block/metal/ingot/copper",
+		"handle": "game:item/tool/handle",
+"bundle": "game:block/hay/bundle"
 	},
 	"elements": [
 		{

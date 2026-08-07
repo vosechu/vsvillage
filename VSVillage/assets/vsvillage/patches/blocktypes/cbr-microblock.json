@@ -1,14 +1,17 @@
 // Makes vanilla microblocks count as room walls for heat retention.
-// Mirrors ChiseledBlockRetention by Rythillian. Disable via villageconfig.json
+// Skipped entirely when Rythillian's ChiseledBlockRetention (modid "cbr") is installed,
+// which does the same job. Otherwise disable via villageconfig.json
 // ChiseledBlocksCountAsWalls=false (handled in ChiseledBlockLeniencySystem.cs).
 [
     {
+        "dependsOn": [{ "modid": "cbr", "invert": true }],
         "file": "game:blocktypes/chiseled/microblock.json",
         "op": "remove",
         "path": "/sidesolid/all",
         "side": "server"
     },
     {
+        "dependsOn": [{ "modid": "cbr", "invert": true }],
         "file": "game:blocktypes/chiseled/microblock.json",
         "op": "add",
         "path": "/sidesolid/down",
@@ -16,6 +19,7 @@
         "side": "server"
     },
     {
+        "dependsOn": [{ "modid": "cbr", "invert": true }],
         "file": "game:blocktypes/chiseled/microblock.json",
         "op": "add",
         "path": "/sidesolid/east",
@@ -23,6 +27,7 @@
         "side": "server"
     },
     {
+        "dependsOn": [{ "modid": "cbr", "invert": true }],
         "file": "game:blocktypes/chiseled/microblock.json",
         "op": "add",
         "path": "/sidesolid/north",
@@ -30,6 +35,7 @@
         "side": "server"
     },
     {
+        "dependsOn": [{ "modid": "cbr", "invert": true }],
         "file": "game:blocktypes/chiseled/microblock.json",
         "op": "add",
         "path": "/sidesolid/south",
@@ -37,6 +43,7 @@
         "side": "server"
     },
     {
+        "dependsOn": [{ "modid": "cbr", "invert": true }],
         "file": "game:blocktypes/chiseled/microblock.json",
         "op": "add",
         "path": "/sidesolid/up",
@@ -44,6 +51,7 @@
         "side": "server"
     },
     {
+        "dependsOn": [{ "modid": "cbr", "invert": true }],
         "file": "game:blocktypes/chiseled/microblock.json",
         "op": "add",
         "path": "/sidesolid/west",

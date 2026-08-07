@@ -154,7 +154,9 @@ public class ManagementGui : GuiDialog
 				.AddButton(Lang.Get("vsvillage:management-hire-herbalist"), () => hireVillager(capi, "herbalist"), ElementBounds.Fixed(220.0, 100.0, 200.0, 30.0))
 				.AddButton(Lang.Get("vsvillage:management-hire-archer"), () => hireVillager(capi, "archer", EnumVillagerProfession.soldier), ElementBounds.Fixed(0.0, 140.0, 200.0, 30.0))
 				.AddButton(Lang.Get("vsvillage:management-hire-baker"), () => hireVillager(capi, "baker"), ElementBounds.Fixed(220.0, 140.0, 200.0, 30.0))
-				.AddButton(Lang.Get("vsvillage:management-hire-builder"), () => hireVillager(capi, "builder"), ElementBounds.Fixed(0.0, 180.0, 200.0, 30.0));
+				.AddButton(Lang.Get("vsvillage:management-hire-builder"), () => hireVillager(capi, "builder"), ElementBounds.Fixed(0.0, 180.0, 200.0, 30.0))
+				.AddButton(Lang.Get("vsvillage:management-hire-angler"), () => hireVillager(capi, "angler"), ElementBounds.Fixed(220.0, 180.0, 200.0, 30.0))
+				.AddButton(Lang.Get("vsvillage:management-hire-woodworker"), () => hireVillager(capi, "woodworker"), ElementBounds.Fixed(0.0, 220.0, 200.0, 30.0));
 			break;
 		case 2:
 		{
@@ -238,17 +240,17 @@ public class ManagementGui : GuiDialog
 		VillagerWorkstation villagerWorkstation = village.Workstations.Values.ToList().Find((VillagerWorkstation candidate) => candidate.Pos.ToString().Equals(code));
 		if (villagerWorkstation != null)
 		{
-			return Lang.Get("vsvillage:management-structure-note", Lang.Get("vsvillage:" + villagerWorkstation.Profession), capi.World.GetEntityById(villagerWorkstation.OwnerId)?.GetBehavior<EntityBehaviorNameTag>()?.DisplayName ?? Lang.Get("vsvillage:nobody"), BlockPosToString(villagerWorkstation.Pos, capi));
+			return Lang.Get("vsvillage:management-structure-note", Lang.Get("vsvillage:management-structure-workstation", Lang.Get("vsvillage:management-profession-" + villagerWorkstation.Profession)), capi.World.GetEntityById(villagerWorkstation.OwnerId)?.GetBehavior<EntityBehaviorNameTag>()?.DisplayName ?? Lang.Get("vsvillage:nobody"), BlockPosToString(villagerWorkstation.Pos, capi));
 		}
 		VillagerBed villagerBed = village.Beds.Values.ToList().Find((VillagerBed candidate) => candidate.Pos.ToString().Equals(code));
 		if (villagerBed != null)
 		{
-			return Lang.Get("vsvillage:management-structure-note", Lang.Get("vsvillage:bed"), capi.World.GetEntityById(villagerBed.OwnerId)?.GetBehavior<EntityBehaviorNameTag>()?.DisplayName ?? Lang.Get("vsvillage:nobody"), BlockPosToString(villagerBed.Pos, capi));
+			return Lang.Get("vsvillage:management-structure-note", Lang.Get("vsvillage:management-structure-bed"), capi.World.GetEntityById(villagerBed.OwnerId)?.GetBehavior<EntityBehaviorNameTag>()?.DisplayName ?? Lang.Get("vsvillage:nobody"), BlockPosToString(villagerBed.Pos, capi));
 		}
 		BlockPos blockPos = village.Gatherplaces.ToList().Find((BlockPos candidate) => candidate.ToString().Equals(code));
 		if (blockPos != null)
 		{
-			return Lang.Get("vsvillage:management-structure-note", Lang.Get("vsvillage:gatherplace"), Lang.Get("vsvillage:everybody"), BlockPosToString(blockPos, capi));
+			return Lang.Get("vsvillage:management-structure-note", Lang.Get("vsvillage:management-structure-gatherplace"), Lang.Get("vsvillage:everybody"), BlockPosToString(blockPos, capi));
 		}
 		return null;
 	}
@@ -405,7 +407,7 @@ public class ManagementGui : GuiDialog
 	private static bool HasMechhelper(Village village, ICoreClientAPI capi)
 	{
 		if (village?.Pos == null) return false;
-		Vec3d centre = village.Pos.ToVec3d().Add(0.5, 0.5, 0.5);
+		Vec3d centre = village.EffectiveCenter().Add(0.5, 0.5, 0.5);
 		Entity[] keepers = capi.World.GetEntitiesAround(centre, 60f, 20f,
 			e => e.Code?.Domain == "vsvillage" && e.Code?.Path == "village-mechhelper" && e.Alive);
 		return keepers != null && keepers.Length > 0;
@@ -420,8 +422,8 @@ public class ManagementGui : GuiDialog
 		IBlockAccessor ba = capi.World.BlockAccessor;
 		// Must match TravellingTraderManager.ScanForMarketStallBlock or the GUI lies about placement.
 		int r = Math.Min(village.Radius, 75);
-		int dyMax = Math.Min(village.Radius, 75);
-		int cy = village.Pos.Y;
+		int dyMax = 8;
+		int cy = village.EffectiveCenterY();
 		BlockPos tmp = new BlockPos(0);
 		for (int dx = -r; dx <= r; dx++)
 		{

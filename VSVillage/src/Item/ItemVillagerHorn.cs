@@ -49,7 +49,7 @@ public class ItemVillagerHorn : Item
 			if (byEntity is EntityPlayer ep)
 			{
 				IServerPlayer sp = ep.Player as IServerPlayer;
-				sp?.SendMessage(GlobalConstants.GeneralChatGroup,
+				sp?.SendMessage(GlobalConstants.InfoLogChatGroup,
 					Lang.Get("vsvillage:horn-mechhelper-exists"),
 					EnumChatType.Notification);
 			}

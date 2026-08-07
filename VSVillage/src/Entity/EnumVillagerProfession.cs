@@ -10,5 +10,7 @@ public enum EnumVillagerProfession
 	herbalist,
 	trader,
 	baker,
-	builder
+	builder,
+	angler,
+	woodworker
 }

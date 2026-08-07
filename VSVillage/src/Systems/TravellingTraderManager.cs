@@ -39,6 +39,10 @@ public class TravellingTraderManager : ModSystem
     {
         [ProtoMember(1)]
         public Dictionary<string, TraderEntry> Active;
+
+        // Per-village TotalHours of the last spawn, drives the revisit cooldown. Added after Active; never renumber.
+        [ProtoMember(2)]
+        public Dictionary<string, double> LastVisit;
     }
 
     private const string SaveDataKey = "vsvillage_travellingtraders";
@@ -52,6 +56,10 @@ public class TravellingTraderManager : ModSystem
 
     private const float SpawnChancePerTick = 0.2f;
 
+    // Minimum in-game days between trader visits to the same village. Caps cadence
+    // regardless of player count or tick volume, so busy servers can't rush the next visit.
+    private const double RevisitCooldownDays = 7.0;
+
     private const int TickIntervalMs = 180000;
 
     private const float SpawnHourMin = 5f;
@@ -62,6 +70,9 @@ public class TravellingTraderManager : ModSystem
 
     // GetActiveStallPos reads from the AI thread while OnTick/TrySpawn/etc write on main thread, so use ConcurrentDictionary.
     private readonly ConcurrentDictionary<string, TraderEntry> _active = new ConcurrentDictionary<string, TraderEntry>();
+
+    // Per-village TotalHours of the last spawn. Persisted so the cooldown survives restarts and chunk unloads.
+    private readonly ConcurrentDictionary<string, double> _lastVisitHours = new ConcurrentDictionary<string, double>();
 
     private ICoreServerAPI _sapi;
 
@@ -91,9 +102,15 @@ public class TravellingTraderManager : ModSystem
             byte[] data = _sapi.WorldManager.SaveGame.GetData(SaveDataKey);
             if (data == null || data.Length < 2) return;
             PersistedState state = SerializerUtil.Deserialize<PersistedState>(data);
-            if (state?.Active == null) return;
-            int restored = 0;
+            if (state == null) return;
             double nowHours = _sapi.World.Calendar.TotalHours;
+            if (state.LastVisit != null)
+            {
+                foreach (var kvp in state.LastVisit)
+                    if (!string.IsNullOrEmpty(kvp.Key)) _lastVisitHours[kvp.Key] = kvp.Value;
+            }
+            if (state.Active == null) return;
+            int restored = 0;
             foreach (var kvp in state.Active)
             {
                 if (kvp.Value == null || string.IsNullOrEmpty(kvp.Key)) continue;
@@ -103,6 +120,9 @@ public class TravellingTraderManager : ModSystem
                 // real spawn time, which is bounded by the same 30h cap anyway.
                 if (kvp.Value.SpawnedTotalHours <= 0.0) kvp.Value.SpawnedTotalHours = nowHours;
                 _active[kvp.Key] = kvp.Value;
+                // Seed the cooldown from an in-progress visit so it counts even on saves from before LastVisit existed.
+                if (!_lastVisitHours.TryGetValue(kvp.Key, out double lv) || kvp.Value.SpawnedTotalHours > lv)
+                    _lastVisitHours[kvp.Key] = kvp.Value.SpawnedTotalHours;
                 restored++;
             }
             if (restored > 0)
@@ -112,6 +132,7 @@ public class TravellingTraderManager : ModSystem
         {
             _sapi.Logger.Error($"[TravellingTraderManager] SaveGameLoaded: failed to deserialize active state: {ex.Message}");
             _active.Clear();
+            _lastVisitHours.Clear();
         }
     }
 
@@ -122,7 +143,8 @@ public class TravellingTraderManager : ModSystem
             // Snapshot the dict so concurrent OnTick mutations don't corrupt the serialized bytes.
             PersistedState state = new PersistedState
             {
-                Active = new Dictionary<string, TraderEntry>(_active)
+                Active = new Dictionary<string, TraderEntry>(_active),
+                LastVisit = new Dictionary<string, double>(_lastVisitHours)
             };
             _sapi.WorldManager.SaveGame.StoreData(SaveDataKey, SerializerUtil.Serialize(state));
         }
@@ -237,12 +259,13 @@ public class TravellingTraderManager : ModSystem
         }
         float hour = _sapi.World.Calendar.HourOfDay;
         bool isMorning = hour >= 5f && hour <= 10f;
+        if (!isMorning) return;
+        double cooldownHours = RevisitCooldownDays * _sapi.World.Calendar.HoursPerDay;
         foreach (Village village in vm.Villages.Values)
         {
-            if (!_active.ContainsKey(village.Id) && village.Beds.Count != 0 && village.Workstations.Count != 0 && isMorning && _sapi.World.Rand.NextDouble() <= 0.20)
-            {
-                TrySpawn(village);
-            }
+            if (_active.ContainsKey(village.Id) || village.Beds.Count == 0 || village.Workstations.Count == 0) continue;
+            if (_lastVisitHours.TryGetValue(village.Id, out double last) && nowHours - last < cooldownHours) continue;
+            if (_sapi.World.Rand.NextDouble() <= 0.20) TrySpawn(village);
         }
     }
 
@@ -334,11 +357,16 @@ public class TravellingTraderManager : ModSystem
             VillageId = village.Id,
             SpawnedTotalHours = _sapi.World.Calendar.TotalHours
         };
+        // Start the revisit cooldown from this spawn. Force-spawns count too, by design.
+        _lastVisitHours[village.Id] = _sapi.World.Calendar.TotalHours;
 
         _sapi.Logger.Notification($"[TravellingTraderManager] Spawned {traderCode} (id {traderEntity.EntityId}) + guard (id {guardEntity.EntityId}) for village {village.Id}. Stall: {stallPos}. Visit ends at {visitEnd:F1} h.");
-        string traderName = traderEntity.GetBehavior<EntityBehaviorNameTag>()?.DisplayName ?? "a travelling trader";
-        string villageName = ((!string.IsNullOrWhiteSpace(village.Name)) ? village.Name : Lang.Get("vsvillage:trader-village-unknown"));
-        _sapi.BroadcastMessageToAllGroups(Lang.Get("vsvillage:trader-arriving", traderName, villageName), EnumChatType.Notification);
+        if (_sapi.ModLoader.GetModSystem<VillageGenerator>()?.Config?.ShowTravellingTraderMessages ?? true)
+        {
+            string traderName = traderEntity.GetBehavior<EntityBehaviorNameTag>()?.DisplayName ?? "a travelling trader";
+            string villageName = ((!string.IsNullOrWhiteSpace(village.Name)) ? village.Name : Lang.Get("vsvillage:trader-village-unknown"));
+            _sapi.BroadcastMessageToAllGroups(Lang.Get("vsvillage:trader-arriving", traderName, villageName), EnumChatType.Notification);
+        }
     }
 
     private BlockPos FindMarketStallPos(Village village)
@@ -352,8 +380,8 @@ public class TravellingTraderManager : ModSystem
     private BlockPos ScanForMarketStallBlock(Village village, IBlockAccessor ba)
     {
         int r = Math.Min(village.Radius, MarketStallScanRadius);
-        int dyMax = Math.Min(village.Radius, MarketStallScanRadius);
-        int cy = village.Pos.Y;
+        int dyMax = 8;
+        int cy = village.EffectiveCenterY();
         BlockPos tmp = new BlockPos(0);
         for (int dx = -r; dx <= r; dx++)
         {
@@ -387,7 +415,7 @@ public class TravellingTraderManager : ModSystem
             double dist = baseRadius + (_sapi.World.Rand.NextDouble() * 4.0 - 2.0);
             int x = village.Pos.X + (int)(Math.Cos(angle) * dist);
             int z = village.Pos.Z + (int)(Math.Sin(angle) * dist);
-            BlockPos candidate = new BlockPos(x, village.Pos.Y, z, 0);
+            BlockPos candidate = new BlockPos(x, village.EffectiveCenterY(), z, 0);
             candidate = FindSurface(ba, candidate);
             if (candidate != null)
             {
@@ -406,6 +434,7 @@ public class TravellingTraderManager : ModSystem
             Block floor = ba.GetBlock(check);
             Block space = ba.GetBlock(check.UpCopy());
             Block head = ba.GetBlock(check.UpCopy().UpCopy());
+            if (floor == null || space == null || head == null) continue;
             bool hasFloor = floor.CollisionBoxes != null && floor.CollisionBoxes.Length != 0;
             // Visually-solid blocks with no collision (leaves, vines, cobwebs) would let
             // the spawn pass the original CollisionBoxes test and the trader would appear

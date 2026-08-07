@@ -18,6 +18,8 @@ public class AiTaskTravellingGuardStand : AiTaskBase
 
 	private const int MaxTimesStuck = 4;
 
+	private const int MaxFailuresBeforeTeleport = 5;
+
 	private VillagerAStarNew _pathfinder;
 
 	private List<VillagerPathNode> _path;
@@ -37,6 +39,10 @@ public class AiTaskTravellingGuardStand : AiTaskBase
 	private int _timesStuck;
 
 	private long _arrivedAt;
+
+	// Survives FinishExecute, unlike _timesStuck. The trader can teleport to an otherwise
+	// unreachable stall, so the guard needs its own way out or it is orphaned in the field.
+	private int _consecutiveFailures;
 
 	public AiTaskTravellingGuardStand(EntityAgent entity, JsonObject taskConfig, JsonObject aiConfig)
 		: base(entity, taskConfig, aiConfig)
@@ -96,8 +102,19 @@ public class AiTaskTravellingGuardStand : AiTaskBase
 		_pathfinder.blockAccessor.Commit();
 		if (_path == null || _path.Count == 0)
 		{
-			entity.World.Logger.Warning($"[TG:{entity.EntityId}] GuardStand: no path to post {_target}.");
+			_consecutiveFailures++;
+			entity.World.Logger.Warning($"[TG:{entity.EntityId}] GuardStand: no path to post {_target} (attempt {_consecutiveFailures}).");
 			_stuck = true;
+
+			Vec3d safe = FindStandableAdjacentPos(stallPos);
+			if (_consecutiveFailures >= MaxFailuresBeforeTeleport && safe != null)
+			{
+				entity.TeleportTo(safe);
+				entity.World.Logger.Warning($"[TG:{entity.EntityId}] GuardStand: post unreachable, teleported to {safe}.");
+				_consecutiveFailures = 0;
+				_stuck = false;
+				ArriveAtPost();
+			}
 		}
 		else
 		{
@@ -105,6 +122,7 @@ public class AiTaskTravellingGuardStand : AiTaskBase
 			_pathIdx = 0;
 			_lastPos = entity.Pos.XYZ.Clone();
 			_stuckCheckTime = entity.World.ElapsedMilliseconds;
+			_consecutiveFailures = 0;
 		}
 	}
 
@@ -156,22 +174,31 @@ public class AiTaskTravellingGuardStand : AiTaskBase
 		entity.World.Logger.Debug($"[TG:{entity.EntityId}] GuardStand: arrived at post.");
 	}
 
-	private Vec3d FindAdjacentPos(BlockPos stall)
+	// Same as FindAdjacentPos but returns null instead of the unvalidated on-stall fallback,
+	// so a teleport never drops the guard inside the stall block.
+	private Vec3d FindStandableAdjacentPos(BlockPos stall)
 	{
 		IBlockAccessor ba = entity.World.BlockAccessor;
-		BlockFacing[] hORIZONTALS = BlockFacing.HORIZONTALS;
-		foreach (BlockFacing facing in hORIZONTALS)
+		foreach (BlockFacing facing in BlockFacing.HORIZONTALS)
 		{
 			BlockPos nb = stall.AddCopy(facing.Normali.X, 0, facing.Normali.Z);
 			Block atPos = ba.GetBlock(nb);
 			Block above = ba.GetBlock(nb.UpCopy());
 			Block below = ba.GetBlock(nb.DownCopy());
-			if ((atPos.CollisionBoxes == null || atPos.CollisionBoxes.Length == 0) && (above.CollisionBoxes == null || above.CollisionBoxes.Length == 0) && below.CollisionBoxes != null && below.CollisionBoxes.Length != 0)
+			if (atPos == null || above == null || below == null) continue;
+			if ((atPos.CollisionBoxes == null || atPos.CollisionBoxes.Length == 0)
+				&& (above.CollisionBoxes == null || above.CollisionBoxes.Length == 0)
+				&& below.CollisionBoxes != null && below.CollisionBoxes.Length != 0)
 			{
 				return nb.ToVec3d().Add(0.5, 0.0, 0.5);
 			}
 		}
-		return stall.ToVec3d().Add(0.5, 1.0, 0.5);
+		return null;
+	}
+
+	private Vec3d FindAdjacentPos(BlockPos stall)
+	{
+		return FindStandableAdjacentPos(stall) ?? stall.ToVec3d().Add(0.5, 1.0, 0.5);
 	}
 
 	private void StepPath()
