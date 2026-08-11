@@ -1179,16 +1179,20 @@ public class VillageManager : ModSystem
 				fromPlayer.SendIngameError("hire-requirements-not-met", requirementError);
 				return false;
 			}
-			if (profession != EnumVillagerProfession.farmer && profession != EnumVillagerProfession.shepherd)
+			// Anglers are exempt so a coastal or poor-soil start can open with one,
+			// the way an inland start opens with a farmer.
+			if (profession != EnumVillagerProfession.farmer && profession != EnumVillagerProfession.shepherd
+				&& profession != EnumVillagerProfession.angler)
 			{
 				List<EntityBehaviorVillager> list = village.Villagers.Where((EntityBehaviorVillager v) => v != null).ToList();
 				int farmers = list.Count((EntityBehaviorVillager v) => v.Profession == EnumVillagerProfession.farmer);
 				int shepherds = list.Count((EntityBehaviorVillager v) => v.Profession == EnumVillagerProfession.shepherd);
+				int anglers = list.Count((EntityBehaviorVillager v) => v.Profession == EnumVillagerProfession.angler);
 				int bakers = list.Count((EntityBehaviorVillager v) => v.Profession == EnumVillagerProfession.baker);
-				// Tuning: farmer feeds 3 (themselves + 2 others), shepherd feeds 2,
-				// baker contributes 1. Previously farmer + shepherd grouped at 2 each,
-				// which was too grindy for the early village ramp.
-				if (3 * farmers + 2 * shepherds + bakers - list.Count <= 0)
+				// Tuning: farmer feeds 3 (themselves + 2 others), shepherd and angler 2,
+				// baker contributes 1. Angler sits at 2 rather than 3 because CheckAngler
+				// has no per-angler requirement the way farmland and livestock quotas do.
+				if (3 * farmers + 2 * shepherds + 2 * anglers + bakers - list.Count <= 0)
 				{
 					fromPlayer.SendIngameError("not-enough-food", null);
 					return false;
