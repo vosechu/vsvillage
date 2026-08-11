@@ -18,4 +18,8 @@ public class VillageConfig
 
 	// Announce shepherd tamings to nearby players. False silences them.
 	public bool ShowTamingMessages = true;
+
+	// Land-claim villages that generated before claims existed. Off by default: on an established
+	// world this locks players out of bases they already built inside generated villages.
+	public bool BackfillClaimsOnExistingVillages = false;
 }

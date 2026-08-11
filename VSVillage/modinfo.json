@@ -7,7 +7,7 @@
         "G3rste", "Kareener", "Roushk", "Mira Leaps"
     ],
     "description": "Mod that focuses on implementing a Village System and Villagers.",
-    "version": "6.0.3",
+    "version": "6.0.4",
     "dependencies": {
         "game": "*"
     }

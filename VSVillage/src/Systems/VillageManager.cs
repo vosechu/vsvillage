@@ -52,10 +52,10 @@ public class VillageManager : ModSystem
 		api.Event.OnTestBlockAccess += OnTestBlockAccess;
 		api.Event.SaveGameLoaded += delegate
 		{
-			LoadClearedClaims(api);
+			LoadBackfilledClaims(api);
 		};
-		// Backfills worlds generated before claims existed, and restores the claim for any
-		// generated village whose region has since been unloaded and loaded again.
+		// Subscribed unconditionally: VillageGenerator owns the config and starts after this
+		// ModSystem, so the opt-in is read inside the handler, not here.
 		api.Event.MapRegionLoaded += delegate(Vec2i mapCoord, IMapRegion region)
 		{
 			ClaimGeneratedVillages(api, region);
@@ -67,11 +67,11 @@ public class VillageManager : ModSystem
 	// needing the village loaded, which for a worldgen village only happens in its gen session.
 	private const long VillageClaimTag = -8265L;
 
-	private const string ClearedClaimsKey = "vsvillage-clearedclaims";
+	private const string BackfilledClaimsKey = "vsvillage-backfilledclaims";
 
-	// Footprints an admin cleared with /vsvillage unclaim, or that went with a destroyed village.
-	// Without this the map-region sweep would put the claim straight back.
-	private readonly HashSet<long> clearedVillageClaims = new HashSet<long>();
+	// Footprints the backfill has already claimed once. A footprint is never claimed twice, so an
+	// admin removing a claim by any means keeps it removed instead of it returning on region load.
+	private readonly HashSet<long> backfilledVillageClaims = new HashSet<long>();
 
 	// Worldgen village claims set AllowUseEveryone so players can walk in and trade, but vanilla
 	// only reads that flag in GetBlockingLandClaimant - TestPlayerAccess still reports Denied, so
@@ -112,17 +112,19 @@ public class VillageManager : ModSystem
 		return EnumWorldAccessResponse.LandClaimed;
 	}
 
-	// Registers a claim for every generated village recorded in this region. The generator writes
-	// that record itself, so it is the one marker that survives without the village object - which
-	// for a worldgen village is never reloaded from disk once its session ends.
+	// Opt-in and off by default: on an established world this locks players out of bases already
+	// built inside a generated village. Each footprint is claimed at most once ever, so a removal
+	// is not undone by the next region load.
 	private void ClaimGeneratedVillages(ICoreServerAPI sapi, IMapRegion region)
 	{
 		if (region?.GeneratedStructures == null) return;
+		if (!(sapi.ModLoader.GetModSystem<VillageGenerator>()?.Config?.BackfillClaimsOnExistingVillages ?? false)) return;
+
 		foreach (GeneratedStructure gs in region.GeneratedStructures)
 		{
 			if (gs.Group != "village" || gs.Location == null) continue;
-			// The village name is not in the structure record, so a village generated before this
-			// existed falls back to a generic label. Live ones already claimed under their own name.
+			if (!backfilledVillageClaims.Add(ClaimKey(gs.Location.MinX, gs.Location.MinZ))) continue;
+			// The structure record has no name, so a backfilled claim falls back to a generic label.
 			RegisterVillageClaim(sapi, gs.Location.MinX, gs.Location.MinZ, gs.Location.MaxX, gs.Location.MaxZ,
 				Lang.Get("vsvillage:landclaim-village"));
 		}
@@ -134,11 +136,10 @@ public class VillageManager : ModSystem
 		RegisterVillageClaim(sapi, village.ClaimStart.X, village.ClaimStart.Z, village.ClaimEnd.X, village.ClaimEnd.Z, village.Name);
 	}
 
-	private void RegisterVillageClaim(ICoreServerAPI sapi, int x1, int z1, int x2, int z2, string name)
+	private static void RegisterVillageClaim(ICoreServerAPI sapi, int x1, int z1, int x2, int z2, string name)
 	{
 		int minX = Math.Min(x1, x2), maxX = Math.Max(x1, x2);
 		int minZ = Math.Min(z1, z2), maxZ = Math.Max(z1, z2);
-		if (clearedVillageClaims.Contains(ClaimKey(minX, minZ))) return;
 		if (FindVillageClaim(sapi, minX, minZ, maxX, maxZ) != null) return;
 
 		sapi.World.Claims.Add(new LandClaim
@@ -164,7 +165,6 @@ public class VillageManager : ModSystem
 
 		LandClaim claim = FindVillageClaim(sapi, minX, minZ, maxX, maxZ);
 		if (claim == null) return false;
-		clearedVillageClaims.Add(ClaimKey(minX, minZ));
 		return sapi.World.Claims.Remove(claim);
 	}
 
@@ -192,31 +192,20 @@ public class VillageManager : ModSystem
 		return ((long)minX << 32) | (uint)minZ;
 	}
 
-	private void LoadClearedClaims(ICoreServerAPI sapi)
+	private void LoadBackfilledClaims(ICoreServerAPI sapi)
 	{
-		clearedVillageClaims.Clear();
+		backfilledVillageClaims.Clear();
 		try
 		{
-			VillageClaimState state = sapi.WorldManager.SaveGame.GetData<VillageClaimState>(ClearedClaimsKey);
-			if (state?.ClearedClaims == null) return;
-			foreach (long key in state.ClearedClaims) clearedVillageClaims.Add(key);
-
-			// Not assuming this runs before the first region load: drop anything the region
-			// sweep may already have put back.
-			foreach (LandClaim claim in sapi.World.Claims.All.ToList())
-			{
-				if (claim.OwnedByEntityId != VillageClaimTag) continue;
-				foreach (Cuboidi area in claim.Areas)
-				{
-					if (!clearedVillageClaims.Contains(ClaimKey(area.MinX, area.MinZ))) continue;
-					sapi.World.Claims.Remove(claim);
-					break;
-				}
-			}
+			VillageClaimState state = sapi.WorldManager.SaveGame.GetData<VillageClaimState>(BackfilledClaimsKey);
+			if (state?.ClaimedFootprints == null) return;
+			foreach (long key in state.ClaimedFootprints) backfilledVillageClaims.Add(key);
 		}
 		catch (Exception ex)
 		{
-			sapi.Logger.Error("[VsVillage] Could not read cleared village claims; admin-removed claims may come back. " + ex.Message);
+			// Losing the set means the backfill treats every footprint as new, so a claim an admin
+			// removed could come back once. Loud, because that is the failure people notice.
+			sapi.Logger.Error("[VsVillage] Could not read backfilled village claims; a removed village claim may be re-added once. " + ex.Message);
 		}
 	}
 
@@ -327,7 +316,6 @@ public class VillageManager : ModSystem
 				if (!api.World.Claims.Remove(target))
 					return TextCommandResult.Error("Failed to remove the land claim on '" + name + "'.");
 
-				foreach (Cuboidi area in target.Areas) clearedVillageClaims.Add(ClaimKey(area.MinX, area.MinZ));
 				return TextCommandResult.Success("Removed the land claim on '" + name + "'.");
 			})
 			.EndSubCommand();
@@ -501,8 +489,8 @@ public class VillageManager : ModSystem
 
 	private void OnSave(ICoreServerAPI sapi)
 	{
-		sapi.WorldManager.SaveGame.StoreData(ClearedClaimsKey,
-			new VillageClaimState { ClearedClaims = clearedVillageClaims.ToList() });
+		sapi.WorldManager.SaveGame.StoreData(BackfilledClaimsKey,
+			new VillageClaimState { ClaimedFootprints = backfilledVillageClaims.ToList() });
 
 		foreach (Village value in Villages.Values)
 		{
@@ -1332,5 +1320,5 @@ public class VillageManager : ModSystem
 [ProtoContract]
 internal class VillageClaimState
 {
-	[ProtoMember(1)] public List<long> ClearedClaims { get; set; } = new List<long>();
+	[ProtoMember(1)] public List<long> ClaimedFootprints { get; set; } = new List<long>();
 }
