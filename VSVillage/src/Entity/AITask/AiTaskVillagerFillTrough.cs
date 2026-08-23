@@ -271,18 +271,10 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 
 	private bool isValidTrough(IPointOfInterest poi)
 	{
-		if (!(poi is BlockEntityTrough blockEntityTrough) || IsTroughOnCooldown(blockEntityTrough.Pos))
-		{
-			return false;
-		}
-		ItemSlot itemSlot = blockEntityTrough.Inventory[0];
-		if (itemSlot == null || itemSlot.Empty)
-		{
-			return true;
-		}
-		int stackSize = itemSlot.StackSize;
-		int maxStackSize = itemSlot.Itemstack.Collectible.MaxStackSize;
-		return stackSize < maxStackSize;
+		// IsFull is the trough's own capacity rule (QuantityPerFillLevel x MaxFillLevels), and is false when empty.
+		return poi is BlockEntityTrough blockEntityTrough
+		    && !IsTroughOnCooldown(blockEntityTrough.Pos)
+		    && !blockEntityTrough.IsFull;
 	}
 
 	// === Claim helpers ===
