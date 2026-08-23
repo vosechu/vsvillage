@@ -11,6 +11,12 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 {
 	private BlockEntityTrough nearestTrough;
 
+	// The block this trip is walking to, and the one arrival is measured against.
+	private BlockPos interactPos;
+
+	// Set when this trip is the fetch leg (walk to the chest); null when it's the fill leg (walk to the trough).
+	private BlockEntityGenericContainer feedChest;
+
 	private BlockPos lastTroughPos;
 
 	private Dictionary<BlockPos, long> recentlyFilledTroughs;
@@ -52,6 +58,7 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		Vec3d myPos = entity.Pos.XYZ;
 		BlockPos skipPos = lastTroughPos;
 		nearestTrough = null;
+		interactPos = null;
 
 		// Match BOTH BlockEntityTrough (large trough) and BlockEntityTroughMiniBowl
 		// (small trough) - they share no common base class beyond IPointOfInterest, so
@@ -89,7 +96,54 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		lastTroughPos = nearestTrough.Pos.Copy();
 		ClaimTrough(lastTroughPos);
 
-		return GetTroughApproachPos(nearestTrough);
+		// Already carrying feed the trough accepts? Go fill it. Otherwise fetch a load
+		// from the chest by the workstation first - feed is never conjured out of thin air.
+		feedChest = null;
+		if (FindFeedSlot(VillagerInventory(), nearestTrough) != null)
+		{
+			interactPos = nearestTrough.Pos;
+			return GetApproachPos(interactPos);
+		}
+
+		BlockPos workstation = entity.GetBehavior<EntityBehaviorVillager>()?.Workstation;
+		feedChest = workstation == null ? null : FindNearbyBlockEntity<BlockEntityGenericContainer>(workstation, 4);
+		if (feedChest == null || FindFeedSlot(feedChest.Inventory, nearestTrough) == null)
+		{
+			// No chest, or nothing in it this trough eats. The trough stays empty.
+			return null;
+		}
+		interactPos = feedChest.Pos;
+		return GetApproachPos(interactPos);
+	}
+
+	// The vanilla 6-slot villager inventory (behavior "villagerinventory" in villager.json).
+	// Carries the feed from chest to trough - persisted, synced and dropped on death by the engine.
+	private InventoryBase VillagerInventory()
+	{
+		return entity.GetBehavior<EntityBehaviorVillagerInv>()?.Inventory;
+	}
+
+	// First slot holding at least one full portion of something this trough accepts.
+	private ItemSlot FindFeedSlot(InventoryBase inventory, BlockEntityTrough trough)
+	{
+		if (inventory == null) return null;
+		foreach (ItemSlot slot in inventory)
+		{
+			if (slot.Empty) continue;
+			ContentConfig config = ItemSlotTrough.getContentConfig(entity.Api.World, trough.contentConfigs, slot);
+			if (config != null && slot.StackSize >= config.QuantityPerFillLevel) return slot;
+		}
+		return null;
+	}
+
+	private void TakeFeedFromChest()
+	{
+		ItemSlot source = FindFeedSlot(feedChest.Inventory, nearestTrough);
+		ContentConfig config = source == null ? null : ItemSlotTrough.getContentConfig(entity.Api.World, nearestTrough.contentConfigs, source);
+		ItemSlot target = config == null ? null : VillagerInventory()?.GetBestSuitedSlot(source).slot;
+		if (target == null) return;
+		source.TryPutInto(entity.World, target, config.QuantityPerFillLevel);
+		feedChest.MarkDirty(true);
 	}
 
 	// Returns true for any block entity that represents a creature trough,
@@ -108,10 +162,10 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		return (poi as BlockEntity)?.Pos;
 	}
 
-	private Vec3d GetTroughApproachPos(BlockEntityTrough trough)
+	// Nearest tile beside the given block that the villager can stand on.
+	private Vec3d GetApproachPos(BlockPos troughPos)
 	{
 		IBlockAccessor ba = entity.World.BlockAccessor;
-		BlockPos troughPos = trough.Pos;
 		Vec3d myPos = entity.Pos.XYZ;
 		Vec3d bestPos = null;
 		double bestDist = double.MaxValue;
@@ -153,12 +207,12 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 
 	protected override bool InteractionPossible()
 	{
-		if (nearestTrough == null)
+		if (interactPos == null)
 		{
 			return false;
 		}
-		Vec3d troughCenter = nearestTrough.Pos.ToVec3d().Add(0.5, 0.5, 0.5);
-		return entity.Pos.SquareDistanceTo(troughCenter) < 4.0;
+		Vec3d blockCenter = interactPos.ToVec3d().Add(0.5, 0.5, 0.5);
+		return entity.Pos.SquareDistanceTo(blockCenter) < 4.0;
 	}
 
 	private bool isEmptyTrough(IPointOfInterest poi)
@@ -176,13 +230,13 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		{
 			return;
 		}
-		Item item = (nearestTrough.Inventory[0].Empty ? entity.World.GetItem(new AssetLocation("grain-flax")) : nearestTrough.Inventory[0].Itemstack.Item);
-		if (item == null)
+		if (feedChest != null)
 		{
+			TakeFeedFromChest();
 			return;
 		}
-		ItemSlot itemSlot = new DummySlot(new ItemStack(item, 16));
-		ContentConfig contentConfig = ItemSlotTrough.getContentConfig(entity.Api.World, nearestTrough.contentConfigs, itemSlot);
+		ItemSlot itemSlot = FindFeedSlot(VillagerInventory(), nearestTrough);
+		ContentConfig contentConfig = itemSlot == null ? null : ItemSlotTrough.getContentConfig(entity.Api.World, nearestTrough.contentConfigs, itemSlot);
 		if (contentConfig != null)
 		{
 			entity.AnimManager.StartAnimation(new AnimationMetaData
@@ -212,12 +266,21 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 
 	public override void FinishExecute(bool cancelled)
 	{
+		bool fetchedFeed = feedChest != null && targetReached;
 		entity.AnimManager.StopAnimation("hoe-till");
 		// Release the claim if ApplyInteractionEffect was never called (e.g. task
 		// was cancelled before reaching the trough, or no contentConfig found).
 		// ReleaseClaim is safe to call redundantly - it's a no-op if already released.
 		ReleaseClaim(lastTroughPos);
 		base.FinishExecute(cancelled);
+
+		// Fetch leg done: clear the rotate-away hint and the cooldown so the fill leg
+		// follows straight away instead of after the usual 1-3 minutes.
+		if (fetchedFeed)
+		{
+			lastTroughPos = null;
+			cooldownUntilMs = entity.World.ElapsedMilliseconds;
+		}
 	}
 
 	private bool IsShepherd()

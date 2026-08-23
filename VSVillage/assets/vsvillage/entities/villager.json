@@ -925,7 +925,7 @@
 
 		},
 		"behaviors": [
-			{ "code": "villagerinventory" },
+			{ "code": "villagerinventory", "dropContentsOnDeath": true },
 		{
   "code": "nametag",
   "showtagonlywhentargeted": true,
