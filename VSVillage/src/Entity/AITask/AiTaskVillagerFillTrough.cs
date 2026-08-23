@@ -11,6 +11,9 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 {
 	private BlockEntityTrough nearestTrough;
 
+	// The block this trip is walking to, and the one arrival is measured against.
+	private BlockPos interactPos;
+
 	private BlockPos lastTroughPos;
 
 	private Dictionary<BlockPos, long> recentlyFilledTroughs;
@@ -52,6 +55,7 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		Vec3d myPos = entity.Pos.XYZ;
 		BlockPos skipPos = lastTroughPos;
 		nearestTrough = null;
+		interactPos = null;
 
 		// Match BOTH BlockEntityTrough (large trough) and BlockEntityTroughMiniBowl
 		// (small trough) - they share no common base class beyond IPointOfInterest, so
@@ -89,7 +93,8 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		lastTroughPos = nearestTrough.Pos.Copy();
 		ClaimTrough(lastTroughPos);
 
-		return GetTroughApproachPos(nearestTrough);
+		interactPos = nearestTrough.Pos;
+		return GetApproachPos(interactPos);
 	}
 
 	// Returns true for any block entity that represents a creature trough,
@@ -108,10 +113,10 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		return (poi as BlockEntity)?.Pos;
 	}
 
-	private Vec3d GetTroughApproachPos(BlockEntityTrough trough)
+	// Nearest tile beside the given block that the villager can stand on.
+	private Vec3d GetApproachPos(BlockPos troughPos)
 	{
 		IBlockAccessor ba = entity.World.BlockAccessor;
-		BlockPos troughPos = trough.Pos;
 		Vec3d myPos = entity.Pos.XYZ;
 		Vec3d bestPos = null;
 		double bestDist = double.MaxValue;
@@ -153,12 +158,12 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 
 	protected override bool InteractionPossible()
 	{
-		if (nearestTrough == null)
+		if (interactPos == null)
 		{
 			return false;
 		}
-		Vec3d troughCenter = nearestTrough.Pos.ToVec3d().Add(0.5, 0.5, 0.5);
-		return entity.Pos.SquareDistanceTo(troughCenter) < 4.0;
+		Vec3d blockCenter = interactPos.ToVec3d().Add(0.5, 0.5, 0.5);
+		return entity.Pos.SquareDistanceTo(blockCenter) < 4.0;
 	}
 
 	private bool isEmptyTrough(IPointOfInterest poi)
