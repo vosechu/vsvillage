@@ -70,6 +70,27 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
         return ws.ToVec3d().Add(0.5, 0.0, 0.5);
     }
 
+    // Block entity of type T at pos, else within +/-radius horizontally and +/-1 vertically. Null if none.
+    // NOT the nearest one: after pos itself, the scan runs -x to +x, then -y to +y, then -z to +z and
+    // returns the first hit, so with several in range it picks the west-most, then lowest, then north-most.
+    // Callers that care which one they get must rank the candidates themselves.
+    protected T FindNearbyBlockEntity<T>(BlockPos pos, int radius) where T : BlockEntity
+    {
+        T found = entity.World.BlockAccessor.GetBlockEntity<T>(pos);
+        if (found != null) return found;
+
+        BlockPos tmp = new BlockPos(pos.dimension);
+        for (int dx = -radius; dx <= radius; dx++)
+        for (int dy = -1; dy <= 1; dy++)
+        for (int dz = -radius; dz <= radius; dz++)
+        {
+            tmp.Set(pos.X + dx, pos.Y + dy, pos.Z + dz);
+            found = entity.World.BlockAccessor.GetBlockEntity<T>(tmp);
+            if (found != null) return found;
+        }
+        return null;
+    }
+
     protected BlockPos currentlyOpeningDoor;
 
     protected long doorOpenedTime;

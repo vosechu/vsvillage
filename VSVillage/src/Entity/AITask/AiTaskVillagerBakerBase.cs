@@ -31,23 +31,7 @@ public abstract class AiTaskVillagerBakerBase : AiTaskGotoAndInteract
         => entity?.Code?.Path?.EndsWith("-baker") == true;
 
     // Finds a BlockEntityOven at or within +/-4 blocks of the given position.
-    protected BlockEntityOven FindOven(BlockPos ws)
-    {
-        BlockEntityOven oven = entity.World.BlockAccessor.GetBlockEntity<BlockEntityOven>(ws);
-        if (oven != null) return oven;
-
-        BlockPos tmp = new BlockPos(ws.dimension);
-        for (int dx = -4; dx <= 4; dx++)
-        for (int dy = -1; dy <= 1; dy++)
-        for (int dz = -4; dz <= 4; dz++)
-        {
-            if (dx == 0 && dy == 0 && dz == 0) continue;
-            tmp.Set(ws.X + dx, ws.Y + dy, ws.Z + dz);
-            oven = entity.World.BlockAccessor.GetBlockEntity<BlockEntityOven>(tmp);
-            if (oven != null) return oven;
-        }
-        return null;
-    }
+    protected BlockEntityOven FindOven(BlockPos ws) => FindNearbyBlockEntity<BlockEntityOven>(ws, 4);
 
     // Returns true if any oven slot contains finished bread
     // (bread-* that is not -partbaked).
