@@ -271,18 +271,14 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 
 	private bool isValidTrough(IPointOfInterest poi)
 	{
-		if (!(poi is BlockEntityTrough blockEntityTrough) || IsTroughOnCooldown(blockEntityTrough.Pos))
-		{
-			return false;
-		}
-		ItemSlot itemSlot = blockEntityTrough.Inventory[0];
-		if (itemSlot == null || itemSlot.Empty)
-		{
-			return true;
-		}
-		int stackSize = itemSlot.StackSize;
-		int maxStackSize = itemSlot.Itemstack.Collectible.MaxStackSize;
-		return stackSize < maxStackSize;
+		// IsFull is the trough's own capacity rule (QuantityPerFillLevel x MaxFillLevels), and is false when empty.
+		// It reads contentConfigs first, which is an ObjectCache lookup ending in `as ContentConfig[]` and so is
+		// null for any trough block with no registered configs - IsFull would throw on it. Vanilla troughs are
+		// always registered; a modded one need not be, and this predicate runs over every POI in range.
+		return poi is BlockEntityTrough blockEntityTrough
+		    && !IsTroughOnCooldown(blockEntityTrough.Pos)
+		    && blockEntityTrough.contentConfigs != null
+		    && !blockEntityTrough.IsFull;
 	}
 
 	// === Claim helpers ===
