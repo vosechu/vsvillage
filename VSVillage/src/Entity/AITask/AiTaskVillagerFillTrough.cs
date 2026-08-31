@@ -198,6 +198,7 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		if (moved)
 		{
 			feedChest.MarkDirty(true);
+			entity.GetBehavior<EntityBehaviorVillager>()?.SyncInventory();
 		}
 	}
 
@@ -253,6 +254,7 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		if (wanted <= 0) return false;
 		if (PutInto(source, target, wanted) <= 0) return false;
 		feedChest.MarkDirty(true);
+		entity.GetBehavior<EntityBehaviorVillager>()?.SyncInventory();
 		return true;
 	}
 
@@ -469,6 +471,7 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		{
 			// Only mark filled and show particles when food was actually placed.
 			nearestTrough.Inventory[0].MarkDirty();
+			entity.GetBehavior<EntityBehaviorVillager>()?.SyncInventory();
 			MarkTroughFilled(nearestTrough.Pos);
 			SimpleParticleProperties simpleParticleProperties = new SimpleParticleProperties(10f, 15f, ColorUtil.ToRgba(255, 255, 233, 83), nearestTrough.Position.AddCopy(-0.4, 0.8, -0.4), nearestTrough.Position.AddCopy(-0.6, 0.8, -0.6), new Vec3f(-0.25f, 0f, -0.25f), new Vec3f(0.25f, 0f, 0.25f), 2f, 1f, 0.2f);
 			simpleParticleProperties.MinPos = nearestTrough.Position.AddCopy(0.5, 1.0, 0.5);

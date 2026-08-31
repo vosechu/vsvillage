@@ -199,6 +199,7 @@
     "guardpost-day-watch": "Day watch: {0}.",
     "guardpost-night-watch": "Night watch: {0}.",
     "guardpost-duty": "Stands the {0} at {1}.",
+    "villager-carrying": "Carrying: {0}",
     "guardpost-requires-soldier": "Only soldiers and archers can stand watch at a guard post.",
     "assign-farmland-count": "Farmland managed: {0} blocks",
     "assign-crops-list": "Crops: {0}",
