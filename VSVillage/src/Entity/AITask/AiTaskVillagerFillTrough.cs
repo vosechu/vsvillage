@@ -106,8 +106,8 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		tookFeed = false;
 		if (FindFeedSlot(VillagerInventory(), nearestTrough) != null)
 		{
-			interactPos = nearestTrough.Pos;
-			return GetApproachPos(interactPos);
+			interactPos = nearestTrough.Pos.Copy();
+			return GetStandingPosBeside(interactPos);
 		}
 
 		BlockPos workstation = entity.GetBehavior<EntityBehaviorVillager>()?.Workstation;
@@ -121,8 +121,8 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 			// No chest, or nothing in it this trough eats. The trough stays empty.
 			return null;
 		}
-		interactPos = feedChest.Pos;
-		return GetApproachPos(interactPos);
+		interactPos = feedChest.Pos.Copy();
+		return GetStandingPosBeside(interactPos);
 	}
 
 	// The vanilla 6-slot villager inventory (behavior "villagerinventory" in villager.json).
@@ -175,7 +175,7 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 	}
 
 	// Nearest tile beside the given block that the villager can stand on.
-	private Vec3d GetApproachPos(BlockPos troughPos)
+	private Vec3d GetStandingPosBeside(BlockPos blockPos)
 	{
 		IBlockAccessor ba = entity.World.BlockAccessor;
 		Vec3d myPos = entity.Pos.XYZ;
@@ -183,7 +183,7 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		double bestDist = double.MaxValue;
 		foreach (BlockFacing facing in BlockFacing.HORIZONTALS)
 		{
-			BlockPos neighborPos = troughPos.AddCopy(facing.Normali.X, 0, facing.Normali.Z);
+			BlockPos neighborPos = blockPos.AddCopy(facing.Normali.X, 0, facing.Normali.Z);
 			Block neighborBlock = ba.GetBlock(neighborPos);
 			if (neighborBlock.Code == null) continue;
 			string blockPath = neighborBlock.Code.Path;
@@ -213,7 +213,7 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 				}
 			}
 		}
-		// Return null rather than navigating into the solid trough block.
+		// Return null rather than navigating into the solid block itself.
 		return bestPos;
 	}
 
