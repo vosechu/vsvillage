@@ -24,6 +24,10 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 
 	private bool tookFeed;
 
+	// Third leg, checked before feedChest because the return leg also has a chest set. Put back
+	// what no trough wants instead of holding it until one drains.
+	private bool returningFeed;
+
 	private BlockPos lastTroughPos;
 
 	private Dictionary<BlockPos, long> recentlyFilledTroughs;
@@ -66,6 +70,11 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		BlockPos skipPos = lastTroughPos;
 		nearestTrough = null;
 		interactPos = null;
+		// Cleared here rather than after the trough search, so the leg that runs when no trough
+		// wants feed cannot inherit last trip's chest.
+		feedChest = null;
+		tookFeed = false;
+		returningFeed = false;
 
 		// Match BOTH BlockEntityTrough (large trough) and BlockEntityTroughMiniBowl
 		// (small trough) - they share no common base class beyond IPointOfInterest, so
@@ -96,27 +105,20 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		}
 		if (nearestTrough == null)
 		{
-			return null;
+			return GetReturnFeedPos();
 		}
 
 		// Claim this trough so other shepherds pick a different one.
 		lastTroughPos = nearestTrough.Pos.Copy();
 		ClaimTrough(lastTroughPos);
 
-		feedChest = null;
-		tookFeed = false;
 		if (FindFeedSlot(VillagerCarrySlots(), nearestTrough) != null)
 		{
 			interactPos = nearestTrough.Pos.Copy();
 			return GetStandingPosBeside(interactPos);
 		}
 
-		BlockPos workstation = entity.GetBehavior<EntityBehaviorVillager>()?.Workstation;
-		// Must stay the Typed container. Every vanilla chest, basket and storage vessel declares
-		// BlockEntityGenericTypedContainer and nothing declares its sibling BlockEntityGenericContainer,
-		// so GetBlockEntity<T> is `as T` and yields null for the plain one. Don't widen to their shared
-		// base OpenableContainer (firepits, querns) or to Container (troughs); the shepherd raids those.
-		feedChest = workstation == null ? null : FindNearbyBlockEntity<BlockEntityGenericTypedContainer>(workstation, 4);
+		feedChest = FindFeedChest();
 		if (feedChest == null || FindFeedSlot(feedChest.Inventory, nearestTrough) == null)
 		{
 			// Leave the trough empty. Never fall back to spawning feed from a DummySlot here:
@@ -125,6 +127,60 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		}
 		interactPos = feedChest.Pos.Copy();
 		return GetStandingPosBeside(interactPos);
+	}
+
+	// Must stay the Typed container. Every vanilla chest, basket and storage vessel declares
+	// BlockEntityGenericTypedContainer and nothing declares its sibling BlockEntityGenericContainer,
+	// so GetBlockEntity<T> is `as T` and yields null for the plain one. Don't widen to their shared
+	// base OpenableContainer (firepits, querns) or to Container (troughs); the shepherd raids those.
+	private BlockEntityGenericTypedContainer FindFeedChest()
+	{
+		BlockPos workstation = entity.GetBehavior<EntityBehaviorVillager>()?.Workstation;
+		return workstation == null ? null : FindNearbyBlockEntity<BlockEntityGenericTypedContainer>(workstation, 4);
+	}
+
+	// The leg that runs when no trough wants feed. Null unless something is actually being carried
+	// and there is a chest to put it in, so a shepherd with empty hands and full troughs has no
+	// task at all rather than a pointless walk.
+	private Vec3d GetReturnFeedPos()
+	{
+		if (!IsCarryingAnything()) return null;
+		feedChest = FindFeedChest();
+		if (feedChest == null) return null;
+		returningFeed = true;
+		interactPos = feedChest.Pos.Copy();
+		return GetStandingPosBeside(interactPos);
+	}
+
+	private bool IsCarryingAnything()
+	{
+		foreach (ItemSlot slot in VillagerCarrySlots())
+		{
+			if (!slot.Empty) return true;
+		}
+		return false;
+	}
+
+	// Empties the carry slots back into the chest. Everything in them, not just feed: this task is
+	// the only thing that puts anything there today. If villagers start carrying something else,
+	// this needs a filter or it will post their belongings into the nearest chest.
+	private void ReturnFeedToChest()
+	{
+		bool moved = false;
+		foreach (ItemSlot slot in VillagerCarrySlots())
+		{
+			if (slot.Empty) continue;
+			// GetBestSuitedSlot is right here and wrong for the villager: a chest has no hand slots
+			// to overwrite, so ranking every slot is exactly what we want.
+			ItemSlot target = feedChest.Inventory.GetBestSuitedSlot(slot)?.slot;
+			if (target == null) continue;
+			if (slot.TryPutInto(entity.World, target, slot.StackSize) > 0) moved = true;
+		}
+		if (moved)
+		{
+			feedChest.MarkDirty(true);
+			entity.GetBehavior<EntityBehaviorVillager>()?.SyncInventory();
+		}
 	}
 
 	// Takes slots rather than an inventory so the same scan serves the chest, where every slot is
@@ -284,7 +340,18 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 
 	protected override void ApplyInteractionEffect()
 	{
-		if (!IsShepherd() || nearestTrough == null)
+		if (!IsShepherd())
+		{
+			return;
+		}
+		// Before the nearestTrough guard: the return leg runs precisely because no trough was
+		// found, so testing that first would drop the feed off nowhere and keep it forever.
+		if (returningFeed)
+		{
+			ReturnFeedToChest();
+			return;
+		}
+		if (nearestTrough == null)
 		{
 			return;
 		}
