@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Vintagestory.API.Common;
+using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
@@ -103,7 +104,7 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 
 		feedChest = null;
 		tookFeed = false;
-		if (FindFeedSlot(VillagerInventory(), nearestTrough) != null)
+		if (FindFeedSlot(VillagerCarrySlots(), nearestTrough) != null)
 		{
 			interactPos = nearestTrough.Pos.Copy();
 			return GetStandingPosBeside(interactPos);
@@ -125,19 +126,14 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		return GetStandingPosBeside(interactPos);
 	}
 
-	// Null unless villager.json still lists the "villagerinventory" behavior. Drop it there and
-	// the shepherd stops carrying feed with no error, because every caller here null-checks.
-	private InventoryBase VillagerInventory()
-	{
-		return entity.GetBehavior<EntityBehaviorVillagerInv>()?.Inventory;
-	}
-
+	// Takes slots rather than an inventory so the same scan serves the chest, where every slot is
+	// fair game, and the villager, where only the carry slots are.
 	// Requires a whole QuantityPerFillLevel in one slot. A partial stack is not a usable portion,
 	// and accepting one would let the fill leg take feed it can't actually place.
-	private ItemSlot FindFeedSlot(InventoryBase inventory, BlockEntityTrough trough)
+	private ItemSlot FindFeedSlot(IEnumerable<ItemSlot> slots, BlockEntityTrough trough)
 	{
-		if (inventory == null) return null;
-		foreach (ItemSlot slot in inventory)
+		if (slots == null) return null;
+		foreach (ItemSlot slot in slots)
 		{
 			if (slot.Empty) continue;
 			ContentConfig config = ItemSlotTrough.getContentConfig(entity.Api.World, trough.contentConfigs, slot);
@@ -153,11 +149,32 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 	{
 		ItemSlot source = FindFeedSlot(feedChest.Inventory, nearestTrough);
 		ContentConfig config = source == null ? null : ItemSlotTrough.getContentConfig(entity.Api.World, nearestTrough.contentConfigs, source);
-		ItemSlot target = config == null ? null : VillagerInventory()?.GetBestSuitedSlot(source).slot;
+		ItemSlot target = config == null ? null : FindCarryTarget(source);
 		if (target == null) return false;
 		if (source.TryPutInto(entity.World, target, config.QuantityPerFillLevel) <= 0) return false;
 		feedChest.MarkDirty(true);
 		return true;
+	}
+
+	// Deliberately not InventoryBase.GetBestSuitedSlot: that ranks every slot, and slots 0 and 1
+	// are the villager's hands, so it will happily put grain where a soldier's spear goes.
+	// Prefers a stack already holding this feed so a second trip tops it up instead of burning
+	// a second slot.
+	private ItemSlot FindCarryTarget(ItemSlot source)
+	{
+		ItemSlot firstEmpty = null;
+		foreach (ItemSlot slot in VillagerCarrySlots())
+		{
+			if (slot.Empty)
+			{
+				firstEmpty ??= slot;
+			}
+			else if (slot.Itemstack.Equals(entity.World, source.Itemstack, GlobalConstants.IgnoredStackAttributes))
+			{
+				return slot;
+			}
+		}
+		return firstEmpty;
 	}
 
 	// Returns true for any block entity that represents a creature trough,
@@ -249,7 +266,7 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 			tookFeed = TakeFeedFromChest();
 			return;
 		}
-		ItemSlot itemSlot = FindFeedSlot(VillagerInventory(), nearestTrough);
+		ItemSlot itemSlot = FindFeedSlot(VillagerCarrySlots(), nearestTrough);
 		ContentConfig contentConfig = itemSlot == null ? null : ItemSlotTrough.getContentConfig(entity.Api.World, nearestTrough.contentConfigs, itemSlot);
 		if (contentConfig != null)
 		{
