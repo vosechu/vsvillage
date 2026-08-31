@@ -11,14 +11,15 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 {
 	private BlockEntityTrough nearestTrough;
 
-	// The block this trip is walking to, and the one arrival is measured against.
+	// Every path that returns a target pos must set this. InteractionPossible measures arrival
+	// against it, so a path that leaves it stale reports "arrived" at the previous trip's block.
 	private BlockPos interactPos;
 
-	// Set when this trip is the fetch leg (walk to the chest); null when it's the fill leg (walk to the trough).
+	// Doubles as the leg discriminator: ApplyInteractionEffect takes feed while this is set and
+	// fills the trough while it isn't. GetTargetPos must clear it on every call, or a fill leg
+	// runs the fetch branch against last trip's chest.
 	private BlockEntityGenericTypedContainer feedChest;
 
-	// True only once feed has actually moved chest -> villager on this trip. Arriving at the chest is
-	// not enough: the take can find nothing to put the feed into and quietly do nothing.
 	private bool tookFeed;
 
 	private BlockPos lastTroughPos;
@@ -100,8 +101,6 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		lastTroughPos = nearestTrough.Pos.Copy();
 		ClaimTrough(lastTroughPos);
 
-		// Already carrying feed the trough accepts? Go fill it. Otherwise fetch a load
-		// from the chest by the workstation first - feed is never conjured out of thin air.
 		feedChest = null;
 		tookFeed = false;
 		if (FindFeedSlot(VillagerInventory(), nearestTrough) != null)
@@ -111,28 +110,30 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		}
 
 		BlockPos workstation = entity.GetBehavior<EntityBehaviorVillager>()?.Workstation;
-		// GenericTypedContainer, not GenericContainer: they are siblings under BlockEntityOpenableContainer,
-		// and every vanilla chest, basket and storage vessel is the Typed one - nothing ships as the plain
-		// one, so GetBlockEntity<BlockEntityGenericContainer> always returned null. Don't widen this to
-		// OpenableContainer (firepits, querns) or Container (troughs) - the shepherd would raid those too.
+		// Must stay the Typed container. Every vanilla chest, basket and storage vessel declares
+		// BlockEntityGenericTypedContainer and nothing declares its sibling BlockEntityGenericContainer,
+		// so GetBlockEntity<T> is `as T` and yields null for the plain one. Don't widen to their shared
+		// base OpenableContainer (firepits, querns) or to Container (troughs); the shepherd raids those.
 		feedChest = workstation == null ? null : FindNearbyBlockEntity<BlockEntityGenericTypedContainer>(workstation, 4);
 		if (feedChest == null || FindFeedSlot(feedChest.Inventory, nearestTrough) == null)
 		{
-			// No chest, or nothing in it this trough eats. The trough stays empty.
+			// Leave the trough empty. Never fall back to spawning feed from a DummySlot here:
+			// a pen that feeds itself with nothing in a chest is the bug this fetch leg exists to fix.
 			return null;
 		}
 		interactPos = feedChest.Pos.Copy();
 		return GetStandingPosBeside(interactPos);
 	}
 
-	// The vanilla 6-slot villager inventory (behavior "villagerinventory" in villager.json).
-	// Carries the feed from chest to trough - persisted, synced and dropped on death by the engine.
+	// Null unless villager.json still lists the "villagerinventory" behavior. Drop it there and
+	// the shepherd stops carrying feed with no error, because every caller here null-checks.
 	private InventoryBase VillagerInventory()
 	{
 		return entity.GetBehavior<EntityBehaviorVillagerInv>()?.Inventory;
 	}
 
-	// First slot holding at least one full portion of something this trough accepts.
+	// Requires a whole QuantityPerFillLevel in one slot. A partial stack is not a usable portion,
+	// and accepting one would let the fill leg take feed it can't actually place.
 	private ItemSlot FindFeedSlot(InventoryBase inventory, BlockEntityTrough trough)
 	{
 		if (inventory == null) return null;
@@ -145,8 +146,9 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		return null;
 	}
 
-	// True if feed actually moved. False means the trip was wasted, and the caller must NOT
-	// clear the cooldown - otherwise the shepherd re-targets this same chest ~2s later, forever.
+	// True only if feed actually moved. Arriving at the chest is not enough, because the take can
+	// find nothing to put the feed into and quietly do nothing. On false the caller must NOT clear
+	// the cooldown, or the shepherd re-targets this same chest every targetSearchIntervalMs forever.
 	private bool TakeFeedFromChest()
 	{
 		ItemSlot source = FindFeedSlot(feedChest.Inventory, nearestTrough);
@@ -174,7 +176,6 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		return (poi as BlockEntity)?.Pos;
 	}
 
-	// Nearest tile beside the given block that the villager can stand on.
 	private Vec3d GetStandingPosBeside(BlockPos blockPos)
 	{
 		IBlockAccessor ba = entity.World.BlockAccessor;
@@ -213,7 +214,8 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 				}
 			}
 		}
-		// Return null rather than navigating into the solid block itself.
+		// Null when all four sides are blocked. Don't "fix" that by returning blockPos:
+		// it is the trough or chest itself, and the villager would path into a solid block.
 		return bestPos;
 	}
 
@@ -285,8 +287,9 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		ReleaseClaim(lastTroughPos);
 		base.FinishExecute(cancelled);
 
-		// Fetch leg done: clear the rotate-away hint and the cooldown so the fill leg
-		// follows straight away instead of after the usual 1-3 minutes.
+		// Fetch leg done. Both clears are load-bearing: lastTroughPos would rotate the shepherd
+		// away from the trough it just fetched for, and the cooldown would park the carried feed
+		// in the inventory until the normal task interval elapsed.
 		if (tookFeed)
 		{
 			lastTroughPos = null;
