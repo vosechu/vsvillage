@@ -134,9 +134,19 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 	private ItemSlot FindFeedSlot(IEnumerable<ItemSlot> slots, BlockEntityTrough trough)
 	{
 		if (slots == null) return null;
+		ItemSlot content = trough.Inventory[0];
 		foreach (ItemSlot slot in slots)
 		{
 			if (slot.Empty) continue;
+			// A part-full trough takes only what it already holds: ItemSlotTrough.troughable returns
+			// false for anything else, and TryPutInto then moves nothing. Skipping the mismatch here
+			// is what stops the task picking hay for a flax trough, walking over, placing zero, and
+			// doing it again every cooldown forever.
+			if (!content.Empty
+			    && !slot.Itemstack.Equals(entity.World, content.Itemstack, GlobalConstants.IgnoredStackAttributes))
+			{
+				continue;
+			}
 			ContentConfig config = ItemSlotTrough.getContentConfig(entity.Api.World, trough.contentConfigs, slot);
 			if (config != null && slot.StackSize >= config.QuantityPerFillLevel) return slot;
 		}
