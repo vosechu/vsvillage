@@ -385,5 +385,34 @@ public class EntityBehaviorVillager : EntityBehavior
                 Lang.Get("vsvillage:guardpost-shift-" + GuardShift),
                 ManagementGui.BlockPosToString(post, entity.Api)));
         }
+
+        string carried = DescribeCarriedItems();
+        if (carried != null)
+        {
+            infotext.AppendLine(Lang.Get("vsvillage:villager-carrying", carried));
+        }
+    }
+
+    // Null when nothing is carried, so the caller prints no line at all rather than an empty
+    // "Carrying:". Reads CarrySlots, so the hands are left out on purpose: a conjured spear is
+    // not something the villager picked up, and listing it would read as loot.
+    private string DescribeCarriedItems()
+    {
+        List<string> parts = null;
+        foreach (ItemSlot slot in CarrySlots())
+        {
+            if (slot.Empty) continue;
+            (parts ??= new List<string>()).Add($"{slot.Itemstack.StackSize}x {slot.Itemstack.GetName()}");
+        }
+        return parts == null ? null : string.Join(", ", parts);
+    }
+
+    // Push the carry slots to the client. They live in WatchedAttributes, but only ToBytes
+    // re-serializes them: a pickup mid-life marks the path dirty without refreshing what it
+    // holds, so the mouseover would keep showing the previous contents. Call this after
+    // changing what a villager carries, or the readout quietly lies.
+    public void SyncInventory()
+    {
+        entity.GetBehavior<EntityBehaviorVillagerInv>()?.storeInv();
     }
 }
