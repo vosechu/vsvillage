@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Vintagestory.API.Common;
@@ -142,6 +143,15 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		return null;
 	}
 
+	// How much more feed the trough will hold: its own capacity rule, QuantityPerFillLevel times
+	// MaxFillLevels, minus what is in it now. Nothing else clamps a transfer to this. TryPutInto
+	// stops at the item's max stack size, and the trough's slot only refuses feed once it is
+	// already at capacity, so handing it more than this figure overfills the trough.
+	private static int RemainingCapacity(BlockEntityTrough trough, ContentConfig config)
+	{
+		return config.QuantityPerFillLevel * config.MaxFillLevels - trough.Inventory[0].StackSize;
+	}
+
 	// True only if feed actually moved. Arriving at the chest is not enough, because the take can
 	// find nothing to put the feed into and quietly do nothing. On false the caller must NOT clear
 	// the cooldown, or the shepherd re-targets this same chest every targetSearchIntervalMs forever.
@@ -151,7 +161,13 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 		ContentConfig config = source == null ? null : ItemSlotTrough.getContentConfig(entity.Api.World, nearestTrough.contentConfigs, source);
 		ItemSlot target = config == null ? null : FindCarryTarget(source);
 		if (target == null) return false;
-		if (source.TryPutInto(entity.World, target, config.QuantityPerFillLevel) <= 0) return false;
+		// Fetch what the trough is short, not one fill level. One level per round trip means a
+		// shepherd walks the chest-to-trough leg eight times to fill an empty large trough.
+		// Subtract what the target slot already holds, which is feed from an earlier trip that
+		// was too small to be worth a fill leg of its own.
+		int wanted = RemainingCapacity(nearestTrough, config) - target.StackSize;
+		if (wanted <= 0) return false;
+		if (source.TryPutInto(entity.World, target, wanted) <= 0) return false;
 		feedChest.MarkDirty(true);
 		return true;
 	}
@@ -350,7 +366,10 @@ public class AiTaskVillagerFillTrough : AiTaskGotoAndInteract
 	{
 		if (nearestTrough == null) return;
 
-		int transferred = itemSlot.TryPutInto(entity.World, nearestTrough.Inventory[0], contentConfig.QuantityPerFillLevel);
+		// Empty the carried feed into the trough up to its capacity, rather than one fill level and
+		// then walking away with the rest still in hand.
+		int quantity = Math.Min(itemSlot.StackSize, RemainingCapacity(nearestTrough, contentConfig));
+		int transferred = quantity <= 0 ? 0 : itemSlot.TryPutInto(entity.World, nearestTrough.Inventory[0], quantity);
 		if (transferred > 0)
 		{
 			// Only mark filled and show particles when food was actually placed.
