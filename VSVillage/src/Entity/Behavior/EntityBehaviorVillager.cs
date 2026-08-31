@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -64,6 +65,30 @@ public class EntityBehaviorVillager : EntityBehavior
                 entity.WatchedAttributes.RemoveAttribute("bed");
             }
             entity.WatchedAttributes.MarkPathDirty("bed");
+        }
+    }
+
+    // Slots 0 and 1 of the villagerinv are the villager's hands, not free space:
+    // EntityDressedHumanoid maps RightHandItemSlot to Inventory[0] and LeftHandItemSlot to
+    // Inventory[1]. Anything a villager picks up goes at or after this index. Write below it
+    // and you overwrite whatever the villager is holding; drop below it and you hand the
+    // player equipment the villager was issued rather than items a player ever placed, which
+    // makes killing villagers a way to farm it. Checked against VSSurvivalMod: nothing in
+    // vanilla touches slots 2 and up today. A future game update could, and this reservation
+    // would break with no error, so re-check it after a game version bump.
+    public const int FirstCarrySlot = 2;
+
+    public InventoryBase Inventory => entity.GetBehavior<EntityBehaviorVillagerInv>()?.Inventory;
+
+    // Empty when villager.json stops listing the "villagerinventory" behavior. Callers must
+    // handle that rather than assume a villager can carry anything.
+    public IEnumerable<ItemSlot> CarrySlots()
+    {
+        InventoryBase inventory = Inventory;
+        if (inventory == null) yield break;
+        for (int i = FirstCarrySlot; i < inventory.Count; i++)
+        {
+            yield return inventory[i];
         }
     }
 
@@ -268,6 +293,20 @@ public class EntityBehaviorVillager : EntityBehavior
     public override void OnEntityDeath(DamageSource damageSourceForDeath)
     {
         Village?.RemoveVillager(entity.EntityId);
+        // Carry slots only, for as long as a villager's tools are conjured rather than made. The
+        // vanilla "dropContentsOnDeath" attribute is EntityBehaviorContainer.Inventory.DropAll,
+        // which empties the hands too, so today it turns a death into a source of items nobody
+        // crafted. Once the smith actually produces what villagers carry, dropping the hands
+        // becomes fair and this can widen to the whole inventory.
+        if (entity.World.Side == EnumAppSide.Server)
+        {
+            foreach (ItemSlot slot in CarrySlots())
+            {
+                if (slot.Empty) continue;
+                entity.World.SpawnItemEntity(slot.TakeOutWhole(), entity.Pos.XYZ);
+                slot.MarkDirty();
+            }
+        }
         // Schedule corpse despawn - 60 s gives the player time to see what happened.
         if (entity.Api is ICoreServerAPI sapi)
         {

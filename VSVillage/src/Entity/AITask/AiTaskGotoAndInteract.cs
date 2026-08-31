@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
@@ -68,6 +69,14 @@ public abstract class AiTaskGotoAndInteract : AiTaskBase
         double dz = entity.Pos.Z - (ws.Z + 0.5);
         if (dx * dx + dz * dz < 9.0) return null;
         return ws.ToVec3d().Add(0.5, 0.0, 0.5);
+    }
+
+    // The slots a villager may carry things in, skipping the two hand slots. Empty when
+    // villager.json stops listing the "villagerinventory" behavior, so a task that stops being
+    // able to carry anything simply does nothing rather than throwing.
+    protected IEnumerable<ItemSlot> VillagerCarrySlots()
+    {
+        return entity.GetBehavior<EntityBehaviorVillager>()?.CarrySlots() ?? Enumerable.Empty<ItemSlot>();
     }
 
     // Block entity of type T at pos, else within +/-radius horizontally and +/-1 vertically. Null if none.
